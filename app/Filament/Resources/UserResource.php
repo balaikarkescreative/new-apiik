@@ -1,0 +1,709 @@
+<?php
+
+namespace App\Filament\Resources;
+
+use App\Filament\Resources\UserResource\Pages;
+use App\Filament\Resources\UserResource\RelationManagers;
+use App\Models\User;
+use Filament\Forms;
+use Filament\Forms\Form;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Table;
+use Illuminate\Support\Facades\Hash;
+use Dotswan\MapPicker\Fields\Map;
+use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
+use Spatie\Permission\Models\Role;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\TernaryFilter;
+use Filament\Forms\Components\DatePicker;
+use Carbon\Carbon;
+use Filament\Support\Enums\MaxWidth;
+use Filament\Infolists\Infolist;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\Section;
+use Filament\Infolists\Components\Grid;
+
+class UserResource extends Resource
+{
+    protected static ?string $model = User::class;
+
+    protected static ?string $navigationLabel = 'RS/Klinik';
+
+    protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
+
+    protected static ?string $navigationGroup = 'Pengaturan User';
+
+    public static function canAccess(): bool
+    {
+        return auth()->check() && auth()->user()->hasRole('admin');
+    }
+
+    public static function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                Forms\Components\Section::make('Data Klinik/RS')
+                    ->schema([
+                        Forms\Components\Select::make('kategori')
+                            ->label('Kategori')
+                            ->options([
+                                'Klinik' => 'Klinik',
+                                'Rumah Sakit' => 'Rumah Sakit',
+                            ])
+                            ->required()
+                            ->columnSpan(1),
+
+                        Forms\Components\TextInput::make('name')
+                            ->label('Nama Klinik/RS')
+                            ->required()
+                            ->maxLength(255)
+                            ->columnSpan(1),
+
+                        PhoneInput::make('kontak_pj')
+                            ->label('No. Whatsapp')
+                            ->defaultCountry('ID')
+                            ->allowDropdown(false)
+                            ->required()
+                            ->columnSpan(2),
+
+                        Map::make('location')
+                            ->label('Lokasi Klinik/RS')
+                            ->defaultLocation(
+                                latitude: auth()->user()->latitude ?? -6.9039,
+                                longitude: auth()->user()->longitude ?? 107.6186,
+                            )
+                            ->clickable(true)
+                            ->showMyLocationButton(true)
+                            ->zoom(12)
+                            ->required()
+                            ->columnSpan(2),
+
+                        Forms\Components\Select::make('kotakab')
+                            ->label('Kota/Kabupaten')
+                            ->options(function () {
+                                return \App\Models\Kotakab::where('status', 1)
+                                    ->orderBy('nama_kotakab')
+                                    ->get()
+                                    ->pluck('nama_kotakab', 'nama_kotakab')
+                                    ->toArray();
+                            })
+                            ->required()
+                            ->searchable()
+                            ->preload()
+                            ->columnSpan(1),
+
+                        Forms\Components\TextInput::make('alamat')
+                            ->label('Alamat')
+                            ->required()
+                            ->maxLength(500)
+                            ->columnSpan(1),
+                    ])
+                    ->columns(2),
+
+                Forms\Components\Section::make('Data Izin Operasional')
+                    ->schema([
+                        Forms\Components\TextInput::make('nomor_surat_izin_operasional')
+                            ->label('Nomor Surat Izin Operasional')
+                            ->required()
+                            ->maxLength(255)
+                            ->columnSpan(1),
+
+                        Forms\Components\DatePicker::make('masa_berlaku_surat_izin_operasional')
+                            ->label('Masa Berlaku Surat Izin Operasional')
+                            ->required()
+                            ->native(false)
+                            ->displayFormat('d/m/Y')
+                            ->columnSpan(1),
+                    ])
+                    ->columns(2),
+
+                Forms\Components\Section::make('Persyaratan Vaksinasi')
+                    ->schema([
+                        Forms\Components\Radio::make('pertanyaan1')
+                            ->label('Dokter vaksinator sudah pelatihan vaksinologi?')
+                            ->options([
+                                'Ya' => 'Ya',
+                                'Tidak' => 'Tidak',
+                            ])
+                            ->required()
+                            ->inline()
+                            ->columnSpan(2),
+
+                        Forms\Components\Radio::make('pertanyaan2')
+                            ->label('Faskes sudah memiliki coldchain sesuai ketentuan?')
+                            ->options([
+                                'Ya' => 'Ya',
+                                'Tidak' => 'Tidak',
+                            ])
+                            ->required()
+                            ->inline()
+                            ->columnSpan(2),
+                    ])
+                    ->columns(2),
+
+                Forms\Components\Section::make('Data Akun (Opsional)')
+                    ->description('Biarkan kosong jika akan diisi otomatis saat verifikasi')
+                    ->schema([
+                        Forms\Components\TextInput::make('email')
+                            ->label('Email')
+                            ->email()
+                            ->unique(table: 'users', column: 'email', ignoreRecord: true)
+                            ->maxLength(255)
+                            ->columnSpan(1),
+
+                        Forms\Components\TextInput::make('username')
+                            ->label('Username')
+                            ->unique(table: 'users', column: 'username', ignoreRecord: true)
+                            ->maxLength(255)
+                            ->columnSpan(1),
+
+                        Forms\Components\TextInput::make('password')
+                            ->label('Password')
+                            ->password()
+                            ->minLength(8)
+                            ->dehydrated(fn($state) => filled($state))
+                            ->dehydrateStateUsing(fn($state) => Hash::make($state))
+                            ->columnSpan(2),
+
+                        Forms\Components\Select::make('verifikasi_akun')
+                            ->label('Status Verifikasi')
+                            ->options([
+                                'Belum Diverifikasi' => 'Belum Diverifikasi',
+                                'Diterima' => 'Diterima',
+                                'Ditolak' => 'Ditolak',
+                            ])
+                            ->default('Belum Diverifikasi')
+                            ->required()
+                            ->columnSpan(1),
+
+                        Forms\Components\Select::make('status_akun')
+                            ->label('Status Akun')
+                            ->options([
+                                'Tidak Aktif' => 'Tidak Aktif',
+                                'Aktif' => 'Aktif',
+                            ])
+                            ->default('Tidak Aktif')
+                            ->required()
+                            ->columnSpan(1),
+
+                        Forms\Components\Hidden::make('date_updated')
+                            ->default(now()),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+            ]);
+    }
+
+    protected static function generateUniqueUsername(string $name, $excludeUserId = null): string
+    {
+        $cleanName = preg_replace('/[^a-zA-Z0-9]/', '', strtolower($name));
+        $baseUsername = $cleanName . '_bkkbandung';
+
+        $query = User::where('username', $baseUsername);
+        if ($excludeUserId) {
+            $query->where('id', '!=', $excludeUserId);
+        }
+
+        if (!$query->exists()) {
+            return $baseUsername;
+        }
+
+        $counter = 1;
+        do {
+            $username = $baseUsername . $counter;
+            $query = User::where('username', $username);
+            if ($excludeUserId) {
+                $query->where('id', '!=', $excludeUserId);
+            }
+            $counter++;
+        } while ($query->exists());
+
+        return $username;
+    }
+
+    public static function table(Table $table): Table
+    {
+        return $table
+            ->modifyQueryUsing(fn(Builder $query) => $query->select('users.*')
+                ->whereHas('roles', function (Builder $query) {
+                    $query->where('name', 'user');
+                })
+                ->withoutGlobalScopes([SoftDeletingScope::class]))
+            ->columns([
+                // Compact Faskes Info
+                Tables\Columns\TextColumn::make('faskes_info')
+                    ->label('Klinik/RS')
+                    ->getStateUsing(function ($record) {
+                        $name = $record->name;
+                        $kategori = $record->kategori;
+                        $kotakab = $record->kotakab ?? 'N/A';
+                        return "{$name}\n{$kategori} • {$kotakab}";
+                    })
+                    ->html()
+                    ->formatStateUsing(function ($state) {
+                        $lines = explode("\n", $state);
+                        return '<div class="space-y-1">' .
+                            '<div class="font-medium text-sm">' . $lines[0] . '</div>' .
+                            '<div class="text-xs text-gray-500">' . $lines[1] . '</div>' .
+                            '</div>';
+                    })
+                    ->searchable(['name', 'kategori', 'kotakab'])
+                    ->sortable(['name']),
+
+                // Izin Operasional
+                Tables\Columns\TextColumn::make('izin_operasional')
+                    ->label('Izin Operasional')
+                    ->getStateUsing(function ($record) {
+                        $nomor = $record->nomor_surat_izin_operasional ?? 'N/A';
+                        $tanggal = $record->masa_berlaku_surat_izin_operasional
+                            ? Carbon::parse($record->masa_berlaku_surat_izin_operasional)->translatedFormat('d M Y')
+                            : 'N/A';
+                        return "{$nomor}\nBerlaku s/d {$tanggal}";
+                    })
+                    ->html()
+                    ->formatStateUsing(function ($state) {
+                        $lines = explode("\n", $state);
+                        return '<div class="space-y-1">' .
+                            '<div class="font-medium text-sm">' . $lines[0] . '</div>' .
+                            '<div class="text-xs text-gray-500">' . $lines[1] . '</div>' .
+                            '</div>';
+                    })
+                    ->searchable(['nomor_surat_izin_operasional'])
+                    ->sortable(['masa_berlaku_surat_izin_operasional']),
+
+                // Kontak
+                Tables\Columns\TextColumn::make('kontak_pj')
+                    ->label('Kontak')
+                    ->searchable()
+                    ->sortable(),
+
+                // Status Verifikasi & Akun
+                Tables\Columns\TextColumn::make('verifikasi_akun')
+                    ->label('Verifikasi')
+                    ->badge()
+                    ->getStateUsing(function ($record) {
+                        // Convert NULL to a default value at the data level
+                        return $record->verifikasi_akun ?? 'Belum Diverifikasi';
+                    })
+                    ->color(function ($state) {
+                        return match ($state) {
+                            'Diterima' => 'success',
+                            'Ditolak' => 'danger',
+                            'Belum Diverifikasi' => 'gray',
+                            default => 'gray',
+                        };
+                    })
+                    ->formatStateUsing(function ($state) {
+                        return match ($state) {
+                            'Belum Diverifikasi' => 'Belum',
+                            'Diterima' => 'Diterima',
+                            'Ditolak' => 'Ditolak',
+                            default => 'Belum',
+                        };
+                    })
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('status_akun')
+                    ->label('Status Akun')
+                    ->badge()
+                    ->getStateUsing(function ($record) {
+                        // Convert NULL to a default value at the data level
+                        return $record->status_akun ?? 'Tidak Aktif';
+                    })
+                    ->color(function ($state) {
+                        return match ($state) {
+                            'Aktif' => 'success',
+                            'Tidak Aktif' => 'warning',
+                            default => 'warning',
+                        };
+                    })
+                    ->formatStateUsing(function ($state) {
+                        return match ($state) {
+                            'Aktif' => 'Aktif',
+                            'Tidak Aktif' => 'Nonaktif',
+                            default => 'Nonaktif',
+                        };
+                    })
+                    ->sortable(),
+
+                // Persyaratan Vaksinasi
+                Tables\Columns\TextColumn::make('persyaratan')
+                    ->label('Persyaratan')
+                    ->getStateUsing(function ($record) {
+                        $p1 = $record->pertanyaan1 ?? 'N/A';
+                        $p2 = $record->pertanyaan2 ?? 'N/A';
+                        return "Pelatihan: {$p1}\nCold Chain: {$p2}";
+                    })
+                    ->html()
+                    ->formatStateUsing(function ($state) {
+                        $lines = explode("\n", $state);
+                        return '<div class="space-y-1">' .
+                            '<div class="text-xs">' . $lines[0] . '</div>' .
+                            '<div class="text-xs">' . $lines[1] . '</div>' .
+                            '</div>';
+                    })
+                    ->toggleable(),
+            ])
+            ->filters([
+                // Kategori Filter
+                SelectFilter::make('kategori')
+                    ->label('Kategori')
+                    ->options([
+                        'Klinik' => 'Klinik',
+                        'Rumah Sakit' => 'Rumah Sakit',
+                    ]),
+
+                // Kota/Kabupaten Filter
+                SelectFilter::make('kotakab')
+                    ->label('Kota/Kabupaten')
+                    ->searchable()
+                    ->options(function () {
+                        return User::whereHas('roles', fn($q) => $q->where('name', 'user'))
+                            ->whereNotNull('kotakab')
+                            ->distinct('kotakab')
+                            ->pluck('kotakab', 'kotakab')
+                            ->filter()
+                            ->sort()
+                            ->toArray();
+                    }),
+
+                // Status Verifikasi Filter
+                SelectFilter::make('verifikasi_akun')
+                    ->label('Status Verifikasi')
+                    ->options([
+                        'Belum Diverifikasi' => 'Belum Diverifikasi',
+                        'Diterima' => 'Diterima',
+                        'Ditolak' => 'Ditolak',
+                    ]),
+
+                // Status Akun Filter
+                SelectFilter::make('status_akun')
+                    ->label('Status Akun')
+                    ->options([
+                        'Aktif' => 'Aktif',
+                        'Tidak Aktif' => 'Tidak Aktif',
+                    ]),
+
+                // Persyaratan Filters
+                TernaryFilter::make('pertanyaan1')
+                    ->label('Pelatihan Vaksinologi')
+                    ->placeholder('Semua')
+                    ->trueLabel('Ya')
+                    ->falseLabel('Tidak')
+                    ->queries(
+                        true: fn (Builder $query) => $query->where('pertanyaan1', 'Ya'),
+                        false: fn (Builder $query) => $query->where('pertanyaan1', 'Tidak'),
+                    ),
+
+                TernaryFilter::make('pertanyaan2')
+                    ->label('Cold Chain')
+                    ->placeholder('Semua')
+                    ->trueLabel('Ya')
+                    ->falseLabel('Tidak')
+                    ->queries(
+                        true: fn (Builder $query) => $query->where('pertanyaan2', 'Ya'),
+                        false: fn (Builder $query) => $query->where('pertanyaan2', 'Tidak'),
+                    ),
+            ])
+            ->filtersLayout(Tables\Enums\FiltersLayout::AboveContent)
+            ->persistFiltersInSession()
+            ->defaultSort('date_updated', 'desc')
+            ->striped()
+            ->paginated([15, 30, 50])
+            ->actions([
+                Tables\Actions\ViewAction::make()
+                    ->label('Detail')
+                    ->icon('heroicon-o-eye')
+                    ->size('sm')
+                    ->color('info')
+                    ->modalHeading(fn (User $record): string => "Detail {$record->name}")
+                    ->modalWidth(MaxWidth::FiveExtraLarge)
+                    ->infolist([
+                        Section::make('Informasi Klinik/RS')
+                            ->schema([
+                                Grid::make(2)
+                                    ->schema([
+                                        TextEntry::make('name')
+                                            ->label('Nama Klinik/RS')
+                                            ->weight('bold')
+                                            ->color('primary'),
+
+                                        TextEntry::make('kategori')
+                                            ->label('Kategori')
+                                            ->badge()
+                                            ->color(fn (string $state): string => match ($state) {
+                                                'Klinik' => 'success',
+                                                'Rumah Sakit' => 'info',
+                                                default => 'gray',
+                                            }),
+
+                                        TextEntry::make('alamat')
+                                            ->label('Alamat')
+                                            ->columnSpanFull(),
+
+                                        TextEntry::make('kotakab')
+                                            ->label('Kota/Kabupaten')
+                                            ->icon('heroicon-o-map-pin'),
+
+                                        TextEntry::make('kontak_pj')
+                                            ->label('No. WhatsApp')
+                                            ->icon('heroicon-o-phone')
+                                            ->copyable()
+                                            ->copyMessage('Nomor telepon berhasil disalin')
+                                            ->formatStateUsing(fn (string $state): string =>
+                                                preg_replace('/(\d{2})(\d{4})(\d{4})(\d{2,4})/', '$1-$2-$3-$4', $state)
+                                            ),
+                                    ]),
+                            ])
+                            ->icon('heroicon-o-building-office')
+                            ->collapsible(),
+
+                        Section::make('Data Izin Operasional')
+                            ->schema([
+                                Grid::make(2)
+                                    ->schema([
+                                        TextEntry::make('nomor_surat_izin_operasional')
+                                            ->label('Nomor Surat Izin')
+                                            ->copyable()
+                                            ->copyMessage('Nomor surat berhasil disalin')
+                                            ->placeholder('Belum diisi'),
+
+                                        TextEntry::make('masa_berlaku_surat_izin_operasional')
+                                            ->label('Masa Berlaku')
+                                            ->date('d F Y')
+                                            ->placeholder('Belum diisi')
+                                            ->color(function ($state) {
+                                                if (!$state) return 'gray';
+                                                $now = now();
+                                                $expiry = \Carbon\Carbon::parse($state);
+                                                $daysDiff = $now->diffInDays($expiry, false);
+
+                                                if ($daysDiff < 0) return 'danger'; // Expired
+                                                if ($daysDiff <= 30) return 'warning'; // Expires soon
+                                                return 'success'; // Valid
+                                            })
+                                            ->formatStateUsing(function ($state) {
+                                                if (!$state) return 'Belum diisi';
+
+                                                $now = now();
+                                                $expiry = \Carbon\Carbon::parse($state);
+                                                $daysDiff = $now->diffInDays($expiry, false);
+                                                $formatted = $expiry->translatedFormat('d F Y');
+
+                                                if ($daysDiff < 0) {
+                                                    return $formatted . ' (KADALUARSA)';
+                                                } elseif ($daysDiff <= 30) {
+                                                    return $formatted . " (Expires in {$daysDiff} days)";
+                                                }
+                                                return $formatted;
+                                            }),
+                                    ]),
+                            ])
+                            ->icon('heroicon-o-document-text')
+                            ->collapsible(),
+
+                        Section::make('Persyaratan Vaksinasi')
+                            ->schema([
+                                Grid::make(2)
+                                    ->schema([
+                                        TextEntry::make('pertanyaan1')
+                                            ->label('Dokter vaksinator sudah pelatihan vaksinologi?')
+                                            ->badge()
+                                            ->color(fn (string $state): string => match ($state) {
+                                                'Ya' => 'success',
+                                                'Tidak' => 'danger',
+                                                default => 'gray',
+                                            })
+                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Belum dijawab'),
+
+                                        TextEntry::make('pertanyaan2')
+                                            ->label('Faskes sudah memiliki coldchain sesuai ketentuan?')
+                                            ->badge()
+                                            ->color(fn (string $state): string => match ($state) {
+                                                'Ya' => 'success',
+                                                'Tidak' => 'danger',
+                                                default => 'gray',
+                                            })
+                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Belum dijawab'),
+                                    ]),
+                            ])
+                            ->icon('heroicon-o-shield-check')
+                            ->collapsible(),
+
+                        Section::make('Status Akun')
+                            ->schema([
+                                Grid::make(3)
+                                    ->schema([
+                                        TextEntry::make('verifikasi_akun')
+                                            ->label('Status Verifikasi')
+                                            ->badge()
+                                            ->color(fn (?string $state): string => match ($state) {
+                                                'Diterima' => 'success',
+                                                'Ditolak' => 'danger',
+                                                'Belum Diverifikasi' => 'warning',
+                                                default => 'gray',
+                                            })
+                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Belum Diverifikasi'),
+
+                                        TextEntry::make('status_akun')
+                                            ->label('Status Akun')
+                                            ->badge()
+                                            ->color(fn (?string $state): string => match ($state) {
+                                                'Aktif' => 'success',
+                                                'Tidak Aktif' => 'danger',
+                                                default => 'gray',
+                                            })
+                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Tidak Aktif'),
+
+                                        TextEntry::make('date_updated')
+                                            ->label('Terakhir Diperbarui')
+                                            ->dateTime('d F Y, H:i')
+                                            ->placeholder('Belum pernah diperbarui'),
+                                    ]),
+                            ])
+                            ->icon('heroicon-o-user-circle')
+                            ->collapsible(),
+
+                        Section::make('Informasi Akun Login')
+                            ->schema([
+                                Grid::make(2)
+                                    ->schema([
+                                        TextEntry::make('username')
+                                            ->label('Username')
+                                            ->copyable()
+                                            ->copyMessage('Username berhasil disalin')
+                                            ->placeholder('Belum diset'),
+
+                                        TextEntry::make('email')
+                                            ->label('Email')
+                                            ->copyable()
+                                            ->copyMessage('Email berhasil disalin')
+                                            ->placeholder('Belum diset'),
+                                    ]),
+                            ])
+                            ->icon('heroicon-o-key')
+                            ->collapsible(),
+
+                        Section::make('Koordinat Lokasi')
+                            ->schema([
+                                Grid::make(2)
+                                    ->schema([
+                                        TextEntry::make('latitude')
+                                            ->label('Latitude')
+                                            ->copyable()
+                                            ->placeholder('Belum diset'),
+
+                                        TextEntry::make('longitude')
+                                            ->label('Longitude')
+                                            ->copyable()
+                                            ->placeholder('Belum diset'),
+                                    ]),
+                            ])
+                            ->icon('heroicon-o-map')
+                            ->collapsed()
+                            ->collapsible(),
+                    ]),
+
+                Tables\Actions\EditAction::make()
+                    ->size('sm'),
+
+                Tables\Actions\Action::make('toggleModal')
+                    ->label('Status')
+                    ->icon('heroicon-o-wrench-screwdriver')
+                    ->size('sm')
+                    ->form([
+                        Forms\Components\Toggle::make('toggleVerifikasi')
+                            ->label('Ubah Status Verifikasi Akun')
+                            ->default(function (User $record) {
+                                return $record->verifikasi_akun === 'Diterima';
+                            })
+                            ->reactive()
+                            ->afterStateUpdated(function (callable $set, $state, User $record) {
+                                if ($state) {
+                                    $record->verifikasi_akun = 'Diterima';
+                                    if (empty($record->username)) {
+                                        $record->username = static::generateUniqueUsername($record->name, $record->id);
+                                    }
+                                    if (empty($record->password)) {
+                                        $record->password = bcrypt('12345678');
+                                    }
+                                    $set('defaultUsername', $record->username);
+                                } else {
+                                    $record->verifikasi_akun = 'Ditolak';
+                                }
+                                $record->save();
+                            }),
+
+                        Forms\Components\Toggle::make('toggleStatus')
+                            ->label('Ubah Status Akun')
+                            ->default(function (User $record) {
+                                return $record->status_akun === 'Aktif';
+                            })
+                            ->live()
+                            ->afterStateUpdated(function (callable $set, $state, User $record) {
+                                $record->status_akun = $state ? 'Aktif' : 'Tidak Aktif';
+                                $record->save();
+                            })
+                            ->disabled(fn(User $record): bool => $record->verifikasi_akun !== 'Diterima'),
+
+                        Forms\Components\TextInput::make('defaultUsername')
+                            ->label('Username yang akan di-generate')
+                            ->default(function ($record) {
+                                if (!empty($record->username)) {
+                                    return $record->username;
+                                }
+                                return static::generateUniqueUsername($record->name, $record->id);
+                            })
+                            ->disabled()
+                            ->dehydrated(false),
+
+                        Forms\Components\TextInput::make('defaultPassword')
+                            ->label('Password Default')
+                            ->default('12345678')
+                            ->disabled()
+                            ->dehydrated(false),
+
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('reset')
+                                ->label('Reset Username & Password')
+                                ->requiresConfirmation()
+                                ->action(function (callable $set, User $record) {
+                                    $newUsername = static::generateUniqueUsername($record->name, $record->id);
+                                    $record->username = $newUsername;
+                                    $record->password = bcrypt('12345678');
+                                    $record->date_updated = now();
+                                    $record->save();
+                                    $set('defaultUsername', $newUsername);
+                                })
+                                ->color('secondary')
+                                ->icon('heroicon-o-arrow-path')
+                        ])
+                    ])
+                    ->modalHeading('Ubah Status Akun')
+                    ->modalSubmitAction(false),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                ]),
+            ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [];
+    }
+
+    public static function getPages(): array
+    {
+        return [
+            'index' => Pages\ListUsers::route('/'),
+            'create' => Pages\CreateUser::route('/create'),
+            'edit' => Pages\EditUser::route('/{record}/edit'),
+        ];
+    }
+}

@@ -1,0 +1,30 @@
+[
+{"type":"header","version":"5.2.2","comment":"Export to JSON plugin for PHPMyAdmin"},
+{"type":"database","name":"dto"},
+{"type":"table","name":"tbl_kotakab_jabar","database":"dto","data":
+[
+{"id":"1","nama_kotakab":"Kabupaten Bandung\r\n","status":"able"},
+{"id":"2","nama_kotakab":"Kabupaten Bandung Barat","status":"able"},
+{"id":"3","nama_kotakab":"Kabupaten Ciamis","status":"able"},
+{"id":"4","nama_kotakab":"Kabupaten Cianjur","status":"able"},
+{"id":"5","nama_kotakab":"Kabupaten Cirebon","status":"able"},
+{"id":"6","nama_kotakab":"Kabupaten Garut","status":"able"},
+{"id":"7","nama_kotakab":"Kabupaten Indramayu","status":"able"},
+{"id":"8","nama_kotakab":"Kabupaten Karawang","status":"able"},
+{"id":"9","nama_kotakab":"Kabupaten Kuningan","status":"able"},
+{"id":"10","nama_kotakab":"Kabupaten Majalengka","status":"able"},
+{"id":"11","nama_kotakab":"Kabupaten Pangandaran","status":"able"},
+{"id":"12","nama_kotakab":"Kabupaten Purwakarta","status":"able"},
+{"id":"13","nama_kotakab":"Kabupaten Subang","status":"able"},
+{"id":"14","nama_kotakab":"Kabupaten Sukabumi","status":"able"},
+{"id":"15","nama_kotakab":"Kabupaten Sumedang","status":"able"},
+{"id":"16","nama_kotakab":"Kabupaten Tasikmalaya","status":"able"},
+{"id":"17","nama_kotakab":"Kota Bandung","status":"able"},
+{"id":"18","nama_kotakab":"Kota Banjar","status":"able"},
+{"id":"21","nama_kotakab":"Kota Cimahi","status":"able"},
+{"id":"22","nama_kotakab":"Kota Cirebon","status":"able"},
+{"id":"23","nama_kotakab":"Kota Sukabumi","status":"able"},
+{"id":"24","nama_kotakab":"Kota Tasikmalaya","status":"able"}
+]
+}
+]
