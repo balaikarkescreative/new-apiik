@@ -12,13 +12,19 @@ use App\Models\Izin;
 use Filament\Models\Contracts\FilamentUser;
 
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles;
 
-    /**
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return true;
+    }
+        /**
      * The attributes that are mass assignable.
+     *
      *
      * @var list<string>
      */

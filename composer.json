@@ -13,6 +13,7 @@
         "filament/filament": "^3.3",
         "husam-tariq/filament-timepicker": "^3.0",
         "joaopaulolndev/filament-general-settings": "^1.0",
+        "joaopaulolndev/filament-pdf-viewer": "^1.0",
         "laravel/framework": "^12.0",
         "laravel/pulse": "^1.4",
         "laravel/tinker": "^2.10.1",
@@ -24,7 +25,7 @@
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.2",
         "laravel/pint": "^1.13",
-        "laravel/sail": "^1.41",
+        "laravel/sail": "^1.43",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
         "phpunit/phpunit": "^11.5.3"

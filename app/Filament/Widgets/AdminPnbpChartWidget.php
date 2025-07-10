@@ -33,17 +33,17 @@ class AdminPnbpChartWidget extends ChartWidget
         foreach ($years as $year) {
             $labels[] = (string) $year;
 
-            // ICV yang sudah mendapat file SBBK per tahun
-            $icvDenganSbbk = DB::table('tbl_icv')
+            // ICV yang sudah upload bukti bayar per tahun
+            $icvSudahUpload = DB::table('tbl_icv')
                 ->join('tbl_icv_alokasi', 'tbl_icv.id', '=', 'tbl_icv_alokasi.id_icv')
-                ->join('tbl_icv_sbbk', 'tbl_icv.id', '=', 'tbl_icv_sbbk.id_icv')
-                ->whereNotNull('tbl_icv_sbbk.file_sbbk')
-                ->where('tbl_icv_sbbk.file_sbbk', '!=', '')
+                ->join('tbl_icv_bukti_bayar', 'tbl_icv.id', '=', 'tbl_icv_bukti_bayar.id_icv')
+                ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+                ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
                 ->whereYear('tbl_icv.tanggal_pengajuan', $year)
                 ->sum('tbl_icv_alokasi.icv_disetujui');
 
-            // Hitung pendapatan PNBP (ICV dengan SBBK x tarif)
-            $pendapatan = $icvDenganSbbk * self::TARIF_ICV;
+            // Hitung pendapatan PNBP (ICV sudah upload bukti bayar x tarif)
+            $pendapatan = $icvSudahUpload * self::TARIF_ICV;
 
             $pendapatanData[] = $pendapatan / 1000000; // Konversi ke jutaan rupiah
         }
@@ -139,23 +139,23 @@ class AdminPnbpChartWidget extends ChartWidget
 
     public function getDescription(): ?string
     {
-        // Total pendapatan dari ICV yang sudah mendapat SBBK (sejak 2023)
-        $totalIcvSbbk = DB::table('tbl_icv')
+        // Total pendapatan dari ICV yang sudah upload bukti bayar (sejak 2023)
+        $totalIcvUploadBuktiBayar = DB::table('tbl_icv')
             ->join('tbl_icv_alokasi', 'tbl_icv.id', '=', 'tbl_icv_alokasi.id_icv')
-            ->join('tbl_icv_sbbk', 'tbl_icv.id', '=', 'tbl_icv_sbbk.id_icv')
-            ->whereNotNull('tbl_icv_sbbk.file_sbbk')
-            ->where('tbl_icv_sbbk.file_sbbk', '!=', '')
+            ->join('tbl_icv_bukti_bayar', 'tbl_icv.id', '=', 'tbl_icv_bukti_bayar.id_icv')
+            ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+            ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
             ->whereYear('tbl_icv.tanggal_pengajuan', '>=', 2023)
             ->sum('tbl_icv_alokasi.icv_disetujui');
 
-        $totalPendapatan = $totalIcvSbbk * self::TARIF_ICV;
+        $totalPendapatan = $totalIcvUploadBuktiBayar * self::TARIF_ICV;
 
         // Pendapatan tahun ini
         $icvTahunIni = DB::table('tbl_icv')
             ->join('tbl_icv_alokasi', 'tbl_icv.id', '=', 'tbl_icv_alokasi.id_icv')
-            ->join('tbl_icv_sbbk', 'tbl_icv.id', '=', 'tbl_icv_sbbk.id_icv')
-            ->whereNotNull('tbl_icv_sbbk.file_sbbk')
-            ->where('tbl_icv_sbbk.file_sbbk', '!=', '')
+            ->join('tbl_icv_bukti_bayar', 'tbl_icv.id', '=', 'tbl_icv_bukti_bayar.id_icv')
+            ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+            ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
             ->whereYear('tbl_icv.tanggal_pengajuan', now()->year)
             ->sum('tbl_icv_alokasi.icv_disetujui');
 

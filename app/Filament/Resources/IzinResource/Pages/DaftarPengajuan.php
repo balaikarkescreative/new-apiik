@@ -87,7 +87,7 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
             ->columns([
                 TextColumn::make('tanggal_pengajuan')
                     ->label('Tanggal Pengajuan')
-                    ->description(fn ($record) => $record->nomor_surat)
+                    ->description(fn($record) => $record->nomor_surat)
                     ->date('d F Y')
                     ->sortable()
                     ->searchable(),
@@ -99,6 +99,17 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                 TextColumn::make('progress_status')
                     ->label('Status Progress')
                     ->badge()
+                    ->suffix(function ($record) {
+                        // Jika ada tanggal_perbaikan dan (belum ada izinDokumen atau hasil terakhir = 2), tampilkan (Perbaikan)
+                        if ($record->tanggal_perbaikan) {
+                            if (
+                                !$record->izinDokumen
+                            ) {
+                                return ' (Perbaikan)';
+                            }
+                        }
+                        return '';
+                    })
                     ->getStateUsing(function ($record) {
                         // Cek apakah sudah ada PKS
                         if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
@@ -194,6 +205,7 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                     ->label('Filter Status')
                     ->options([
                         'menunggu_verifikasi' => 'Menunggu Verifikasi',
+                        'perbaikan' => 'Perbaikan', // Tambahkan opsi ini
                         'berkas_lengkap' => 'Berkas Lengkap',
                         'berkas_tidak_lengkap' => 'Berkas Tidak Lengkap',
                         'visitasi_dijadwalkan' => 'Visitasi Dijadwalkan',
@@ -207,6 +219,12 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
 
                         return match ($data['value']) {
                             'menunggu_verifikasi' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 0)),
+                            'perbaikan' => $query
+                                ->whereNotNull('tanggal_perbaikan')
+                                ->where(function ($q) {
+                                        $q->whereDoesntHave('izinDokumen')
+                                        ->orWhereHas('izinDokumen', fn($q2) => $q2->where('hasil', 2));
+                                    }),
                             'berkas_lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 1)),
                             'berkas_tidak_lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 2)),
                             'visitasi_dijadwalkan' => $query->whereHas('izinVisitasi', fn($q) => $q->whereNotNull('tanggal_visitasi')),
@@ -215,14 +233,13 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             default => $query,
                         };
                     }),
-
                 SelectFilter::make('kategori_izin')
                     ->label('Kategori Izin')
                     ->options([
                         'Izin Baru' => 'Izin Baru',
                         'Perpanjang Izin' => 'Perpanjang Izin',
                     ]),
-                ], FiltersLayout::AboveContent)
+            ], FiltersLayout::AboveContent)
             ->actions([
                 // Lihat Progress Action - Now as a separate button
                 Action::make('lihat_progress')
@@ -347,8 +364,25 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                         return $record->izinDokumen && $record->izinDokumen->hasil == 2;
                     })
                     ->action(function ($record) {
-                        return redirect()->to(IzinResource::getUrl('edit', ['record' => $record->id]));
+                        return redirect()->to(IzinResource::getUrl('edit', ['record' => $record->id, 'type' => 'perbaikan']));
                     }),
+
+                Action::make('riwayat_perbaikan')
+                    ->label('Riwayat Perbaikan')
+                    ->icon('heroicon-o-clock')
+                    ->color('secondary')
+                    ->visible(function ($record) {
+                        // Tampilkan jika ada riwayat perbaikan
+                        return !empty($record->riwayat_perbaikan);
+                    })
+                    ->infolist([
+                        InfoSection::make('')
+                            ->schema(function ($record) {
+                                return $this->getRiwayatPerbaikanSchema($record->riwayat_perbaikan ?? []);
+                            })
+                            ->columns(1),
+                    ])
+                    ->modalSubmitAction(false),
 
                 Action::make('lihat_dokumen')
                     ->label('Dokumen')
@@ -615,5 +649,18 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
             ->emptyStateDescription('Anda belum memiliki pengajuan izin. Mulai dengan membuat pengajuan izin baru.')
             ->emptyStateHeading('Belum Ada Pengajuan')
             ->defaultSort('tanggal_pengajuan', 'desc');
+    }
+
+    private function getRiwayatPerbaikanSchema(array $riwayat): array
+    {
+        error_log('Riwayat Perbaikan: ' . json_encode($riwayat));
+        $schema = [];
+        foreach ($riwayat as $index => $item) {
+            $schema[] = TextEntry::make("riwayat_{$index}")
+                ->label($item['tanggal'])
+                ->default($item['catatan'] ?? 'Tidak ada catatan');
+        }
+
+        return $schema;
     }
 }

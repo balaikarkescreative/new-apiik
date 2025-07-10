@@ -4,6 +4,7 @@ namespace App\Filament\Resources\IzinResource\Pages;
 
 use App\Filament\Resources\IzinResource;
 use App\Models\Izin;
+use App\Models\SuratPersetujuanIcv;
 use Filament\Resources\Pages\Page;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
@@ -174,6 +175,8 @@ class SuratPersetujuan extends Page implements HasTable
                             'tanggal_visitasi' => $record->izinDokumenPks?->tanggal_visitasi,
                             'tanggal_persetujuan' => $record->izinPersetujuan?->date_updated ?? now(),
                             'file_persetujuan' => $record->izinPersetujuan?->file_persetujuan,
+                            'nomor_surat' => SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->nomor_surat ?? '',
+                            'masa_berlaku' => SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->masa_berlaku ?? '',
                             'dokumen_pks_bkk' => $record->izinDokumenPks?->dokumen_pks_bkk,
                         ];
                     })
@@ -403,17 +406,17 @@ class SuratPersetujuan extends Page implements HasTable
                                 ->native(false)
                                 ->displayFormat('d F Y')
                                 ->minDate(now()->addDay())
-                                ->disabled(fn($record) => $record->izinDokumenPks?->tanggal_visitasi !== null)
                                 ->helperText(fn($record) => $record->izinDokumenPks?->tanggal_visitasi ?
                                     'Jadwal visitasi telah ditetapkan pada ' . $record->izinDokumenPks->tanggal_visitasi->translatedFormat('d F Y') :
                                     'Tetapkan jadwal visitasi untuk pemohon.'),
 
                             FormActions::make([
                                 FormActions\Action::make('simpan_visitasi')
-                                    ->label('Simpan Jadwal')
+                                    ->label('Simpan/Update Jadwal')
                                     ->icon('heroicon-o-check')
                                     ->color('success')
-                                    ->visible(fn($record) => !$record->izinDokumenPks?->tanggal_visitasi)
+                                    // Selalu tampilkan tombol simpan
+                                    ->visible(fn($record) => true)
                                     ->action(function (Get $get, Set $set, $record) {
                                         $tanggalVisitasi = $get('tanggal_visitasi');
                                         if (!$tanggalVisitasi) {
@@ -493,8 +496,7 @@ class SuratPersetujuan extends Page implements HasTable
                                 ->label('Tanggal Persetujuan')
                                 ->native(false)
                                 ->displayFormat('d F Y')
-                                ->default(now())
-                                ->disabled(fn($record) => $record->izinPersetujuan !== null),
+                                ->default(now()),
 
                             FileUpload::make('file_persetujuan')
                                 ->label('Surat Persetujuan')
@@ -507,20 +509,37 @@ class SuratPersetujuan extends Page implements HasTable
                                 })
                                 ->openable()
                                 ->downloadable()
-                                ->disabled(fn($record) => $record->izinPersetujuan !== null)
                                 ->helperText(fn($record) => $record->izinPersetujuan ?
-                                    'Surat persetujuan telah diupload.' :
+                                    'Surat persetujuan telah diupload. Anda dapat mengganti file jika diperlukan.' :
                                     'Upload file surat persetujuan dalam format PDF (Maksimal 3MB)'),
+
+                            TextInput::make('nomor_surat')
+                                ->label('Nomor Surat Persetujuan')
+                                ->formatStateUsing(function ($record){
+                                    return SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->nomor_surat ?? '';
+                                })
+                                ->required(),
+
+                            DatePicker::make('masa_berlaku')
+                                ->label('Masa Berlaku Izin')
+                                ->formatStateUsing(function ($record){
+                                    return SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->masa_berlaku ?? '';
+                                })
+                                ->native(false)
+                                ->required()
+                                ->displayFormat('d F Y'),
 
                             FormActions::make([
                                 FormActions\Action::make('simpan_persetujuan')
-                                    ->label('Simpan Persetujuan')
+                                    ->label('Simpan/Update Persetujuan')
                                     ->icon('heroicon-o-check')
                                     ->color('success')
-                                    ->visible(fn($record) => !$record->izinPersetujuan)
+                                    ->visible(fn($record) => true)
                                     ->action(function (Get $get, Set $set, $record) {
                                         $filePersetujuan = $get('file_persetujuan');
                                         $tanggalPersetujuan = $get('tanggal_persetujuan');
+                                        $nomorSurat = $get('nomor_surat');
+                                        $masaBerlaku = $get('masa_berlaku');
 
                                         if (!$filePersetujuan) {
                                             Notification::make()
@@ -531,18 +550,71 @@ class SuratPersetujuan extends Page implements HasTable
                                             return;
                                         }
 
-                                        $file_uuid = array_key_first($filePersetujuan);
-                                        $filePersetujuan = $filePersetujuan[$file_uuid];
+                                        if (!$nomorSurat) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->danger()
+                                                ->body('Nomor surat persetujuan harus diisi.')
+                                                ->send();
+                                            return;
+                                        }
 
-                                        $file = Storage::disk('public')
-                                            ->putFileAs('surat-persetujuan', $filePersetujuan, 'Surat Persetujuan ' . $record->user->name . ' [' . now()->format('dmYHis') . ']' . "." . $filePersetujuan->getClientOriginalExtension());
+                                        if (!$masaBerlaku) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->danger()
+                                                ->body('Masa berlaku izin harus diisi.')
+                                                ->send();
+                                            return;
+                                        }
 
+                                        $userId = $record->user_id;
+
+                                        // UpdateOrCreate SuratPersetujuanIcv
+                                        SuratPersetujuanIcv::updateOrCreate(
+                                            ['id_akun' => $userId],
+                                            [
+                                                'nomor_surat' => $nomorSurat,
+                                                'tanggal_surat' => $tanggalPersetujuan,
+                                                'masa_berlaku' => $masaBerlaku,
+                                            ]
+                                        );
+
+                                        // Handle file upload
+                                        $filePath = null;
+                                        if (is_array($filePersetujuan)) {
+                                            $file_uuid = array_key_first($filePersetujuan);
+                                            $uploadedFile = $filePersetujuan[$file_uuid];
+                                            if (is_string($uploadedFile)) {
+                                                // Sudah berupa path file lama
+                                                $filePath = $uploadedFile;
+                                            } elseif ($uploadedFile && method_exists($uploadedFile, 'getClientOriginalExtension')) {
+                                                // File baru diupload
+                                                $filePath = \Storage::disk('public')
+                                                    ->putFileAs(
+                                                        'surat-persetujuan',
+                                                        $uploadedFile,
+                                                        'Surat Persetujuan ' . $record->user->name . ' [' . now()->format('dmYHis') . '].' . $uploadedFile->getClientOriginalExtension()
+                                                    );
+                                            }
+                                        } else if (is_string($filePersetujuan)) {
+                                            $filePath = $filePersetujuan;
+                                        }
+
+                                        if (!$filePath) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat memproses file.')
+                                                ->send();
+                                            return;
+                                        }
 
                                         $record->izinPersetujuan()->updateOrCreate(
                                             ['id_izin' => $record->id],
                                             [
                                                 'date_updated' => $tanggalPersetujuan ?? now(),
-                                                'file_persetujuan' => $file,
+                                                'file_persetujuan' => $filePath,
                                                 'status' => 1,
                                             ]
                                         );
@@ -554,15 +626,15 @@ class SuratPersetujuan extends Page implements HasTable
 
                                         try {
                                             if ($record->user && $record->user->email) {
-                                                Mail::to($record->user->email)->send(
-                                                    new IzinPersetujuanNotification($record)
+                                                \Mail::to($record->user->email)->send(
+                                                    new \App\Mail\IzinPersetujuanNotification($record)
                                                 );
                                                 $emailStatus = ' Email persetujuan telah dikirim.';
                                             } else {
                                                 $emailStatus = ' Email tidak dikirim (user tidak memiliki email).';
                                             }
                                         } catch (\Exception $e) {
-                                            Log::error('Failed to send approval email: ' . $e->getMessage());
+                                            \Log::error('Failed to send approval email: ' . $e->getMessage());
                                             $emailStatus = ' Email gagal dikirim.';
                                             error_log('Failed to send approval email: ' . $e->getMessage());
                                         }
@@ -573,10 +645,7 @@ class SuratPersetujuan extends Page implements HasTable
                                             ->body('Izin telah disetujui dan surat persetujuan telah diupload.' . $emailStatus)
                                             ->send();
 
-                                        // Refresh record
-                                        $this->redirect(SuratPersetujuan::getUrl());
-
-                                        // $record->refresh();
+                                        $this->redirect(\App\Filament\Resources\IzinResource\Pages\SuratPersetujuan::getUrl());
                                     })
                             ]),
                         ]),
@@ -629,17 +698,16 @@ class SuratPersetujuan extends Page implements HasTable
                                 })
                                 ->openable()
                                 ->downloadable()
-                                ->disabled(fn($record) => $record->izinDokumenPks?->dokumen_pks_bkk !== null)
                                 ->helperText(fn($record) => $record->izinDokumenPks?->dokumen_pks_bkk ?
-                                    'PKS telah diupload.' :
+                                    'PKS telah diupload. Anda dapat mengganti file jika diperlukan.' :
                                     'Upload file PKS dalam format PDF (Maksimal 3MB)'),
 
                             FormActions::make([
                                 FormActions\Action::make('simpan_pks')
-                                    ->label('Simpan PKS')
+                                    ->label('Simpan/Update PKS')
                                     ->icon('heroicon-o-check')
                                     ->color('success')
-                                    ->visible(fn($record) => !$record->izinDokumenPks?->dokumen_pks_bkk)
+                                    ->visible(fn($record) => true)
                                     ->action(function (Get $get, Set $set, $record) {
                                         $pks = $get('dokumen_pks_bkk');
 
@@ -653,14 +721,36 @@ class SuratPersetujuan extends Page implements HasTable
                                         }
 
                                         $file_uuid = array_key_first($pks);
-                                        $pks = $pks[$file_uuid];
-                                        $pks = Storage::disk('public')
-                                            ->putFileAs('perjanjian-kerjasama', $pks, 'PKS ' . $record->user->name . ' [' . now()->format('dmYHis') . ']' . "." . $pks->getClientOriginalExtension());
+                                        $pksFile = $pks[$file_uuid];
+
+                                        if (is_string($pksFile)) {
+                                            // Sudah berupa path file lama
+                                            $filePath = $pksFile;
+                                        } elseif (is_object($pksFile) && method_exists($pksFile, 'getClientOriginalExtension')) {
+                                            // File baru diupload
+                                            $filePath = \Storage::disk('public')
+                                                ->putFileAs(
+                                                    'perjanjian-kerjasama',
+                                                    $pksFile,
+                                                    'PKS ' . $record->user->name . ' [' . now()->format('dmYHis') . '].' . $pksFile->getClientOriginalExtension()
+                                                );
+                                        } else {
+                                            $filePath = null;
+                                        }
+
+                                        if (!$filePath) {
+                                            Notification::make()
+                                                ->title('Gagal Upload PKS')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat memproses file PKS.')
+                                                ->send();
+                                            return;
+                                        }
 
                                         $record->izinDokumenPks()->updateOrCreate(
                                             ['id_izin' => $record->id],
                                             [
-                                                'dokumen_pks_bkk' => $pks,
+                                                'dokumen_pks_bkk' => $filePath,
                                                 'status_dokumen' => 'sign both',
                                             ]
                                         );

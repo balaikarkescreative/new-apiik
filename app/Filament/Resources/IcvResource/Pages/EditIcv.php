@@ -15,10 +15,26 @@ class EditIcv extends EditRecord
 
     protected function afterSave(): void
     {
-        $icv_dokumen = IcvCekDokumen::where('id_icv', $this->record->id)->first();
+        $icv_dokumen = \App\Models\IcvCekDokumen::where('id_icv', $this->record->id)->first();
         if ($icv_dokumen) {
             $icv_dokumen->delete();
         }
+
+        // Set tanggal_perbaikan jika ada di data
+        if (!empty($this->data['tanggal_perbaikan'])) {
+            $this->record->tanggal_perbaikan = $this->data['tanggal_perbaikan'];
+            $this->record->save();
+        }
+    }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $type = request()->get('type');
+        if ($type === 'perbaikan') {
+            $data['tanggal_perbaikan'] = now();
+        }
+
+        return $data;
     }
 
     protected function getRedirectUrl(): string

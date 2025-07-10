@@ -227,11 +227,7 @@
                 </tr>
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Metode Distribusi:</strong></td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ $icv->icvBuktiBayar->distribusi_icv }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>File SBBK:</strong></td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong style="color: #059669;">Terlampir dalam email ini</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;">e-ICV melalui aplikasi Sinkarkes</td>
                 </tr>
             </table>
         </div>

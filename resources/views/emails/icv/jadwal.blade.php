@@ -174,10 +174,6 @@
 
         <div class="schedule-box">
             <h2 style="color: #7c3aed; margin-top: 0;">📅 JADWAL DISTRIBUSI DITETAPKAN</h2>
-            <p style="font-size: 18px; margin: 20px 0; font-weight: 500;">
-                Jadwal {{ $icv->icvBuktiBayar->distribusi_icv }} ICV untuk<br>
-                <strong>{{ $icv->user->name }}</strong>
-            </p>
 
             <div class="schedule-date">
                 {{ \Carbon\Carbon::parse($jadwalPengambilan)->translatedFormat('l, d F Y') }}
@@ -190,7 +186,7 @@
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
                     <span style="color: #6b7280;">Metode Distribusi:</span>
-                    <span style="font-weight: bold; color: #7c3aed; font-size: 20px;">{{ $icv->icvBuktiBayar->distribusi_icv }}</span>
+                    <span style="font-weight: bold; color: #7c3aed; font-size: 20px;">e-ICV melalui aplikasi Sinkarkes</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
                     <span style="color: #6b7280;">Tanggal Jadwal:</span>
@@ -227,7 +223,7 @@
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ number_format($icv->icvAlokasi->icv_disetujui) }} unit</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Jadwal {{ $icv->icvBuktiBayar->distribusi_icv }}:</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Jadwal Distribusi:</strong></td>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong style="color: #7c3aed;">{{ \Carbon\Carbon::parse($jadwalPengambilan)->translatedFormat('l, d F Y') }}</strong></td>
                 </tr>
             </table>
@@ -259,10 +255,10 @@
                 {{ \Carbon\Carbon::parse($jadwalPengambilan)->translatedFormat('l, d F Y') }}
             </div>
             <p style="font-size: 16px; margin: 15px 0;">
-                Metode: <strong style="color: #7c3aed;">{{ $icv->icvBuktiBayar->distribusi_icv }}</strong>
+                Metode: <strong style="color: #7c3aed;">e-ICV melalui aplikasi Sinkarkes</strong>
             </p>
             <p style="color: #6b7280; font-style: italic;">
-                "{{ $icv->icvBuktiBayar->distribusi_icv === 'Diambil' ? 'Jangan lupa datang tepat waktu!' : 'Pastikan ada yang menerima di alamat tujuan!' }}"
+                "Pastikan Anda dapat mengakses aplikasi Sinkarkes untuk menerima e-ICV."
             </p>
         </div>
 
@@ -276,7 +272,7 @@
     <div class="footer">
         <p>&copy; {{ date('Y') }} {{ config('app.name') }}. Semua hak dilindungi.</p>
         <p>Email ini dikirim secara otomatis, mohon tidak membalas email ini.</p>
-        <p style="margin-top: 10px; color: #7c3aed; font-weight: bold;">📅 Jadwal Ditetapkan! {{ $icv->icvBuktiBayar->distribusi_icv === 'Diambil' ? 'Siap Diambil!' : 'Siap Dikirim!' }} 📅</p>
+        <p style="margin-top: 10px; color: #7c3aed; font-weight: bold;">📅 Jadwal Ditetapkan! Siap Didistribusikan! 📅</p>
     </div>
 </body>
 </html>

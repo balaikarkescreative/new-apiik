@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\CombinedAuth;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\Auth\Register;
 use App\Filament\Pages\EditProfil;
@@ -53,8 +54,9 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Pages\Dashboard::class,
             ])
-            ->login(Login::class)
-            ->registration(Register::class)
+            ->login(CombinedAuth::class)
+            ->loginRouteSlug('home')
+            // ->registration(CombinedAuth::class)
             ->colors([
                 "primary" => Color::Amber,
             ])
@@ -218,13 +220,13 @@ class AdminPanelProvider extends PanelProvider
                 "warning" => Color::Amber,
                 "info" => Color::Blue,
             ])
-            ->theme(asset('css/filament/admin/theme.css'))
+            ->viteTheme('resources/css/filament/admin/theme.css')
             ->plugins(
                 [
 
                     EasyFooterPlugin::make()
                         ->hiddenFromPagesEnabled()
-                        ->hiddenFromPages(['login', 'register'])
+                        ->hiddenFromPages(['home'])
                 ]
             );
     }

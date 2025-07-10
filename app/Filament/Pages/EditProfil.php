@@ -110,16 +110,15 @@ class EditProfil extends Page implements HasForms
                     ->schema([
                         Map::make('location')
                             ->label('Lokasi Klinik/RS')
-                            ->defaultLocation(
-                                latitude: Auth::user()->latitude ?? -6.9039,
-                                longitude: Auth::user()->longitude ?? 107.6186,
-                            )
                             ->afterStateUpdated(function ($state, callable $set) {
-                                $set('latitude', $state['lat'] ?? null);
-                                $set('longitude', $state['lng'] ?? null);
+                                if ($state) {
+                                    $set('latitude', $state['lat'] ?? null);
+                                    $set('longitude', $state['lng'] ?? null);
+                                }
                             })
                             ->showMyLocationButton(true)
                             ->zoom(12)
+
                             ->required()
                             ->columnSpanFull(),
 
@@ -141,7 +140,18 @@ class EditProfil extends Page implements HasForms
                                         $location = $get('location');
                                         return $location['lat'] ?? '';
                                     })
-                                    ->disabled(),
+                                    ->afterStateUpdated(function (callable $set, callable $get, $state) {
+                                        $lng = $get('longitude');
+                                        if ($state && $lng) {
+                                            $set('location', [
+                                                'lat' => (float) $state,
+                                                'lng' => (float) $lng
+                                            ]);
+                                            // Trigger map refresh
+                                            $this->dispatch('refreshMap');
+                                        }
+                                    })
+                                    ->reactive(),
 
                                 Forms\Components\TextInput::make('longitude')
                                     ->label('Longitude')
@@ -150,7 +160,18 @@ class EditProfil extends Page implements HasForms
                                         $location = $get('location');
                                         return $location['lng'] ?? '';
                                     })
-                                    ->disabled(),
+                                    ->afterStateUpdated(function (callable $set, callable $get, $state) {
+                                        $lat = $get('latitude');
+                                        if ($state && $lat) {
+                                            $set('location', [
+                                                'lat' => (float) $lat,
+                                                'lng' => (float) $state
+                                            ]);
+                                            // Trigger map refresh
+                                            $this->dispatch('refreshMap');
+                                        }
+                                    })
+                                    ->reactive(),
                             ]),
                     ])
                     ->collapsible(),

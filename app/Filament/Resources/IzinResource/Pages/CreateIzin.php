@@ -4,8 +4,12 @@ namespace App\Filament\Resources\IzinResource\Pages;
 
 use App\ChecksOperationalHours;
 use App\Filament\Resources\IzinResource;
+use App\Filament\Resources\SuratPersetujuanIcvResource;
+use App\Filament\Resources\VaksinatorResource;
 use Filament\Actions;
 use App\Models\Izin;
+use App\Models\Vaksinator;
+use App\Models\SuratPersetujuanIcv;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -15,7 +19,6 @@ class CreateIzin extends CreateRecord
     protected static string $resource = IzinResource::class;
 
     protected static bool $canCreateAnother = false;
-
 
     public function mount(): void
     {
@@ -37,10 +40,20 @@ class CreateIzin extends CreateRecord
             redirect()->route('filament.admin.pages.edit-profil');
         }
 
-        // Cek jika ada izin yang masih diproses (untuk non-admin)
+        // Cek jika user belum memiliki vaksinator (untuk non-admin)
         if (!auth()->user()->hasRole('admin')) {
-            $this->checkExistingActivePermits(auth()->id());
+            $this->checkVaksinatorRequirement(auth()->id());
         }
+
+        // Cek jika user belum memiliki surat persetujuan ICV (untuk non-admin)
+        // if (!auth()->user()->hasRole('admin')) {
+        //     $this->checkSuratPersetujuanIcvRequirement(auth()->id());
+        // }
+
+        // Cek jika ada izin yang masih diproses (untuk non-admin)
+        // if (!auth()->user()->hasRole('admin')) {
+        //     $this->checkExistingActivePermits(auth()->id());
+        // }
 
         // Set form data awal berdasarkan parameter URL
         $type = request()->get('type');
@@ -77,77 +90,279 @@ class CreateIzin extends CreateRecord
     }
 
     /**
-     * Check if user has any active/pending permits
+     * Check if user has surat persetujuan ICV data
      */
-    private function checkExistingActivePermits(int $userId): void
+    private function checkSuratPersetujuanIcvRequirement(int $userId): void
     {
-        // Cek izin yang masih dalam proses (belum ada dokumen_pks_bkk)
-        $activePermits = Izin::where('user_id', $userId)
-            ->with(['izinDokumenPks', 'izinPersetujuan'])
-            ->where(function ($query) {
-                // Izin yang belum memiliki PKS atau PKS belum selesai
-                $query->whereDoesntHave('izinDokumenPks')
-                      ->orWhereHas('izinDokumenPks', function ($subQuery) {
-                          $subQuery->whereNull('dokumen_pks_bkk');
-                      });
-            })
-            ->get();
+        $suratPersetujuan = SuratPersetujuanIcv::where('id_akun', $userId)->first();
 
-        if ($activePermits->isNotEmpty()) {
-            $permitDetails = $activePermits->map(function ($permit) {
-                $status = $this->getPermitStatus($permit);
-                return "• {$permit->kategori_izin} - {$status} (Pengajuan: {$permit->tanggal_pengajuan->format('d/m/Y')})";
-            })->join("\n");
-
+        if (!$suratPersetujuan) {
             Notification::make()
-                ->title('Tidak Dapat Mengajukan Izin Baru')
-                ->body("Anda masih memiliki pengajuan izin yang belum selesai:\n\n{$permitDetails}\n\nSilakan selesaikan pengajuan yang ada terlebih dahulu sebelum mengajukan izin baru.")
+                ->title('Surat Persetujuan ICV Belum Ada')
+                ->body('Anda harus memiliki Surat Persetujuan ICV terlebih dahulu sebelum dapat mengajukan izin. Silakan ajukan permohonan ICV terlebih dahulu melalui menu ICV.')
                 ->danger()
                 ->persistent()
                 ->actions([
-                    \Filament\Notifications\Actions\Action::make('lihat_pengajuan')
-                        ->label('Lihat Pengajuan')
-                        ->url(IzinResource::getUrl('daftar-pengajuan'))
+                    \Filament\Notifications\Actions\Action::make('ajukan_icv')
+                        ->label('Lihat Surat Persetujuan ICV')
+                        ->url(SuratPersetujuanIcvResource::getUrl())
                         ->button(),
                 ])
                 ->send();
 
-            // Redirect ke halaman daftar pengajuan
-            redirect()->to(IzinResource::getUrl('daftar-pengajuan'));
+            // Redirect ke halaman pengajuan ICV
+            redirect()->to(SuratPersetujuanIcvResource::getUrl());
+            return;
+        }
+
+        // Cek juga apakah surat persetujuan masih berlaku
+        $this->validateSuratPersetujuanIcvStatus($suratPersetujuan);
+    }
+
+    /**
+     * Validate surat persetujuan ICV status (masa berlaku)
+     */
+    private function validateSuratPersetujuanIcvStatus(SuratPersetujuanIcv $suratPersetujuan): void
+    {
+        $warnings = [];
+        $errors = [];
+
+        // Cek status masa berlaku surat persetujuan
+        if (!$suratPersetujuan->masa_berlaku) {
+            $errors[] = '• Masa berlaku surat persetujuan ICV belum diisi';
+        } elseif ($suratPersetujuan->masa_berlaku < now()) {
+            $errors[] = '• Surat persetujuan ICV sudah kadaluarsa (' . $suratPersetujuan->masa_berlaku->format('d/m/Y') . ')';
+        } elseif ($suratPersetujuan->masa_berlaku <= now()->addDays(30)) {
+            $warnings[] = '• Surat persetujuan ICV akan habis dalam 30 hari (' . $suratPersetujuan->masa_berlaku->format('d/m/Y') . ')';
+        }
+
+        // Validasi nomor surat
+        if (!$suratPersetujuan->nomor_surat) {
+            $errors[] = '• Nomor surat persetujuan ICV belum diisi';
+        }
+
+        // Validasi tanggal surat
+        if (!$suratPersetujuan->tanggal_surat) {
+            $errors[] = '• Tanggal surat persetujuan ICV belum diisi';
+        }
+
+        // Jika ada error, blokir pembuatan izin
+        if (!empty($errors)) {
+            $errorMessage = "Surat persetujuan ICV Anda tidak valid untuk mengajukan izin:\n\n" . implode("\n", $errors) . "\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.";
+
+            Notification::make()
+                ->title('Surat Persetujuan ICV Tidak Valid')
+                ->body($errorMessage)
+                ->danger()
+                ->persistent()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('lihat_icv')
+                        ->label('Lihat Surat Persetujuan ICV')
+                        ->url(SuratPersetujuanIcvResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
+
+            redirect()->to(\App\Filament\Resources\IcvResource::getUrl('daftar-pengajuan'));
+            return;
+        }
+
+        // Jika ada warning, tampilkan peringatan tapi tetap izinkan
+        if (!empty($warnings)) {
+            $warningMessage = "Peringatan mengenai surat persetujuan ICV Anda:\n\n" . implode("\n", $warnings) . "\n\nDisarankan untuk memperbarui surat persetujuan ICV segera.";
+
+            Notification::make()
+                ->title('Peringatan Surat Persetujuan ICV')
+                ->body($warningMessage)
+                ->warning()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('ajukan_icv_baru')
+                        ->label('Lihat Surat Persetujuan ICV')
+                        ->url(SuratPersetujuanIcvResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
         }
     }
 
     /**
-     * Get human-readable permit status
+     * Check if user has vaksinator data
      */
-    private function getPermitStatus($permit): string
+    private function checkVaksinatorRequirement(int $userId): void
     {
-        // Cek apakah sudah ada PKS
-        if ($permit->izinDokumenPks && $permit->izinDokumenPks->dokumen_pks_bkk) {
-            return 'Selesai';
+        $vaksinator = Vaksinator::where('id_akun', $userId)->first();
+
+        if (!$vaksinator) {
+            Notification::make()
+                ->title('Data Vaksinator Belum Lengkap')
+                ->body('Anda harus melengkapi data vaksinator terlebih dahulu sebelum dapat mengajukan izin. Silakan lengkapi data vaksinator di menu profil.')
+                ->danger()
+                ->persistent()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('lengkapi_vaksinator')
+                        ->label('Lengkapi Data Vaksinator')
+                        ->url(VaksinatorResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
+
+            // Redirect ke halaman edit profil dengan anchor ke section vaksinator
+            redirect()->to(VaksinatorResource::getUrl());
+            return;
         }
 
-        // Cek apakah sudah disetujui
-        if ($permit->izinPersetujuan && $permit->izinPersetujuan->status == 1) {
-            return 'Disetujui - Menunggu PKS';
-        }
-
-        // Cek apakah sudah dijadwalkan visitasi
-        if ($permit->izinDokumenPks && $permit->izinDokumenPks->tanggal_visitasi) {
-            return 'Visitasi Dijadwalkan';
-        }
-
-        // Cek apakah dokumen sudah diverifikasi
-        if ($permit->izinDokumen) {
-            return match ($permit->izinDokumen->hasil) {
-                1 => 'Berkas Lengkap',
-                2 => 'Berkas Tidak Lengkap',
-                default => 'Menunggu Verifikasi'
-            };
-        }
-
-        return 'Dokumen Diajukan';
+        // Cek juga apakah vaksinator masih aktif
+        $this->validateVaksinatorStatus($vaksinator);
     }
+
+    /**
+     * Validate vaksinator status (izin praktek dan sertifikat)
+     */
+    private function validateVaksinatorStatus(Vaksinator $vaksinator): void
+    {
+        $warnings = [];
+        $errors = [];
+
+        // Cek status izin praktek
+        if (!$vaksinator->masa_aktif_izin_praktek) {
+            $errors[] = '• Masa aktif izin praktek belum diisi';
+        } elseif ($vaksinator->masa_aktif_izin_praktek < now()) {
+            $errors[] = '• Izin praktek sudah kadaluarsa (' . $vaksinator->masa_aktif_izin_praktek->format('d/m/Y') . ')';
+        } elseif ($vaksinator->masa_aktif_izin_praktek <= now()->addDays(30)) {
+            $warnings[] = '• Izin praktek akan habis dalam 30 hari (' . $vaksinator->masa_aktif_izin_praktek->format('d/m/Y') . ')';
+        }
+
+        // Cek status sertifikat vaksinator
+        if (!$vaksinator->masa_aktif_sertifikat) {
+            $errors[] = '• Masa aktif sertifikat vaksinator belum diisi';
+        } elseif ($vaksinator->masa_aktif_sertifikat < now()) {
+            $errors[] = '• Sertifikat vaksinator sudah kadaluarsa (' . $vaksinator->masa_aktif_sertifikat->format('d/m/Y') . ')';
+        } elseif ($vaksinator->masa_aktif_sertifikat <= now()->addDays(30)) {
+            $warnings[] = '• Sertifikat vaksinator akan habis dalam 30 hari (' . $vaksinator->masa_aktif_sertifikat->format('d/m/Y') . ')';
+        }
+
+        // Jika ada error, blokir pembuatan izin
+        if (!empty($errors)) {
+            $errorMessage = "Data vaksinator Anda tidak valid untuk mengajukan izin:\n\n" . implode("\n", $errors) . "\n\nSilakan perbarui data vaksinator terlebih dahulu.";
+
+            Notification::make()
+                ->title('Data Vaksinator Tidak Valid')
+                ->body($errorMessage)
+                ->danger()
+                ->persistent()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('perbarui_vaksinator')
+                        ->label('Perbarui Data Vaksinator')
+                        ->url(VaksinatorResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
+
+            redirect()->to(VaksinatorResource::getUrl());
+            return;
+        }
+
+        // Jika ada warning, tampilkan peringatan tapi tetap izinkan
+        if (!empty($warnings)) {
+            $warningMessage = "Peringatan mengenai data vaksinator Anda:\n\n" . implode("\n", $warnings) . "\n\nDisarankan untuk memperbarui data vaksinator segera.";
+
+            Notification::make()
+                ->title('Peringatan Data Vaksinator')
+                ->body($warningMessage)
+                ->warning()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('perbarui_vaksinator')
+                        ->label('Perbarui Data Vaksinator')
+                        ->url(VaksinatorResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
+        }
+    }
+
+    /**
+     * Check if user has any active/pending permits
+     */
+    // private function checkExistingActivePermits(int $userId): void
+    // {
+    //     // Cek izin yang masih dalam proses (belum ada dokumen_pks_bkk)
+    //     // $activePermits = Izin::where('user_id', $userId)
+    //     //     ->with(['izinDokumenPks', 'izinPersetujuan'])
+    //     //     ->where(function ($query) {
+    //     //         // Izin yang belum memiliki PKS atau PKS belum selesai
+    //     //         $query->whereDoesntHave('izinDokumenPks')
+    //     //               ->orWhereHas('izinDokumenPks', function ($subQuery) {
+    //     //                   $subQuery->whereNull('dokumen_pks_bkk');
+    //     //               });
+    //     //     })
+    //     //     ->get();
+
+    //     $activePermits = Izin::where('user_id', $userId)
+    //         ->with(['izinPersetujuan'])
+    //         ->where(function ($query) {
+    //             // Izin yang belum memiliki PKS atau PKS belum selesai
+    //             $query->whereDoesntHave('izinPersetujuan')
+    //                   ->orWhereHas('izinPersetujuan', function ($subQuery) {
+    //                       $subQuery->whereNull('file_persetujuan');
+    //                   });
+    //         })
+    //         ->get();
+
+    //     if ($activePermits->isNotEmpty()) {
+    //         $permitDetails = $activePermits->map(function ($permit) {
+    //             $status = $this->getPermitStatus($permit);
+    //             return "• {$permit->kategori_izin} - {$status} (Pengajuan: {$permit->tanggal_pengajuan->format('d/m/Y')})";
+    //         })->join("\n");
+
+    //         Notification::make()
+    //             ->title('Tidak Dapat Mengajukan Izin Baru')
+    //             ->body("Anda masih memiliki pengajuan izin yang belum selesai:\n\n{$permitDetails}\n\nSilakan selesaikan pengajuan yang ada terlebih dahulu sebelum mengajukan izin baru.")
+    //             ->danger()
+    //             ->persistent()
+    //             ->actions([
+    //                 \Filament\Notifications\Actions\Action::make('lihat_pengajuan')
+    //                     ->label('Lihat Pengajuan')
+    //                     ->url(IzinResource::getUrl('daftar-pengajuan'))
+    //                     ->button(),
+    //             ])
+    //             ->send();
+
+    //         // Redirect ke halaman daftar pengajuan
+    //         redirect()->to(IzinResource::getUrl('daftar-pengajuan'));
+    //     }
+    // }
+
+    // /**
+    //  * Get human-readable permit status
+    //  */
+    // private function getPermitStatus($permit): string
+    // {
+    //     // Cek apakah sudah ada PKS
+    //     // if ($permit->izinDokumenPks && $permit->izinDokumenPks->dokumen_pks_bkk) {
+    //     //     return 'Selesai';
+    //     // }
+
+    //     // Cek apakah sudah disetujui
+    //     if ($permit->izinPersetujuan && $permit->izinPersetujuan->status == 1) {
+    //         return 'Disetujui - Menunggu PKS';
+    //     }
+
+    //     // Cek apakah sudah dijadwalkan visitasi
+    //     if ($permit->izinDokumenPks && $permit->izinDokumenPks->tanggal_visitasi) {
+    //         return 'Visitasi Dijadwalkan';
+    //     }
+
+    //     // Cek apakah dokumen sudah diverifikasi
+    //     if ($permit->izinDokumen) {
+    //         return match ($permit->izinDokumen->hasil) {
+    //             1 => 'Berkas Lengkap',
+    //             2 => 'Berkas Tidak Lengkap',
+    //             default => 'Menunggu Verifikasi'
+    //         };
+    //     }
+
+    //     return 'Dokumen Diajukan';
+    // }
 
     protected function afterCreate(): void
     {
@@ -177,54 +392,158 @@ class CreateIzin extends CreateRecord
         $data = $this->data;
         $userId = $data['user_id'] ?? auth()->id();
 
+        // Validasi surat persetujuan ICV untuk user yang dipilih (termasuk untuk admin)
+        // $this->validateUserSuratPersetujuanIcv($userId);
+
+        // Validasi vaksinator untuk user yang dipilih (termasuk untuk admin)
+        $this->validateUserVaksinator($userId);
+
         // Double-check for active permits before creating (security measure)
-        $this->validateNoActivePermits($userId);
+        // $this->validateNoActivePermits($userId);
 
         // cek jika kategori izin adalah "Perpanjang Izin" dan user belum memiliki izin yang sudah ada
-        if ($data['kategori_izin'] === 'Perpanjang Izin') {
-            $this->validateExtensionPermitRequirements($userId);
+        // if ($data['kategori_izin'] === 'Perpanjang Izin') {
+        //     $this->validateExtensionPermitRequirements($userId);
+        // }
+
+        // // Cek jika kategori izin adalah "Izin Baru"
+        // if ($data['kategori_izin'] === 'Izin Baru') {
+        //     $this->validateNewPermitRequirements($userId);
+        // }
+    }
+
+    /**
+     * Validate that selected user has valid surat persetujuan ICV
+     */
+    private function validateUserSuratPersetujuanIcv(int $userId): void
+    {
+        $suratPersetujuan = SuratPersetujuanIcv::where('id_akun', $userId)->first();
+
+        if (!$suratPersetujuan) {
+            $user = \App\Models\User::find($userId);
+            $userName = $user ? $user->name : 'User';
+
+            Notification::make()
+                ->title('Surat Persetujuan ICV Tidak Ada')
+                ->body("{$userName} belum memiliki Surat Persetujuan ICV. Surat persetujuan ICV harus ada terlebih dahulu sebelum dapat mengajukan izin.")
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->halt();
         }
 
-        // Cek jika kategori izin adalah "Izin Baru"
-        if ($data['kategori_izin'] === 'Izin Baru') {
-            $this->validateNewPermitRequirements($userId);
+        // Validasi status surat persetujuan
+        $errors = [];
+
+        if (!$suratPersetujuan->masa_berlaku || $suratPersetujuan->masa_berlaku < now()) {
+            $errors[] = 'Surat persetujuan ICV tidak valid atau sudah kadaluarsa';
+        }
+
+        if (!$suratPersetujuan->nomor_surat) {
+            $errors[] = 'Nomor surat persetujuan ICV belum diisi';
+        }
+
+        if (!$suratPersetujuan->tanggal_surat) {
+            $errors[] = 'Tanggal surat persetujuan ICV belum diisi';
+        }
+
+        if (!empty($errors)) {
+            $user = \App\Models\User::find($userId);
+            $userName = $user ? $user->name : 'User';
+
+            Notification::make()
+                ->title('Surat Persetujuan ICV Tidak Valid')
+                ->body("{$userName} memiliki masalah dengan surat persetujuan ICV:\n• " . implode("\n• ", $errors) . "\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.")
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->halt();
+        }
+    }
+
+    /**
+     * Validate that selected user has valid vaksinator data
+     */
+    private function validateUserVaksinator(int $userId): void
+    {
+        $vaksinator = Vaksinator::where('id_akun', $userId)->first();
+
+        if (!$vaksinator) {
+            $user = \App\Models\User::find($userId);
+            $userName = $user ? $user->name : 'User';
+
+            Notification::make()
+                ->title('Data Vaksinator Tidak Lengkap')
+                ->body("{$userName} belum memiliki data vaksinator. Data vaksinator harus dilengkapi terlebih dahulu sebelum dapat mengajukan izin.")
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->halt();
+        }
+
+        // Validasi status vaksinator
+        $errors = [];
+
+        if (!$vaksinator->masa_aktif_izin_praktek || $vaksinator->masa_aktif_izin_praktek < now()) {
+            $errors[] = 'Izin praktek tidak valid atau sudah kadaluarsa';
+        }
+
+        if (!$vaksinator->masa_aktif_sertifikat || $vaksinator->masa_aktif_sertifikat < now()) {
+            $errors[] = 'Sertifikat vaksinator tidak valid atau sudah kadaluarsa';
+        }
+
+        if (!empty($errors)) {
+            $user = \App\Models\User::find($userId);
+            $userName = $user ? $user->name : 'User';
+
+            Notification::make()
+                ->title('Data Vaksinator Tidak Valid')
+                ->body("{$userName} memiliki masalah dengan data vaksinator:\n• " . implode("\n• ", $errors) . "\n\nSilakan perbarui data vaksinator terlebih dahulu.")
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->halt();
         }
     }
 
     /**
      * Validate that user has no active permits
      */
-    private function validateNoActivePermits(int $userId): void
-    {
-        $existingActivePermit = Izin::where('user_id', $userId)
-            ->with(['izinDokumenPks'])
-            ->where(function ($query) {
-                $query->whereDoesntHave('izinDokumenPks')
-                      ->orWhereHas('izinDokumenPks', function ($subQuery) {
-                          $subQuery->whereNull('dokumen_pks_bkk');
-                      });
-            })
-            ->first();
+    // private function validateNoActivePermits(int $userId): void
+    // {
+    //     $existingActivePermit = Izin::where('user_id', $userId)
+    //         ->with(['izinDokumenPks'])
+    //         ->where(function ($query) {
+    //             $query->whereDoesntHave('izinDokumenPks')
+    //                   ->orWhereHas('izinDokumenPks', function ($subQuery) {
+    //                       $subQuery->whereNull('dokumen_pks_bkk');
+    //                   });
+    //         })
+    //         ->first();
 
-        if ($existingActivePermit) {
-            $status = $this->getPermitStatus($existingActivePermit);
+    //     if ($existingActivePermit) {
+    //         $status = $this->getPermitStatus($existingActivePermit);
 
-            Notification::make()
-                ->title('Gagal Membuat Izin')
-                ->body("Anda masih memiliki pengajuan izin yang belum selesai:\n{$existingActivePermit->kategori_izin} - {$status}\n\nSilakan selesaikan pengajuan yang ada terlebih dahulu.")
-                ->danger()
-                ->persistent()
-                ->actions([
-                    \Filament\Notifications\Actions\Action::make('lihat_pengajuan')
-                        ->label('Lihat Pengajuan')
-                        ->url(IzinResource::getUrl('daftar-pengajuan'))
-                        ->button(),
-                ])
-                ->send();
+    //         Notification::make()
+    //             ->title('Gagal Membuat Izin')
+    //             ->body("User masih memiliki pengajuan izin yang belum selesai:\n{$existingActivePermit->kategori_izin} - {$status}\n\nSilakan selesaikan pengajuan yang ada terlebih dahulu.")
+    //             ->danger()
+    //             ->persistent()
+    //             ->actions([
+    //                 \Filament\Notifications\Actions\Action::make('lihat_pengajuan')
+    //                     ->label('Lihat Pengajuan')
+    //                     ->url(IzinResource::getUrl('daftar-pengajuan'))
+    //                     ->button(),
+    //             ])
+    //             ->send();
 
-            $this->halt();
-        }
-    }
+    //         $this->halt();
+    //     }
+    // }
 
     /**
      * Validate requirements for permit extension
@@ -234,15 +553,15 @@ class CreateIzin extends CreateRecord
         // Cek apakah user memiliki izin baru yang sudah selesai (ada PKS)
         $completedNewPermit = Izin::where('user_id', $userId)
             ->where('kategori_izin', 'Izin Baru')
-            ->whereHas('izinDokumenPks', function ($query) {
-                $query->whereNotNull('dokumen_pks_bkk');
+            ->whereHas('IzinPersetujuan', function ($query) {
+                $query->whereNotNull('file_persetujuan');
             })
             ->exists();
 
         if (!$completedNewPermit) {
             Notification::make()
                 ->title('Gagal Membuat Perpanjangan Izin')
-                ->body('Anda belum memiliki Izin Baru yang selesai untuk dapat diperpanjang. Izin baru harus selesai sepenuhnya (termasuk PKS) sebelum dapat diperpanjang.')
+                ->body('User belum memiliki Izin Baru yang selesai untuk dapat diperpanjang. Izin baru harus selesai sepenuhnya (termasuk PKS) sebelum dapat diperpanjang.')
                 ->danger()
                 ->persistent()
                 ->send();

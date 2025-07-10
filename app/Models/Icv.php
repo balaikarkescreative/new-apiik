@@ -35,17 +35,21 @@ class Icv extends Model
         "file6",
         "file7",
         "status",
+        "tanggal_perbaikan",
+        "riwayat_perbaikan", // Tambahkan kolom baru
         "date_updated",
     ];
 
     protected $casts = [
         "tanggal_pengajuan" => "date",
+        "tanggal_perbaikan" => "datetime",
+        "riwayat_perbaikan" => "array", // Cast JSON ke array
         "jumlah_icv" => "integer",
         "status" => "integer",
         "date_updated" => "datetime",
     ];
 
-    protected $dates = ["tanggal_pengajuan", "date_updated"];
+    protected $dates = ["tanggal_pengajuan", "tanggal_perbaikan", "date_updated"]; // Tambahkan tanggal_perbaikan ke dates
 
     public const UPDATED_AT = "date_updated";
     public const CREATED_AT = null;
@@ -285,5 +289,30 @@ class Icv extends Model
             return 7;
         }
         return 1;
+    }
+
+    /**
+     * Tambahkan catatan perbaikan ke riwayat
+     */
+    public function tambahCatatanPerbaikan(string $catatan): void
+    {
+        $riwayat = $this->riwayat_perbaikan ?? [];
+
+        $riwayat[] = [
+            'tanggal' => now()->format('Y-m-d H:i:s'),
+            'catatan' => $catatan,
+        ];
+
+        $this->riwayat_perbaikan = $riwayat;
+        $this->save();
+    }
+
+    /**
+     * Get riwayat perbaikan terakhir
+     */
+    public function getCatatanTerakhir(): ?array
+    {
+        $riwayat = $this->riwayat_perbaikan ?? [];
+        return empty($riwayat) ? null : end($riwayat);
     }
 }

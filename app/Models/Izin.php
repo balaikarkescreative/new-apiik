@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Izin extends Model
 {
     protected $table = "tbl_izin";
 
     public $timestamps = false;
+
     protected $fillable = [
         'id',
         'user_id',
@@ -31,11 +33,16 @@ class Izin extends Model
         'file13',
         'file14',
         'status',
+        'tanggal_perbaikan',
+        'riwayat_perbaikan', // Tambahkan kolom baru
         'date_updated',
     ];
+
     protected $casts = [
         'tanggal_pengajuan' => 'date',
         'tanggal_surat' => 'date',
+        'tanggal_perbaikan' => 'datetime',
+        'riwayat_perbaikan' => 'array', // Cast JSON ke array
         'date_updated' => 'datetime',
     ];
 
@@ -45,6 +52,31 @@ class Izin extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Tambahkan catatan perbaikan ke riwayat
+     */
+    public function tambahCatatanPerbaikan(string $catatan): void
+    {
+        $riwayat = $this->riwayat_perbaikan ?? [];
+
+        $riwayat[] = [
+            'tanggal' => Carbon::now()->format('Y-m-d H:i:s'),
+            'catatan' => $catatan,
+        ];
+
+        $this->riwayat_perbaikan = $riwayat;
+        $this->save();
+    }
+
+    /**
+     * Get riwayat perbaikan terakhir
+     */
+    public function getCatatanTerakhir(): ?array
+    {
+        $riwayat = $this->riwayat_perbaikan ?? [];
+        return empty($riwayat) ? null : end($riwayat);
     }
 
     /**

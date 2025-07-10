@@ -8,6 +8,10 @@ use App\Models\Izin;
 use App\Models\IzinPersetujuan;
 use Illuminate\Support\ServiceProvider;
 
+use App\Models\User;
+
+use Illuminate\Support\Facades\Gate;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -25,5 +29,11 @@ class AppServiceProvider extends ServiceProvider
     {
         Izin::observe(IzinObserver::class);
         IzinPersetujuan::observe(PersetujuanObserver::class);
+        
+        Gate::define('viewPulse', function (User $user) {
+
+            return $user->hasRole('admin');
+
+        });
     }
 }

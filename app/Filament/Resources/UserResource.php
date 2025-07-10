@@ -26,6 +26,7 @@ use Filament\Infolists\Infolist;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\Grid;
+use Illuminate\Support\Collection;
 
 class UserResource extends Resource
 {
@@ -409,6 +410,54 @@ class UserResource extends Resource
                         false: fn (Builder $query) => $query->where('pertanyaan2', 'Tidak'),
                     ),
             ])
+            ->headerActions([
+                // Tambahkan header action untuk export Excel
+                Tables\Actions\Action::make('exportExcel')
+                    ->label('Export Excel')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->form([
+                        Forms\Components\Select::make('kategori')
+                            ->label('Kategori')
+                            ->options([
+                                'all' => 'Semua',
+                                'Klinik' => 'Klinik',
+                                'Rumah Sakit' => 'Rumah Sakit',
+                            ])
+                            ->default('all'),
+                        Forms\Components\Select::make('kotakab')
+                            ->label('Kota/Kabupaten')
+                            ->options(function () {
+                                return User::whereHas('roles', fn($q) => $q->where('name', 'user'))
+                                    ->whereNotNull('kotakab')
+                                    ->distinct('kotakab')
+                                    ->pluck('kotakab', 'kotakab')
+                                    ->prepend('Semua', 'all')
+                                    ->toArray();
+                            })
+                            ->searchable()
+                            ->default('all'),
+                        Forms\Components\Select::make('verifikasi_akun')
+                            ->label('Status Verifikasi')
+                            ->options([
+                                'all' => 'Semua',
+                                'Belum Diverifikasi' => 'Belum Diverifikasi',
+                                'Diterima' => 'Diterima',
+                                'Ditolak' => 'Ditolak',
+                            ])
+                            ->default('all'),
+                        Forms\Components\Select::make('status_akun')
+                            ->label('Status Akun')
+                            ->options([
+                                'all' => 'Semua',
+                                'Aktif' => 'Aktif',
+                                'Tidak Aktif' => 'Tidak Aktif',
+                            ])
+                            ->default('all'),
+                    ])
+                    ->action(function (array $data) {
+                        return static::exportToExcel($data);
+                    })
+            ])
             ->filtersLayout(Tables\Enums\FiltersLayout::AboveContent)
             ->persistFiltersInSession()
             ->defaultSort('date_updated', 'desc')
@@ -645,8 +694,14 @@ class UserResource extends Resource
                             })
                             ->live()
                             ->afterStateUpdated(function (callable $set, $state, User $record) {
+                                $previousStatus = $record->status_akun;
                                 $record->status_akun = $state ? 'Aktif' : 'Tidak Aktif';
                                 $record->save();
+
+                                // Kirim email hanya jika status berubah menjadi aktif dan sebelumnya null (bukan 'Tidak Aktif')
+                                if ($state && $previousStatus === null) {
+                                    static::sendAccountActivationEmail($record);
+                                }
                             })
                             ->disabled(fn(User $record): bool => $record->verifikasi_akun !== 'Diterima'),
 
@@ -693,6 +748,103 @@ class UserResource extends Resource
             ]);
     }
 
+    /**
+     * Export data user ke Excel
+     */
+    public static function exportToExcel(array $filters): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        // Buat query berdasarkan filter
+        $query = User::query()
+            ->whereHas('roles', function (Builder $query) {
+                $query->where('name', 'user');
+            });
+
+        // Aplikasikan filter
+        if ($filters['kategori'] !== 'all') {
+            $query->where('kategori', $filters['kategori']);
+        }
+
+        if ($filters['kotakab'] !== 'all') {
+            $query->where('kotakab', $filters['kotakab']);
+        }
+
+        if ($filters['verifikasi_akun'] !== 'all') {
+            $query->where('verifikasi_akun', $filters['verifikasi_akun']);
+        }
+
+        if ($filters['status_akun'] !== 'all') {
+            $query->where('status_akun', $filters['status_akun']);
+        }
+
+        // Ambil data
+        $data = $query->orderBy('name')->get();
+
+        // Buat file Excel
+        $filename = 'daftar_faskes_' . date('Y-m-d_H-i-s') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Content-Transfer-Encoding' => 'binary',
+            'Expires' => '0',
+            'Pragma' => 'public',
+        ];
+
+        $callback = function () use ($data) {
+            $output = fopen('php://output', 'w');
+
+            // BOM untuk UTF-8
+            fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // Header
+            fputcsv($output, [
+                'Nama Faskes',
+                'Kategori',
+                'Kota/Kabupaten',
+                'Alamat',
+                'No. WhatsApp',
+                'No. Surat Izin Operasional',
+                'Masa Berlaku Izin',
+                'Status Verifikasi',
+                'Status Akun',
+                'Pelatihan Vaksinologi',
+                'Cold Chain',
+                'Username',
+                'Email',
+                'Terakhir Diperbarui',
+            ]);
+
+            // Data
+            foreach ($data as $row) {
+                fputcsv($output, [
+                    $row->name,
+                    $row->kategori,
+                    $row->kotakab,
+                    $row->alamat,
+                    "'" . $row->kontak_pj, // Tambahkan kutip satu di depan kontak PJ
+                    "'" . $row->nomor_surat_izin_operasional, // Tambahkan kutip satu di depan nomor surat
+                    $row->masa_berlaku_surat_izin_operasional
+                        ? Carbon::parse($row->masa_berlaku_surat_izin_operasional)->format('d/m/Y')
+                        : '-',
+                    $row->verifikasi_akun ?? 'Belum Diverifikasi',
+                    $row->status_akun ?? 'Tidak Aktif',
+                    $row->pertanyaan1 ?? '-',
+                    $row->pertanyaan2 ?? '-',
+                    $row->username ?? '-',
+                    $row->email ?? '-',
+                    $row->date_updated
+                        ? Carbon::parse($row->date_updated)->format('d/m/Y H:i')
+                        : '-',
+                ]);
+            }
+
+            fclose($output);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
     public static function getRelations(): array
     {
         return [];
@@ -705,5 +857,62 @@ class UserResource extends Resource
             'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Kirim email aktivasi akun dengan username dan password
+     */
+    protected static function sendAccountActivationEmail(User $user): void
+    {
+        try {
+            // Pastikan user memiliki email
+            if (empty($user->email)) {
+                \Log::warning('Cannot send activation email: user has no email', [
+                    'user_id' => $user->id,
+                    'name' => $user->name,
+                ]);
+                return;
+            }
+
+            // Pastikan user memiliki username dan password
+            if (empty($user->username)) {
+                \Log::warning('Cannot send activation email: user has no username', [
+                    'user_id' => $user->id,
+                    'name' => $user->name,
+                ]);
+                return;
+            }
+
+            // Kirim email aktivasi
+            \Mail::to($user->email)->send(new \App\Mail\AccountActivationNotification($user));
+
+            // Log berhasil
+            \Log::info('Account activation email sent successfully', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'username' => $user->username,
+            ]);
+
+            // Notifikasi ke admin
+            \Filament\Notifications\Notification::make()
+                ->title('Email Aktivasi Dikirim')
+                ->body("Email aktivasi akun telah dikirim ke {$user->name} ({$user->email})")
+                ->success()
+                ->send();
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to send account activation email', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+
+            // Notifikasi error ke admin
+            \Filament\Notifications\Notification::make()
+                ->title('Gagal Mengirim Email')
+                ->body("Gagal mengirim email aktivasi ke {$user->name}. Error: {$e->getMessage()}")
+                ->danger()
+                ->send();
+        }
     }
 }

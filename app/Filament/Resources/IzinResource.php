@@ -91,23 +91,23 @@ class IzinResource extends Resource
         }
 
         // User biasa cek apakah sudah pernah mengajukan izin baru
-        $hasIzinBaru = Izin::where("user_id", auth()->id())
-            ->where("kategori_izin", "Izin Baru")
-            ->exists();
+        // $hasIzinBaru = Izin::where("user_id", auth()->id())
+        //     ->where("kategori_izin", "Izin Baru")
+        //     ->exists();
 
-        // Jika sudah ada izin baru, cek apakah sudah selesai
-        if ($hasIzinBaru) {
-            $latestIzin = Izin::where("user_id", auth()->id())
-                ->where("kategori_izin", "Izin Baru")
-                ->with("izinDokumenPks")
-                ->orderBy("tanggal_pengajuan", "desc")
-                ->first();
+        // // // Jika sudah ada izin baru, cek apakah sudah selesai
+        // if ($hasIzinBaru) {
+        //     $latestIzin = Izin::where("user_id", auth()->id())
+        //         ->where("kategori_izin", "Izin Baru")
+        //         ->with("izinPersetujuan")
+        //         ->orderBy("tanggal_pengajuan", "desc")
+        //         ->first();
 
-            // Hanya bisa create lagi jika izin sudah selesai (ada PKS)
-            return $latestIzin &&
-                $latestIzin->izinDokumenPks &&
-                $latestIzin->izinDokumenPks->dokumen_pks_bkk;
-        }
+        //     // Hanya bisa create lagi jika izin sudah selesai (ada PKS)
+        //     return $latestIzin &&
+        //         $latestIzin->izinPersetujuan &&
+        //         $latestIzin->izinPersetujuan->file_persetujuan;
+        // }
 
         return true;
     }

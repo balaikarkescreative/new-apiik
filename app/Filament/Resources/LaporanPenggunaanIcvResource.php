@@ -132,7 +132,7 @@ class LaporanPenggunaanIcvResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function (\Illuminate\Database\Eloquent\Builder $query) {
-                if (!Auth::user()?->hasRole('admin') || Auth::user()?->hasRole('verifikator2')) {
+                if (!Auth::user()?->hasRole('admin') && !Auth::user()?->hasRole('verifikator2')) {
                     $query->where('id_user', Auth::id())->with(['user', 'jenisVaksin']);
                 }
                 return $query->orderBy('tgl_pelaporan', 'desc')->with(['user', 'jenisVaksin']);

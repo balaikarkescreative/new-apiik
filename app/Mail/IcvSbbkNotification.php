@@ -16,12 +16,10 @@ class IcvSbbkNotification extends Mailable
     use Queueable, SerializesModels;
 
     public $icv;
-    public $fileSbbk;
 
-    public function __construct(Icv $icv, $fileSbbk)
+    public function __construct(Icv $icv)
     {
         $this->icv = $icv;
-        $this->fileSbbk = $fileSbbk;
     }
 
     public function envelope(): Envelope
@@ -40,17 +38,7 @@ class IcvSbbkNotification extends Mailable
 
     public function attachments(): array
     {
-        // Attach SBBK file
-        $attachments = [];
-
-        if ($this->fileSbbk) {
-            $attachments[] = \Illuminate\Mail\Mailables\Attachment::fromStorageDisk(
-                'public',
-                $this->fileSbbk
-            )->as('SBBK_ICV_' . $this->icv->id . '.pdf')
-            ->withMime('application/pdf');
-        }
-
-        return $attachments;
+        // Tidak ada file SBBK yang dilampirkan
+        return [];
     }
 }

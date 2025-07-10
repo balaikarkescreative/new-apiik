@@ -4,7 +4,9 @@ namespace App\Filament\Resources\IzinResource\Pages;
 
 use App\Filament\Resources\IzinResource;
 use App\Models\IzinPersetujuan;
+use App\Models\SuratPersetujuanIcv;
 use Dom\Text;
+use Filament\Forms\Components\Placeholder;
 use Filament\Resources\Pages\Page;
 use App\Models\Izin;
 use Filament\Tables\Actions\Action;
@@ -104,12 +106,12 @@ class VerifikasiIzin extends Page implements HasTable
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->whereHas('user', function (Builder $query) use ($search) {
                             $query->where('name', 'like', "%{$search}%")
-                                  ->orWhere('kotakab', 'like', "%{$search}%");
+                                ->orWhere('kotakab', 'like', "%{$search}%");
                         });
                     })
                     ->sortable(query: function (Builder $query, string $direction): Builder {
                         return $query->join('users', 'tbl_izin.user_id', '=', 'users.id')
-                                    ->orderBy('users.name', $direction);
+                            ->orderBy('users.name', $direction);
                     }),
 
                 // Kategori Izin - Sortable & Searchable
@@ -172,6 +174,17 @@ class VerifikasiIzin extends Page implements HasTable
                 // Current Step
                 TextColumn::make('current_step')
                     ->label('Tahap Saat Ini')
+                    ->suffix(function ($record) {
+                        // Jika ada tanggal_perbaikan dan (belum ada izinDokumen atau hasil terakhir = 2), tampilkan (Perbaikan)
+                        if ($record->tanggal_perbaikan) {
+                            if (
+                                !$record->izinDokumen
+                            ) {
+                                return ' (Perbaikan)';
+                            }
+                        }
+                        return '';
+                    })
                     ->getStateUsing(function ($record) {
                         return $this->getCurrentStep($record);
                     })
@@ -206,7 +219,7 @@ class VerifikasiIzin extends Page implements HasTable
                         $details = [];
 
                         if ($record->izinDokumen && $record->izinDokumen->hasil) {
-                            $hasil = match($record->izinDokumen->hasil) {
+                            $hasil = match ($record->izinDokumen->hasil) {
                                 1 => 'Lengkap',
                                 2 => 'Tidak Lengkap',
                                 default => 'Pending'
@@ -231,7 +244,7 @@ class VerifikasiIzin extends Page implements HasTable
                         }
 
                         $lines = explode("\n", $state);
-                        $formatted = array_map(function($line) {
+                        $formatted = array_map(function ($line) {
                             return '<div class="text-xs">' . $line . '</div>';
                         }, $lines);
 
@@ -265,7 +278,8 @@ class VerifikasiIzin extends Page implements HasTable
                             ->pluck('users.kotakab', 'users.kotakab');
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+                        if (!$data['value'])
+                            return $query;
 
                         return $query->whereHas('user', function (Builder $query) use ($data) {
                             $query->where('kotakab', $data['value']);
@@ -286,6 +300,7 @@ class VerifikasiIzin extends Page implements HasTable
                     ->label('Status Progress')
                     ->options([
                         'verifikasi_dokumen' => 'Verifikasi Dokumen',
+                        'perbaikan' => 'Perbaikan', // Tambahkan opsi ini
                         'perbaikan_dokumen' => 'Perbaikan Dokumen',
                         'jadwal_visitasi' => 'Jadwal Visitasi',
                         'proses_persetujuan' => 'Proses Persetujuan',
@@ -307,6 +322,14 @@ class VerifikasiIzin extends Page implements HasTable
                                             $subQ->whereNull('hasil')->orWhere('hasil', 0);
                                         });
                                 });
+
+                            case 'perbaikan':
+                                // Filter: ada tanggal_perbaikan dan (belum ada izinDokumen atau hasil terakhir = 2)
+                                return $query->whereNotNull('tanggal_perbaikan')
+                                    ->where(function ($q) {
+                                        $q->whereDoesntHave('izinDokumen')
+                                          ->orWhereHas('izinDokumen', fn($q2) => $q2->where('hasil', 2));
+                                    });
 
                             case 'perbaikan_dokumen':
                                 return $query->whereHas('izinDokumen', function ($q) {
@@ -358,7 +381,8 @@ class VerifikasiIzin extends Page implements HasTable
                         'belum_verifikasi' => 'Belum Verifikasi',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+                        if (!$data['value'])
+                            return $query;
 
                         return match ($data['value']) {
                             'lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 1)),
@@ -368,7 +392,7 @@ class VerifikasiIzin extends Page implements HasTable
                             default => $query,
                         };
                     }),
-                ], FiltersLayout::AboveContent)
+            ], FiltersLayout::AboveContent)
             ->persistFiltersInSession()
             ->actions([
                 Action::make('detail_verifikasi')
@@ -392,6 +416,7 @@ class VerifikasiIzin extends Page implements HasTable
                             // Step 1: Verifikasi Dokumen
                             'hasil' => $record->izinDokumen?->hasil ?? 0,
                             'catatan' => $record->izinDokumen?->catatan ?? '',
+                            'tanggal_perbaikan' => $record->tanggal_perbaikan ? $record->tanggal_perbaikan : null,
 
                             // Step 2: Visitasi
                             'tanggal_visitasi' => $record->izinDokumenPks?->tanggal_visitasi,
@@ -659,6 +684,13 @@ class VerifikasiIzin extends Page implements HasTable
                             return $record->izinDokumen->hasil == 1 ? 'success' : 'danger';
                         })
                         ->schema([
+                            Section::make('Riwayat Catatan')
+                                ->collapsible()
+                                ->visible(fn($record) => $record->riwayat_perbaikan ?? false)
+                                ->schema(function ($record) {
+                                    return $this->getRiwayatPerbaikanSchema($record->riwayat_perbaikan ?? []);
+                                }),
+
                             Select::make('hasil')
                                 ->label('Hasil Verifikasi')
                                 ->options([
@@ -675,8 +707,16 @@ class VerifikasiIzin extends Page implements HasTable
                             Textarea::make('catatan')
                                 ->label('Catatan')
                                 ->rows(4)
-                                ->visible(fn(Get $get): bool => $get('hasil') === '2')
-                                ->required(fn(Get $get): bool => $get('hasil') === '2'),
+                                ->visible(fn(Get $get): bool => $get('hasil') === 2 || $get('hasil') === '2')
+                                ->required(fn(Get $get): bool => $get('hasil') === '2' || $get('hasil') === 2),
+
+                            DatePicker::make('tanggal_perbaikan')
+                                ->label('Tanggal Perbaikan')
+                                ->native(false)
+                                ->displayFormat('d F Y H:i')
+                                ->disabled()
+                                ->visible(fn($state) => $state ? true : false)
+                                ->dehydrated(false),
 
                             TextInput::make('verifikasi_date')
                                 ->label('Tanggal Verifikasi')
@@ -719,6 +759,10 @@ class VerifikasiIzin extends Page implements HasTable
                                                 'date_updated' => now(),
                                             ]
                                         );
+
+                                        if ($catatan) {
+                                            $record->tambahCatatanPerbaikan($catatan);
+                                        }
 
                                         $record->refresh();
                                         $record->load('izinDokumen');
@@ -796,8 +840,8 @@ class VerifikasiIzin extends Page implements HasTable
                             DatePicker::make('tanggal_visitasi')
                                 ->label('Tanggal Visitasi')
                                 ->native(false)
-                                ->displayFormat('d F Y')
-                                ->minDate(now()->addDays(1)),
+                                ->displayFormat('d F Y'),
+
 
                             Actions::make([
                                 Actions\Action::make('set_jadwal_visitasi')
@@ -910,6 +954,22 @@ class VerifikasiIzin extends Page implements HasTable
                                 ->openable()
                                 ->helperText('Upload file surat persetujuan dalam format PDF (Maksimal 3MB)'),
 
+                            TextInput::make('nomor_surat')
+                                ->label('Nomor Surat Persetujuan')
+                                ->formatStateUsing(function ($record) {
+                                    return SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->nomor_surat ?? '';
+                                })
+                                ->required(),
+
+                            DatePicker::make('masa_berlaku')
+                                ->label('Masa Berlaku Izin')
+                                ->formatStateUsing(function ($record) {
+                                    return SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->masa_berlaku ?? '';
+                                })
+                                ->native(false)
+                                ->required()
+                                ->displayFormat('d F Y'),
+
                             Actions::make([
                                 Actions\Action::make('simpan_persetujuan')
                                     ->label('Simpan Persetujuan')
@@ -918,6 +978,8 @@ class VerifikasiIzin extends Page implements HasTable
                                     ->action(function (Get $get, Set $set, $record) {
                                         $filePersetujuan = $get('file_persetujuan');
                                         $tanggalPersetujuan = $get('tanggal_persetujuan');
+                                        $nomorSurat = $get('nomor_surat');
+                                        $masaBerlaku = $get('masa_berlaku');
 
                                         if (!$filePersetujuan) {
                                             Notification::make()
@@ -928,17 +990,76 @@ class VerifikasiIzin extends Page implements HasTable
                                             return;
                                         }
 
-                                        $file_uuid = array_key_first($filePersetujuan);
-                                        $filePersetujuan = $filePersetujuan[$file_uuid];
+                                        if (!$nomorSurat) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->danger()
+                                                ->body('Nomor surat persetujuan harus diisi.')
+                                                ->send();
+                                            return;
+                                        }
 
-                                        $file = Storage::disk('public')
-                                            ->putFileAs('surat-persetujuan', $filePersetujuan, 'Surat Persetujuan ' . $record->user->name . ' [' . now()->format('dmYHis') . ']' . "." . $filePersetujuan->getClientOriginalExtension());
+                                        if (!$masaBerlaku) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->danger()
+                                                ->body('Masa berlaku izin harus diisi.')
+                                                ->send();
+                                            return;
+                                        }
 
+                                        $userId = $record->user_id;
+
+                                        // Save to SuratPersetujuanIcv table
+                                        SuratPersetujuanIcv::updateOrCreate(
+                                            ['id_akun' => $userId],
+                                            [
+                                                'nomor_surat' => $nomorSurat,
+                                                'tanggal_surat' => $tanggalPersetujuan,
+                                                'masa_berlaku' => $masaBerlaku,
+                                            ]
+                                        );
+
+                                        // Handle file upload properly
+                                        $filePath = null;
+
+                                        // Check if file_persetujuan is an array (new upload) or string (existing file)
+                                        if (is_array($filePersetujuan)) {
+                                            $file_uuid = array_key_first($filePersetujuan);
+                                            $uploadedFile = $filePersetujuan[$file_uuid];
+
+                                            if (is_string($uploadedFile)) {
+                                                // Sudah berupa path file lama
+                                                $filePath = $uploadedFile;
+                                            } elseif ($uploadedFile && method_exists($uploadedFile, 'getClientOriginalExtension')) {
+                                                // File baru diupload
+                                                $filePath = \Storage::disk('public')
+                                                    ->putFileAs(
+                                                        'surat-persetujuan',
+                                                        $uploadedFile,
+                                                        'Surat Persetujuan ' . $record->user->name . ' [' . now()->format('dmYHis') . '].' . $uploadedFile->getClientOriginalExtension()
+                                                    );
+                                            }
+                                        } else if (is_string($filePersetujuan)) {
+                                            // Existing file path
+                                            $filePath = $filePersetujuan;
+                                        }
+
+                                        if (!$filePath) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat memproses file.')
+                                                ->send();
+                                            return;
+                                        }
+
+                                        // Save to IzinPersetujuan table
                                         $record->izinPersetujuan()->updateOrCreate(
                                             ['id_izin' => $record->id],
                                             [
                                                 'date_updated' => $tanggalPersetujuan ?? now(),
-                                                'file_persetujuan' => $file,
+                                                'file_persetujuan' => $filePath,
                                                 'status' => 1,
                                             ]
                                         );
@@ -947,6 +1068,7 @@ class VerifikasiIzin extends Page implements HasTable
                                         $record->refresh();
                                         $record->load(['izinPersetujuan', 'izinDokumen', 'izinDokumenPks']);
 
+                                        // Send email notification
                                         try {
                                             if ($record->user && $record->user->email) {
                                                 Mail::to($record->user->email)->send(
@@ -967,9 +1089,8 @@ class VerifikasiIzin extends Page implements HasTable
                                             ->body('Izin telah disetujui dan surat persetujuan telah diupload.' . $emailStatus)
                                             ->send();
 
-                                        // Reset fields
+                                        // Redirect to refresh the page
                                         $this->redirect(VerifikasiIzin::getUrl());
-
                                     })
                             ])
                         ]),
@@ -1027,7 +1148,7 @@ class VerifikasiIzin extends Page implements HasTable
                                 ->directory('perjanjian-kerjasama')
                                 ->getUploadedFileNameForStorageUsing(function ($file, $record) {
                                     $extension = $file->getClientOriginalExtension();
-                                    return "PKS " . $record->user->name ." [" . date("dmyHis") . "]." . $extension;
+                                    return "PKS " . $record->user->name . " [" . date("dmyHis") . "]." . $extension;
                                 })
                                 ->openable()
                                 ->helperText('Upload file PKS dalam format PDF (Maksimal 3MB)'),
@@ -1050,14 +1171,36 @@ class VerifikasiIzin extends Page implements HasTable
                                         }
 
                                         $file_uuid = array_key_first($pks);
-                                        $pks = $pks[$file_uuid];
-                                        $pks = Storage::disk('public')
-                                            ->putFileAs('perjanjian-kerjasama', $pks, 'PKS ' . $record->user->name . ' [' . now()->format('dmYHis') . ']' . "." . $pks->getClientOriginalExtension());
+                                        $pksFile = $pks[$file_uuid];
+
+                                        if (is_string($pksFile)) {
+                                            // Sudah berupa path file lama
+                                            $filePath = $pksFile;
+                                        } elseif (is_object($pksFile) && method_exists($pksFile, 'getClientOriginalExtension')) {
+                                            // File baru diupload
+                                            $filePath = Storage::disk('public')
+                                                ->putFileAs(
+                                                    'perjanjian-kerjasama',
+                                                    $pksFile,
+                                                    'PKS ' . $record->user->name . ' [' . now()->format('dmYHis') . '].' . $pksFile->getClientOriginalExtension()
+                                                );
+                                        } else {
+                                            $filePath = null;
+                                        }
+
+                                        if (!$filePath) {
+                                            Notification::make()
+                                                ->title('Gagal Upload PKS')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat memproses file PKS.')
+                                                ->send();
+                                            return;
+                                        }
 
                                         $record->izinDokumenPks()->updateOrCreate(
                                             ['id_izin' => $record->id],
                                             [
-                                                'dokumen_pks_bkk' => $pks,
+                                                'dokumen_pks_bkk' => $filePath,
                                                 'status_dokumen' => 'sign both',
                                             ]
                                         );
@@ -1094,6 +1237,19 @@ class VerifikasiIzin extends Page implements HasTable
                         ]),
                 ])
         ];
+    }
+
+    private function getRiwayatPerbaikanSchema(array $riwayat): array
+    {
+        error_log('Riwayat Perbaikan: ' . json_encode($riwayat));
+        $schema = [];
+        foreach ($riwayat as $index => $item) {
+            $schema[] = Placeholder::make("riwayat_{$index}")
+                ->label($item['tanggal'])
+                ->content($item['catatan'] ?? 'Tidak ada catatan');
+        }
+
+        return $schema;
     }
 
     private function getDocumentFields(): array

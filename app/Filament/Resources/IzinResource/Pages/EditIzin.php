@@ -18,6 +18,22 @@ class EditIzin extends EditRecord
         if ($cek_izin) {
             $cek_izin = $cek_izin->delete();
         }
+
+
+        if ($this->data['tanggal_perbaikan']) {
+            $this->record->tanggal_perbaikan = $this->data['tanggal_perbaikan'];
+            $this->record->save();
+        }
+    }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $type = request()->get('type');
+        if ($type === 'perbaikan') {
+            $data['tanggal_perbaikan'] = now();
+        }
+
+        return $data;
     }
 
     protected function getRedirectUrl(): string

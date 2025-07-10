@@ -69,25 +69,18 @@ class PenerbitanKodeBilling extends Page implements HasTable
                         'icvAlokasi',
                         'icvBilling',
                         'icvBuktiBayar',
+                        'icvJadwal',
                     ])
                     ->whereHas('icvAlokasi', function ($query) {
                         $query->where('icv_disetujui', '>', 0);
                     })
                     // Custom ordering: yang belum ada billing di atas
                     ->leftJoin('tbl_icv_billing', 'tbl_icv.id', '=', 'tbl_icv_billing.id_icv')
+                    ->leftJoin('tbl_icv_bukti_bayar', 'tbl_icv.id', '=', 'tbl_icv_bukti_bayar.id_icv')
                     ->orderByRaw('CASE
                     WHEN tbl_icv_billing.kode_billing IS NULL THEN 0
-                    WHEN tbl_icv_billing.kode_billing IS NOT NULL AND NOT EXISTS (
-                        SELECT 1 FROM tbl_icv_bukti_bayar
-                        WHERE tbl_icv_bukti_bayar.id_icv = tbl_icv.id
-                        AND tbl_icv_bukti_bayar.file_bukti_bayar IS NOT NULL
-                    ) THEN 1
-                    WHEN EXISTS (
-                        SELECT 1 FROM tbl_icv_bukti_bayar
-                        WHERE tbl_icv_bukti_bayar.id_icv = tbl_icv.id
-                        AND tbl_icv_bukti_bayar.file_bukti_bayar IS NOT NULL
-                        AND tbl_icv_bukti_bayar.distribusi_icv IS NULL
-                    ) THEN 2
+                    WHEN tbl_icv_billing.kode_billing IS NOT NULL AND tbl_icv_bukti_bayar.file_bukti_bayar IS NULL THEN 1
+                    WHEN tbl_icv_bukti_bayar.file_bukti_bayar IS NOT NULL THEN 2
                     ELSE 3
                 END')
                     ->orderBy('tbl_icv.tanggal_pengajuan', 'desc')
@@ -119,13 +112,13 @@ class PenerbitanKodeBilling extends Page implements HasTable
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->whereHas('user', function (Builder $query) use ($search) {
                             $query->where('name', 'like', "%{$search}%")
-                                  ->orWhere('kotakab', 'like', "%{$search}%");
+                                ->orWhere('kotakab', 'like', "%{$search}%");
                         });
                     })
                     ->sortable(query: function (Builder $query, string $direction): Builder {
                         return $query->join('users', 'tbl_icv.user_id', '=', 'users.id')
-                                    ->orderBy('users.name', $direction)
-                                    ->select('tbl_icv.*');
+                            ->orderBy('users.name', $direction)
+                            ->select('tbl_icv.*');
                     }),
 
                 TextColumn::make('icvAlokasi.icv_disetujui')
@@ -156,10 +149,7 @@ class PenerbitanKodeBilling extends Page implements HasTable
                         if (!$record->icvBuktiBayar || !$record->icvBuktiBayar->file_bukti_bayar) {
                             return 'Menunggu Pembayaran';
                         }
-                        if ($record->icvBuktiBayar && !$record->icvBuktiBayar->distribusi_icv) {
-                            return 'Menunggu Verifikasi';
-                        }
-                        return 'Pembayaran Terverifikasi';
+                        return 'Sudah Bayar';
                     })
                     ->color(function ($record) {
                         if (!$record->icvBilling || !$record->icvBilling->kode_billing) {
@@ -168,330 +158,248 @@ class PenerbitanKodeBilling extends Page implements HasTable
                         if (!$record->icvBuktiBayar || !$record->icvBuktiBayar->file_bukti_bayar) {
                             return 'warning';
                         }
-                        if ($record->icvBuktiBayar && !$record->icvBuktiBayar->distribusi_icv) {
-                            return 'info';
-                        }
                         return 'success';
                     })
                     ->sortable(query: function ($query, string $direction): \Illuminate\Database\Eloquent\Builder {
                         return $query->leftJoin('tbl_icv_billing as bl', 'tbl_icv.id', '=', 'bl.id_icv')
                             ->leftJoin('tbl_icv_bukti_bayar as bb', 'tbl_icv.id', '=', 'bb.id_icv')
                             ->orderByRaw('CASE
-                            WHEN bl.kode_billing IS NULL THEN 0
-                            WHEN bl.kode_billing IS NOT NULL AND bb.file_bukti_bayar IS NULL THEN 1
-                            WHEN bb.file_bukti_bayar IS NOT NULL AND bb.distribusi_icv IS NULL THEN 2
-                            ELSE 3
-                        END ' . $direction)
+                        WHEN bl.kode_billing IS NULL THEN 0
+                        WHEN bl.kode_billing IS NOT NULL AND bb.file_bukti_bayar IS NULL THEN 1
+                        WHEN bb.file_bukti_bayar IS NOT NULL THEN 2
+                        ELSE 3
+                    END ' . $direction)
                             ->select('tbl_icv.*');
                     }),
-            ])
-            ->actions([
-                Action::make('terbitkan_billing')
-                    ->label('Terbitkan Billing')
-                    ->icon('heroicon-o-banknotes')
-                    ->color('primary')
-                    ->visible(fn($record) => !$record->icvBilling?->kode_billing)
-                    ->modalHeading(fn($record) => 'Terbitkan Kode Billing - ' . $record->user->name)
-                    ->modalWidth('2xl')
-                    ->modalSubmitActionLabel('Terbitkan')
-                    ->form([
-                        Section::make('Informasi Pengajuan')
-                            ->schema([
-                                Grid::make(3)->schema([
-                                    TextInput::make('nama_pemohon')
-                                        ->label('Nama Pemohon')
-                                        ->default(fn($record) => $record->user->name)
-                                        ->disabled()
-                                        ->dehydrated(false),
-
-                                    TextInput::make('tanggal_pengajuan')
-                                        ->label('Tanggal Pengajuan')
-                                        ->default(fn($record) => $record->tanggal_pengajuan?->translatedFormat('d F Y'))
-                                        ->disabled()
-                                        ->dehydrated(false),
-
-                                    TextInput::make('icv_disetujui')
-                                        ->label('ICV Disetujui')
-                                        ->default(fn($record) => $record->icvAlokasi?->icv_disetujui ?? 0)
-                                        ->disabled()
-                                        ->dehydrated(false),
-                                ]),
-                            ])
-                            ->collapsible(),
-
-                        Section::make('Penerbitan Kode Billing')
-                            ->schema([
-                                Grid::make(2)->schema([
-                                    TextInput::make('kode_billing')
-                                        ->label('Kode Billing')
-                                        ->numeric()
-                                        ->required()
-                                        ->maxLength(50),
-
-                                    TextInput::make('nominal')
-                                        ->label('Nominal Pembayaran')
-                                        ->numeric()
-                                        ->prefix('Rp')
-                                        ->required()
-                                        ->default(fn($record) => ($record->icvAlokasi?->icv_disetujui ?? 0) * 25000)
-                                        ->helperText(fn($record) => 'Default: Rp ' . number_format(($record->icvAlokasi?->icv_disetujui ?? 0) * 25000, 0, ',', '.')),
-                                ]),
-                            ]),
-                    ])
-                    ->action(function (array $data, $record) {
-
-                        // Create billing
-                        $record->icvBilling()->updateOrCreate([
-                            'id_icv' => $record->id,
-                        ], [
-                            'kode_billing' => $data['kode_billing'],
-                            'nominal' => $data['nominal'],
-                            'date_updated' => now(),
-                        ]);
-
-                        $record = $record->fresh(['user', 'icvBilling']);
-
-                        // Send email notification
-                        $emailStatus = '';
-                        try {
-                            if ($record->user && $record->user->email) {
-                                Mail::to($record->user->email)->send(
-                                    new IcvBillingNotification($record, $data['kode_billing'], $data['nominal'])
-                                );
-                                $emailStatus = ' Email notifikasi billing telah dikirim.';
-                            } else {
-                                $emailStatus = ' Email tidak dapat dikirim (email user tidak valid).';
-                            }
-                        } catch (\Exception $e) {
-                            error_log('Gagal mengirim email billing ICV: ' . $e->getMessage());
-                            $emailStatus = ' Email gagal dikirim.';
-                        }
-
-                        Notification::make()
-                            ->title('Billing Berhasil Diterbitkan')
-                            ->success()
-                            ->body("Kode billing {$data['kode_billing']} berhasil diterbitkan.{$emailStatus}")
-                            ->send();
-                    }),
-
-                Action::make('lihat_bukti_bayar')
-                    ->label('Lihat Bukti Bayar')
-                    ->icon('heroicon-o-document-text')
-                    ->color('info')
-                    ->visible(fn($record) => $record->icvBuktiBayar?->file_bukti_bayar)
-                    ->modalHeading(fn($record) => 'Bukti Pembayaran - ' . $record->user->name)
-                    ->modalWidth('4xl')
-                    ->modalSubmitAction(false)
-                    ->form([
-                        Section::make('Informasi Pembayaran')
-                            ->schema([
-                                Grid::make(3)->schema([
-                                    TextInput::make('kode_billing_info')
-                                        ->label('Kode Billing')
-                                        ->default(fn($record) => $record->icvBilling?->kode_billing ?? '-')
-                                        ->disabled()
-                                        ->dehydrated(false),
-
-                                    TextInput::make('nominal_info')
-                                        ->label('Nominal')
-                                        ->default(fn($record) => 'Rp ' . number_format($record->icvBilling?->nominal ?? 0, 0, ',', '.'))
-                                        ->disabled()
-                                        ->dehydrated(false),
-
-                                    TextInput::make('tanggal_upload_info')
-                                        ->label('Tanggal Upload')
-                                        ->default(fn($record) => $record->icvBuktiBayar?->date_updated?->translatedFormat('d F Y H:i') ?? '-')
-                                        ->disabled()
-                                        ->dehydrated(false),
-                                ]),
-
-                                Grid::make(2)->schema([
-                                    TextInput::make('status_verifikasi_info')
-                                        ->label('Status Verifikasi')
-                                        ->default(function ($record) {
-                                            if ($record->icvBuktiBayar?->distribusi_icv) {
-                                                return 'Terverifikasi (' . $record->icvBuktiBayar->distribusi_icv . ')';
-                                            }
-                                            return 'Menunggu Verifikasi';
-                                        })
-                                        ->disabled()
-                                        ->dehydrated(false),
-
-                                    TextInput::make('catatan_info')
-                                        ->label('Catatan')
-                                        ->default(fn($record) => $record->icvBuktiBayar?->catatan ?? 'Tidak ada catatan')
-                                        ->disabled()
-                                        ->dehydrated(false),
-                                ]),
-                            ])
-                            ->collapsible(),
-
-                        Section::make('File Bukti Pembayaran')
-                            ->schema([
-                                FileUpload::make('file_bukti_bayar')
-                                    ->label('Bukti Pembayaran')
-                                    ->downloadable()
-                                    ->disk('public')
-                                    ->directory('icv/bukti_bayar')
-                                    ->default(fn($record) => $record->icvBuktiBayar?->file_bukti_bayar)
+        ])
+        ->actions([
+            Action::make('terbitkan_billing')
+                ->label('Terbitkan Billing')
+                ->icon('heroicon-o-banknotes')
+                ->color('primary')
+                ->visible(fn($record) => !$record->icvBilling?->kode_billing)
+                ->modalHeading(fn($record) => 'Terbitkan Kode Billing - ' . $record->user->name)
+                ->modalWidth('2xl')
+                ->modalSubmitActionLabel('Terbitkan')
+                ->form([
+                    Section::make('Informasi Pengajuan')
+                        ->schema([
+                            Grid::make(3)->schema([
+                                TextInput::make('nama_pemohon')
+                                    ->label('Nama Pemohon')
+                                    ->default(fn($record) => $record->user->name)
                                     ->disabled()
-                                    ->dehydrated(false)
-                                    ->helperText('Bukti pembayaran yang diunggah'),
-                            ])->visible(fn($record) => $record->icvBuktiBayar?->file_bukti_bayar),
+                                    ->dehydrated(false),
 
-                        Section::make('Verifikasi Pembayaran')
-                            ->schema([
-                                Select::make('distribusi_icv')
-                                    ->label('Metode Distribusi ICV')
-                                    ->options([
-                                        'Dikirim' => 'Dikirim',
-                                        'Diambil' => 'Diambil',
-                                    ])
-                                    ->default(fn($record) => $record->icvBuktiBayar?->distribusi_icv)
-                                    ->disabled(fn($record) => (bool) $record->icvBuktiBayar?->distribusi_icv)
-                                    ->helperText('Pilih metode distribusi setelah verifikasi pembayaran'),
+                                TextInput::make('tanggal_pengajuan')
+                                    ->label('Tanggal Pengajuan')
+                                    ->default(fn($record) => $record->tanggal_pengajuan?->translatedFormat('d F Y'))
+                                    ->disabled()
+                                    ->dehydrated(false),
 
-                                Textarea::make('catatan_verifikasi')
-                                    ->label('Catatan Verifikasi')
-                                    ->default(fn($record) => $record->icvBuktiBayar?->catatan)
-                                    ->disabled(fn($record) => (bool) $record->icvBuktiBayar?->distribusi_icv)
-                                    ->rows(2),
-
-                                Actions::make([
-                                    Actions\Action::make('verifikasi_pembayaran')
-                                        ->label('Verifikasi Pembayaran')
-                                        ->icon('heroicon-o-check')
-                                        ->color('success')
-                                        ->visible(fn($record) => $record->icvBuktiBayar &&
-                                            $record->icvBuktiBayar->file_bukti_bayar &&
-                                            !$record->icvBuktiBayar->distribusi_icv)
-                                        ->action(function (Get $get, Set $set, $record) {
-                                            $distribusiIcv = $get('distribusi_icv');
-
-                                            if (!$distribusiIcv) {
-                                                Notification::make()
-                                                    ->title('Gagal Verifikasi')
-                                                    ->danger()
-                                                    ->body('Metode distribusi harus dipilih.')
-                                                    ->send();
-                                                return;
-                                            }
-
-                                            // Update bukti bayar
-                                            $record->icvBuktiBayar->update([
-                                                'distribusi_icv' => $distribusiIcv,
-                                                'catatan' => $get('catatan_verifikasi') ?? '',
-                                                'status' => 1,
-                                                'date_updated' => now(),
-                                            ]);
-
-                                            // Update billing status
-                                            if ($record->icvBilling) {
-                                                $record->icvBilling->update(['bayar' => 1]);
-                                            }
-
-                                            Notification::make()
-                                                ->title('Pembayaran Berhasil Diverifikasi')
-                                                ->success()
-                                                ->body('Status pembayaran telah diverifikasi dengan metode distribusi: ' . $distribusiIcv)
-                                                ->send();
-
-                                            // Close modal and refresh page
-                                            $this->dispatch('close-modal', id: 'database-notifications');
-                                        }),
-                                ])->visible(fn($record) => $record->icvBuktiBayar &&
-                                        $record->icvBuktiBayar->file_bukti_bayar &&
-                                        !$record->icvBuktiBayar->distribusi_icv),
-                            ])
-                            ->visible(fn($record) => $record->icvBuktiBayar?->file_bukti_bayar),
-                    ]),
-
-                Action::make('edit_billing')
-                    ->label('Edit Billing')
-                    ->icon('heroicon-o-pencil')
-                    ->color('warning')
-                    ->visible(fn($record) => $record->icvBilling?->kode_billing && !$record->icvBuktiBayar?->file_bukti_bayar)
-                    ->modalHeading(fn($record) => 'Edit Kode Billing - ' . $record->user->name)
-                    ->modalWidth('2xl')
-                    ->modalSubmitActionLabel('Update')
-                    ->form([
-                        Section::make('Edit Kode Billing')
-                            ->schema([
-                                Grid::make(2)->schema([
-                                    TextInput::make('kode_billing')
-                                        ->label('Kode Billing')
-                                        ->numeric()
-                                        ->required()
-                                        ->default(fn($record) => $record->icvBilling?->kode_billing)
-                                        ->maxLength(50)
-                                        ->helperText('Masukkan kode billing unik'),
-
-                                    TextInput::make('nominal')
-                                        ->label('Nominal Pembayaran')
-                                        ->numeric()
-                                        ->prefix('Rp')
-                                        ->required()
-                                        ->default(fn($record) => $record->icvBilling?->nominal)
-                                        ->helperText('Ubah nominal pembayaran jika diperlukan'),
-                                ]),
-
-                                Textarea::make('catatan_billing')
-                                    ->label('Catatan')
-                                    ->default(fn($record) => $record->icvBilling?->catatan)
-                                    ->rows(2)
-                                    ->placeholder('Tambahkan catatan jika diperlukan'),
+                                TextInput::make('icv_disetujui')
+                                    ->label('ICV Disetujui')
+                                    ->default(fn($record) => $record->icvAlokasi?->icv_disetujui ?? 0)
+                                    ->disabled()
+                                    ->dehydrated(false),
                             ]),
-                    ])
-                    ->fillForm(fn($record): array => [
-                        'kode_billing' => $record->icvBilling?->kode_billing,
-                        'nominal' => $record->icvBilling?->nominal,
-                        'catatan_billing' => $record->icvBilling?->catatan,
-                    ])
-                    ->action(function (array $data, $record) {
-                        // Validasi duplikasi kode billing (kecuali untuk record saat ini)
-                        $existingBilling = \App\Models\IcvBilling::where('kode_billing', $data['kode_billing'])
-                            ->where('id_icv', '!=', $record->id)
-                            ->first();
+                        ])
+                        ->collapsible(),
 
-                        if ($existingBilling) {
-                            Notification::make()
-                                ->title('Gagal Update Billing')
-                                ->danger()
-                                ->body('Kode billing sudah digunakan oleh pengajuan lain.')
-                                ->send();
-                            return;
+                    Section::make('Penerbitan Kode Billing')
+                        ->schema([
+                            Grid::make(2)->schema([
+                                TextInput::make('kode_billing')
+                                    ->label('Kode Billing')
+                                    ->numeric()
+                                    ->required()
+                                    ->maxLength(50),
+
+                                TextInput::make('nominal')
+                                    ->label('Nominal Pembayaran')
+                                    ->numeric()
+                                    ->prefix('Rp')
+                                    ->required()
+                                    ->default(fn($record) => ($record->icvAlokasi?->icv_disetujui ?? 0) * 25000)
+                                    ->helperText(fn($record) => 'Default: Rp ' . number_format(($record->icvAlokasi?->icv_disetujui ?? 0) * 25000, 0, ',', '.')),
+                            ]),
+                        ]),
+                ])
+                ->action(function (array $data, $record) {
+
+                    // Create billing
+                    $record->icvBilling()->updateOrCreate([
+                        'id_icv' => $record->id,
+                    ], [
+                        'kode_billing' => $data['kode_billing'],
+                        'nominal' => $data['nominal'],
+                        'date_updated' => now(),
+                    ]);
+
+                    $record = $record->fresh(['user', 'icvBilling']);
+
+                    // Send email notification
+                    $emailStatus = '';
+                    try {
+                        if ($record->user && $record->user->email) {
+                            Mail::to($record->user->email)->send(
+                                new IcvBillingNotification($record, $data['kode_billing'], $data['nominal'])
+                            );
+                            $emailStatus = ' Email notifikasi billing telah dikirim.';
+                        } else {
+                            $emailStatus = ' Email tidak dapat dikirim (email user tidak valid).';
                         }
+                    } catch (\Exception $e) {
+                        error_log('Gagal mengirim email billing ICV: ' . $e->getMessage());
+                        $emailStatus = ' Email gagal dikirim.';
+                    }
 
-                        // Update billing
-                        $record->icvBilling->update([
-                            'kode_billing' => $data['kode_billing'],
-                            'nominal' => $data['nominal'],
-                            'catatan' => $data['catatan_billing'] ?? '',
-                            'date_updated' => now(),
-                        ]);
+                    Notification::make()
+                        ->title('Billing Berhasil Diterbitkan')
+                        ->success()
+                        ->body("Kode billing {$data['kode_billing']} berhasil diterbitkan.{$emailStatus}")
+                        ->send();
+                }),
 
+            Action::make('lihat_bukti_bayar')
+                ->label('Lihat Bukti Bayar')
+                ->icon('heroicon-o-document-text')
+                ->color('info')
+                ->visible(fn($record) => $record->icvBuktiBayar?->file_bukti_bayar)
+                ->modalHeading(fn($record) => 'Bukti Pembayaran - ' . $record->user->name)
+                ->modalWidth('3xl')
+                ->modalSubmitAction(false)
+                ->form([
+                    Section::make('Informasi Pembayaran')
+                        ->schema([
+                            Grid::make(3)->schema([
+                                TextInput::make('kode_billing_info')
+                                    ->label('Kode Billing')
+                                    ->default(fn($record) => $record->icvBilling?->kode_billing ?? '-')
+                                    ->disabled()
+                                    ->dehydrated(false),
+
+                                TextInput::make('nominal_info')
+                                    ->label('Nominal')
+                                    ->default(fn($record) => 'Rp ' . number_format($record->icvBilling?->nominal ?? 0, 0, ',', '.'))
+                                    ->disabled()
+                                    ->dehydrated(false),
+
+                                TextInput::make('tanggal_upload_info')
+                                    ->label('Tanggal Upload')
+                                    ->default(fn($record) => $record->icvBuktiBayar?->date_updated?->translatedFormat('d F Y H:i') ?? '-')
+                                    ->disabled()
+                                    ->dehydrated(false),
+                            ]),
+
+                            Grid::make(2)->schema([
+                                TextInput::make('tanggal_pembayaran_info')
+                                    ->label('Tanggal Distribusi')
+                                    ->default(fn($record) => $record->icvJadwal?->jadwal_pengambilan?->translatedFormat('d F Y') ?? 'Belum dibuat')
+                                    ->disabled()
+                                    ->dehydrated(false),
+
+                                TextInput::make('catatan_info')
+                                    ->label('Catatan')
+                                    ->default(fn($record) => $record->icvBuktiBayar?->catatan ?? 'Tidak ada catatan')
+                                    ->disabled()
+                                    ->dehydrated(false),
+                            ]),
+                        ])
+                        ->collapsible(),
+
+                    Section::make('File Bukti Pembayaran')
+                        ->schema([
+                            FileUpload::make('file_bukti_bayar')
+                                ->label('Bukti Pembayaran')
+                                ->downloadable()
+                                ->disk('public')
+                                ->directory('icv/bukti_bayar')
+                                ->default(fn($record) => $record->icvBuktiBayar?->file_bukti_bayar)
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->helperText('Bukti pembayaran yang diunggah oleh klinik'),
+                        ]),
+                ]),
+
+            Action::make('edit_billing')
+                ->label('Edit Billing')
+                ->icon('heroicon-o-pencil')
+                ->color('warning')
+                ->visible(fn($record) => $record->icvBilling?->kode_billing && !$record->icvBuktiBayar?->file_bukti_bayar)
+                ->modalHeading(fn($record) => 'Edit Kode Billing - ' . $record->user->name)
+                ->modalWidth('2xl')
+                ->modalSubmitActionLabel('Update')
+                ->form([
+                    Section::make('Edit Kode Billing')
+                        ->schema([
+                            Grid::make(2)->schema([
+                                TextInput::make('kode_billing')
+                                    ->label('Kode Billing')
+                                    ->numeric()
+                                    ->required()
+                                    ->default(fn($record) => $record->icvBilling?->kode_billing)
+                                    ->maxLength(50)
+                                    ->helperText('Masukkan kode billing unik'),
+
+                                TextInput::make('nominal')
+                                    ->label('Nominal Pembayaran')
+                                    ->numeric()
+                                    ->prefix('Rp')
+                                    ->required()
+                                    ->default(fn($record) => $record->icvBilling?->nominal)
+                                    ->helperText('Ubah nominal pembayaran jika diperlukan'),
+                            ]),
+                        ]),
+                ])
+                ->fillForm(fn($record): array => [
+                    'kode_billing' => $record->icvBilling?->kode_billing,
+                    'nominal' => $record->icvBilling?->nominal,
+                ])
+                ->action(function (array $data, $record) {
+                    // Validasi duplikasi kode billing (kecuali untuk record saat ini)
+                    $existingBilling = \App\Models\IcvBilling::where('kode_billing', $data['kode_billing'])
+                        ->where('id_icv', '!=', $record->id)
+                        ->first();
+
+                    if ($existingBilling) {
                         Notification::make()
-                            ->title('Billing Berhasil Diupdate')
-                            ->success()
-                            ->body("Kode billing berhasil diubah menjadi {$data['kode_billing']}")
+                            ->title('Gagal Update Billing')
+                            ->danger()
+                            ->body('Kode billing sudah digunakan oleh pengajuan lain.')
                             ->send();
-                    }),
-            ])
-            ->striped()
-            ->filters([
-                DateRangeFilter::make('tanggal_pengajuan')
-                    ->label('Tanggal Pengajuan')
-                    ->defaultLast7Days(),
+                        return;
+                    }
 
-                // Filter berdasarkan User/Pemohon
-                SelectFilter::make('user')
-                    ->label('Pemohon/Klinik')
-                    ->searchable()
-                    ->preload()
-                    ->options(function () {
-                        return \App\Models\User::whereHas('roles', function ($query) {
-                            $query->where('name', 'user');
-                        })
+                    // Update billing
+                    $record->icvBilling->update([
+                        'kode_billing' => $data['kode_billing'],
+                        'nominal' => $data['nominal'],
+                        'date_updated' => now(),
+                    ]);
+
+                    Notification::make()
+                        ->title('Billing Berhasil Diupdate')
+                        ->success()
+                        ->body("Kode billing berhasil diubah menjadi {$data['kode_billing']}")
+                        ->send();
+                }),
+        ])
+        ->striped()
+        ->filters([
+            DateRangeFilter::make('tanggal_pengajuan')
+                ->label('Tanggal Pengajuan')
+                ->defaultLast7Days(),
+
+            // Filter berdasarkan User/Pemohon
+            SelectFilter::make('user')
+                ->label('Pemohon/Klinik')
+                ->searchable()
+                ->preload()
+                ->options(function () {
+                    return \App\Models\User::whereHas('roles', function ($query) {
+                        $query->where('name', 'user');
+                    })
                         ->whereHas('icvs', function ($query) {
                             $query->whereHas('icvAlokasi', function ($q) {
                                 $q->where('icv_disetujui', '>', 0);
@@ -503,22 +411,23 @@ class PenerbitanKodeBilling extends Page implements HasTable
                             $kotakab = $user->kotakab ? " ({$user->kotakab})" : '';
                             return [$user->id => $user->name . $kotakab];
                         });
+                })
+                ->query(function (Builder $query, array $data): Builder {
+                    if (!$data['value'])
+                        return $query;
+
+                    return $query->where('user_id', $data['value']);
+                }),
+
+            // Filter berdasarkan Kota/Kabupaten
+            SelectFilter::make('kotakab')
+                ->label('Kota/Kabupaten')
+                ->searchable()
+                ->preload()
+                ->options(function () {
+                    return \App\Models\User::whereHas('roles', function ($query) {
+                        $query->where('name', 'user');
                     })
-                    ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
-
-                        return $query->where('user_id', $data['value']);
-                    }),
-
-                // Filter berdasarkan Kota/Kabupaten
-                SelectFilter::make('kotakab')
-                    ->label('Kota/Kabupaten')
-                    ->searchable()
-                    ->preload()
-                    ->options(function () {
-                        return \App\Models\User::whereHas('roles', function ($query) {
-                            $query->where('name', 'user');
-                        })
                         ->whereHas('icvs', function ($query) {
                             $query->whereHas('icvAlokasi', function ($q) {
                                 $q->where('icv_disetujui', '>', 0);
@@ -528,84 +437,81 @@ class PenerbitanKodeBilling extends Page implements HasTable
                         ->distinct()
                         ->orderBy('kotakab')
                         ->pluck('kotakab', 'kotakab');
-                    })
-                    ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+                })
+                ->query(function (Builder $query, array $data): Builder {
+                    if (!$data['value'])
+                        return $query;
 
-                        return $query->whereHas('user', function (Builder $query) use ($data) {
-                            $query->where('kotakab', $data['value']);
-                        });
-                    }),
+                    return $query->whereHas('user', function (Builder $query) use ($data) {
+                        $query->where('kotakab', $data['value']);
+                    });
+                }),
 
-                // Enhanced status billing filter
-                SelectFilter::make('status_billing')
-                    ->label('Status Billing')
-                    ->options([
-                        'belum_billing' => 'Belum Ada Billing',
-                        'menunggu_bayar' => 'Menunggu Pembayaran',
-                        'menunggu_verifikasi' => 'Menunggu Verifikasi',
-                        'terverifikasi' => 'Pembayaran Terverifikasi',
-                    ])
-                    ->query(function ($query, array $data) {
-                        return $query->when(
-                            $data['value'] === 'belum_billing',
-                            fn($q) => $q->whereDoesntHave('icvBilling')
-                                ->orWhereHas('icvBilling', function ($subq) {
-                                    $subq->whereNull('kode_billing');
-                                })
-                        )->when(
-                            $data['value'] === 'menunggu_bayar',
-                            fn($q) => $q->whereHas('icvBilling', function ($subq) {
-                                $subq->whereNotNull('kode_billing');
+            // Enhanced status billing filter
+            SelectFilter::make('status_billing')
+                ->label('Status Billing')
+                ->options([
+                    'belum_billing' => 'Belum Ada Billing',
+                    'menunggu_bayar' => 'Menunggu Pembayaran',
+                    'sudah_bayar' => 'Sudah Upload Bukti Bayar',
+                ])
+                ->query(function ($query, array $data) {
+                    return $query->when(
+                        $data['value'] === 'belum_billing',
+                        fn($q) => $q->whereDoesntHave('icvBilling')
+                            ->orWhereHas('icvBilling', function ($subq) {
+                                $subq->whereNull('kode_billing');
                             })
-                                ->whereDoesntHave('icvBuktiBayar')
-                                ->orWhereHas('icvBuktiBayar', function ($subq) {
-                                    $subq->whereNull('file_bukti_bayar');
-                                })
-                        )->when(
-                            $data['value'] === 'menunggu_verifikasi',
-                            fn($q) => $q->whereHas('icvBuktiBayar', function ($subq) {
-                                $subq->whereNotNull('file_bukti_bayar')
-                                     ->whereNull('distribusi_icv');
+                    )->when(
+                        $data['value'] === 'menunggu_bayar',
+                        fn($q) => $q->whereHas('icvBilling', function ($subq) {
+                            $subq->whereNotNull('kode_billing');
+                        })
+                            ->where(function ($subq) {
+                                $subq->whereDoesntHave('icvBuktiBayar')
+                                    ->orWhereHas('icvBuktiBayar', function ($subq2) {
+                                        $subq2->whereNull('file_bukti_bayar');
+                                    });
                             })
-                        )->when(
-                            $data['value'] === 'terverifikasi',
-                            fn($q) => $q->whereHas('icvBuktiBayar', function ($subq) {
-                                $subq->whereNotNull('distribusi_icv');
-                            })
-                        );
-                    }),
+                    )->when(
+                        $data['value'] === 'sudah_bayar',
+                        fn($q) => $q->whereHas('icvBuktiBayar', function ($subq) {
+                            $subq->whereNotNull('file_bukti_bayar');
+                        })
+                    );
+                }),
 
-                // Filter berdasarkan Range ICV Disetujui
-                SelectFilter::make('icv_range')
-                    ->label('Range ICV Disetujui')
-                    ->options([
-                        '1-50' => '1 - 50 ICV',
-                        '51-100' => '51 - 100 ICV',
-                        '101-200' => '101 - 200 ICV',
-                        '201+' => '200+ ICV',
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+            // Filter berdasarkan Range ICV Disetujui
+            SelectFilter::make('icv_range')
+                ->label('Range ICV Disetujui')
+                ->options([
+                    '1-50' => '1 - 50 ICV',
+                    '51-100' => '51 - 100 ICV',
+                    '101-200' => '101 - 200 ICV',
+                    '201+' => '200+ ICV',
+                ])
+                ->query(function (Builder $query, array $data): Builder {
+                    if (!$data['value'])
+                        return $query;
 
-                        return $query->whereHas('icvAlokasi', function (Builder $query) use ($data) {
-                            switch ($data['value']) {
-                                case '1-50':
-                                    $query->whereBetween('icv_disetujui', [1, 50]);
-                                    break;
-                                case '51-100':
-                                    $query->whereBetween('icv_disetujui', [51, 100]);
-                                    break;
-                                case '101-200':
-                                    $query->whereBetween('icv_disetujui', [101, 200]);
-                                    break;
-                                case '201+':
-                                    $query->where('icv_disetujui', '>', 200);
-                                    break;
-                            }
-                        });
-                    }),
-            ], FiltersLayout::AboveContent);
+                    return $query->whereHas('icvAlokasi', function (Builder $query) use ($data) {
+                        switch ($data['value']) {
+                            case '1-50':
+                                $query->whereBetween('icv_disetujui', [1, 50]);
+                                break;
+                            case '51-100':
+                                $query->whereBetween('icv_disetujui', [51, 100]);
+                                break;
+                            case '101-200':
+                                $query->whereBetween('icv_disetujui', [101, 200]);
+                                break;
+                            case '201+':
+                                $query->where('icv_disetujui', '>', 200);
+                                break;
+                        }
+                    });
+                }),
+        ], FiltersLayout::AboveContent);
     }
 
     // Set default filter untuk menampilkan yang belum ada billing
