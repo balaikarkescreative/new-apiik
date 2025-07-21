@@ -16,4 +16,12 @@ class EditUser extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        if ($data['verifikasi_akun'] === null || $data['verifikasi_akun'] === '' || $data['verifikasi_akun'] === 'Belum Diverifikasi') {
+            $data['verifikasi_akun'] = null;
+        }
+        return $data;
+    }
 }

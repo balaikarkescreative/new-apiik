@@ -85,7 +85,7 @@ class EditProfil extends Page implements HasForms
                         Forms\Components\Select::make('kotakab')
                             ->label('Kota/Kabupaten')
                             ->searchable()
-                            ->options(Kotakab::pluck('nama_kotakab')->toArray())
+                            ->options(Kotakab::aktif()->pluck('nama_kotakab')->toArray())
                             ->required(),
 
                         Forms\Components\TextInput::make('pimpinan')

@@ -14,4 +14,12 @@ class Kotakab extends Model
     ];
 
     public $timestamps = false;
+
+    /**
+     * Scope a query to only include kotakab with status 'aktif'.
+     */
+    public function scopeAktif($query)
+    {
+        return $query->where('status', 'aktif');
+    }
 }

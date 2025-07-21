@@ -68,7 +68,7 @@ class UserResource extends Resource
                             ->label('No. Whatsapp')
                             ->defaultCountry('ID')
                             ->allowDropdown(false)
-                            ->required()
+                            ->required(fn() => !auth()->user()->hasRole('admin'))
                             ->columnSpan(2),
 
                         Map::make('location')
@@ -80,13 +80,13 @@ class UserResource extends Resource
                             ->clickable(true)
                             ->showMyLocationButton(true)
                             ->zoom(12)
-                            ->required()
+                            ->required(fn() => !auth()->user()->hasRole('admin'))
                             ->columnSpan(2),
 
                         Forms\Components\Select::make('kotakab')
                             ->label('Kota/Kabupaten')
                             ->options(function () {
-                                return \App\Models\Kotakab::where('status', 1)
+                                return \App\Models\Kotakab::aktif()
                                     ->orderBy('nama_kotakab')
                                     ->get()
                                     ->pluck('nama_kotakab', 'nama_kotakab')
@@ -99,7 +99,7 @@ class UserResource extends Resource
 
                         Forms\Components\TextInput::make('alamat')
                             ->label('Alamat')
-                            ->required()
+                            ->required(fn() => !auth()->user()->hasRole('admin'))
                             ->maxLength(500)
                             ->columnSpan(1),
                     ])
@@ -379,7 +379,18 @@ class UserResource extends Resource
                         'Belum Diverifikasi' => 'Belum Diverifikasi',
                         'Diterima' => 'Diterima',
                         'Ditolak' => 'Ditolak',
-                    ]),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if ($value === 'Belum Diverifikasi') {
+                            return $query->whereNull('verifikasi_akun');
+                        } elseif ($value) {
+                            return $query->where('verifikasi_akun', $value);
+                        }
+
+                        return $query;
+                    }),
 
                 // Status Akun Filter
                 SelectFilter::make('status_akun')
@@ -387,7 +398,21 @@ class UserResource extends Resource
                     ->options([
                         'Aktif' => 'Aktif',
                         'Tidak Aktif' => 'Tidak Aktif',
-                    ]),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $value = $data['value'] ?? null;
+
+                        if ($value === 'Tidak Aktif') {
+                            return $query->where(function ($query) {
+                                $query->whereNull('status_akun')
+                                    ->orWhere('status_akun', 'Tidak Aktif');
+                            });
+                        } elseif ($value === 'Aktif') {
+                            return $query->where('status_akun', 'Aktif');
+                        }
+
+                        return $query;
+                    }),
 
                 // Persyaratan Filters
                 TernaryFilter::make('pertanyaan1')
@@ -396,8 +421,8 @@ class UserResource extends Resource
                     ->trueLabel('Ya')
                     ->falseLabel('Tidak')
                     ->queries(
-                        true: fn (Builder $query) => $query->where('pertanyaan1', 'Ya'),
-                        false: fn (Builder $query) => $query->where('pertanyaan1', 'Tidak'),
+                        true: fn(Builder $query) => $query->where('pertanyaan1', 'Ya'),
+                        false: fn(Builder $query) => $query->where('pertanyaan1', 'Tidak'),
                     ),
 
                 TernaryFilter::make('pertanyaan2')
@@ -406,8 +431,8 @@ class UserResource extends Resource
                     ->trueLabel('Ya')
                     ->falseLabel('Tidak')
                     ->queries(
-                        true: fn (Builder $query) => $query->where('pertanyaan2', 'Ya'),
-                        false: fn (Builder $query) => $query->where('pertanyaan2', 'Tidak'),
+                        true: fn(Builder $query) => $query->where('pertanyaan2', 'Ya'),
+                        false: fn(Builder $query) => $query->where('pertanyaan2', 'Tidak'),
                     ),
             ])
             ->headerActions([
@@ -469,7 +494,7 @@ class UserResource extends Resource
                     ->icon('heroicon-o-eye')
                     ->size('sm')
                     ->color('info')
-                    ->modalHeading(fn (User $record): string => "Detail {$record->name}")
+                    ->modalHeading(fn(User $record): string => "Detail {$record->name}")
                     ->modalWidth(MaxWidth::FiveExtraLarge)
                     ->infolist([
                         Section::make('Informasi Klinik/RS')
@@ -484,7 +509,7 @@ class UserResource extends Resource
                                         TextEntry::make('kategori')
                                             ->label('Kategori')
                                             ->badge()
-                                            ->color(fn (string $state): string => match ($state) {
+                                            ->color(fn(string $state): string => match ($state) {
                                                 'Klinik' => 'success',
                                                 'Rumah Sakit' => 'info',
                                                 default => 'gray',
@@ -503,7 +528,8 @@ class UserResource extends Resource
                                             ->icon('heroicon-o-phone')
                                             ->copyable()
                                             ->copyMessage('Nomor telepon berhasil disalin')
-                                            ->formatStateUsing(fn (string $state): string =>
+                                            ->formatStateUsing(
+                                                fn(string $state): string =>
                                                 preg_replace('/(\d{2})(\d{4})(\d{4})(\d{2,4})/', '$1-$2-$3-$4', $state)
                                             ),
                                     ]),
@@ -562,22 +588,22 @@ class UserResource extends Resource
                                         TextEntry::make('pertanyaan1')
                                             ->label('Dokter vaksinator sudah pelatihan vaksinologi?')
                                             ->badge()
-                                            ->color(fn (string $state): string => match ($state) {
+                                            ->color(fn(string $state): string => match ($state) {
                                                 'Ya' => 'success',
                                                 'Tidak' => 'danger',
                                                 default => 'gray',
                                             })
-                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Belum dijawab'),
+                                            ->formatStateUsing(fn(?string $state): string => $state ?? 'Belum dijawab'),
 
                                         TextEntry::make('pertanyaan2')
                                             ->label('Faskes sudah memiliki coldchain sesuai ketentuan?')
                                             ->badge()
-                                            ->color(fn (string $state): string => match ($state) {
+                                            ->color(fn(string $state): string => match ($state) {
                                                 'Ya' => 'success',
                                                 'Tidak' => 'danger',
                                                 default => 'gray',
                                             })
-                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Belum dijawab'),
+                                            ->formatStateUsing(fn(?string $state): string => $state ?? 'Belum dijawab'),
                                     ]),
                             ])
                             ->icon('heroicon-o-shield-check')
@@ -590,23 +616,23 @@ class UserResource extends Resource
                                         TextEntry::make('verifikasi_akun')
                                             ->label('Status Verifikasi')
                                             ->badge()
-                                            ->color(fn (?string $state): string => match ($state) {
+                                            ->color(fn(?string $state): string => match ($state) {
                                                 'Diterima' => 'success',
                                                 'Ditolak' => 'danger',
                                                 'Belum Diverifikasi' => 'warning',
                                                 default => 'gray',
                                             })
-                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Belum Diverifikasi'),
+                                            ->formatStateUsing(fn(?string $state): string => $state ?? 'Belum Diverifikasi'),
 
                                         TextEntry::make('status_akun')
                                             ->label('Status Akun')
                                             ->badge()
-                                            ->color(fn (?string $state): string => match ($state) {
+                                            ->color(fn(?string $state): string => match ($state) {
                                                 'Aktif' => 'success',
                                                 'Tidak Aktif' => 'danger',
                                                 default => 'gray',
                                             })
-                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Tidak Aktif'),
+                                            ->formatStateUsing(fn(?string $state): string => $state ?? 'Tidak Aktif'),
 
                                         TextEntry::make('date_updated')
                                             ->label('Terakhir Diperbarui')
@@ -899,7 +925,6 @@ class UserResource extends Resource
                 ->body("Email aktivasi akun telah dikirim ke {$user->name} ({$user->email})")
                 ->success()
                 ->send();
-
         } catch (\Exception $e) {
             \Log::error('Failed to send account activation email', [
                 'user_id' => $user->id,

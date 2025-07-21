@@ -46,6 +46,7 @@ class User extends Authenticatable implements FilamentUser
         'masa_berlaku_surat_izin_operasional',
         'pertanyaan1',
         'pertanyaan2',
+        'verifikasi_akun',
         'status_akun',
         'date_updated',
     ];

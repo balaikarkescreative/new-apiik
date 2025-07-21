@@ -107,7 +107,7 @@ class CombinedAuth extends SimplePage implements HasForms
                             ->label('Kota/Kabupaten')
                             ->searchable()
                             ->options(function () {
-                                return Kotakab::pluck('nama_kotakab', 'id')->toArray();
+                                return Kotakab::aktif()->pluck('nama_kotakab', 'id')->toArray();
                             })
                             ->placeholder('Pilih Kota/Kabupaten')
                             ->required()
@@ -444,19 +444,35 @@ class CombinedAuth extends SimplePage implements HasForms
             'date_updated' => now(),
         ]);
 
+
+        if ($data['pertanyaan1'] === 'tidak' || $data['pertanyaan2'] === 'tidak') {
+            $user->verifikasi_akun = 'Ditolak';
+        }
+
         $user->assignRole('user');
 
         event(new LaravelRegistered($user));
 
         // Kirim email notifikasi
-        $this->sendRegistrationEmail($user);
+        if ($user->verifikasi_akun !== 'Ditolak') {
+            $this->sendRegistrationEmail($user);
+        }
 
-        Notification::make()
-            ->title('Pengajuan berhasil dikirim!')
-            ->body('Pengajuan akun baru Anda telah berhasil dikirim. Tunggu konfirmasi selanjutnya melalui WhatsApp dan Email.')
-            ->success()
-            ->persistent()
-            ->send();
+        if ($user->verifikasi_akun === 'Ditolak') {
+            Notification::make()
+                ->title('Pengajuan Ditolak')
+                ->body('Pengajuan akun Anda ditolak karena tidak memenuhi syarat.')
+                ->danger()
+                ->persistent()
+                ->send();
+        } else {
+            Notification::make()
+                ->title('Pengajuan Berhasil')
+                ->body('Pengajuan akun baru Anda telah berhasil. Tunggu konfirmasi selanjutnya melalui WhatsApp dan Email.')
+                ->success()
+                ->persistent()
+                ->send();
+        }
 
         $this->closeRegisterModal();
         $this->registerForm->fill();
