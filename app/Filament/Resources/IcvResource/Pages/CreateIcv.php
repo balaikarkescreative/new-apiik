@@ -35,6 +35,18 @@ class CreateIcv extends CreateRecord
     {
         parent::mount();
 
+        // Jika user (bukan admin) belum punya laporan geotagging, redirect ke create laporan geotagging
+        if (auth()->user()->hasRole('user') && !auth()->user()->laporanGeotagging) {
+            Notification::make()
+                ->title('Laporan Geotagging Belum Ada')
+                ->body('Anda harus membuat laporan geotagging terlebih dahulu sebelum mengajukan ICV.')
+                ->danger()
+                ->persistent()
+                ->send();
+            redirect()->route('filament.admin.resources.laporan-geotagging.create');
+            return;
+        }
+
         if (!auth()->user()->hasRole('admin')) {
             $this->checkOperationalHoursWithRedirect('icv', IcvResource::getUrl('daftar-pengajuan'));
         }

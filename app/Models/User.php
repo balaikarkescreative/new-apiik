@@ -22,6 +22,7 @@ class User extends Authenticatable implements FilamentUser
     {
         return true;
     }
+
         /**
      * The attributes that are mass assignable.
      *
@@ -85,5 +86,10 @@ class User extends Authenticatable implements FilamentUser
     public function izins()
     {
         return $this->hasMany(Izin::class, 'user_id');
+    }
+
+     public function laporanGeotagging()
+    {
+        return $this->hasOne(LaporanGeotagging::class);
     }
 }
