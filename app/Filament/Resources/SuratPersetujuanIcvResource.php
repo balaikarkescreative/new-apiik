@@ -74,13 +74,13 @@ class SuratPersetujuanIcvResource extends Resource
 
                 Forms\Components\DatePicker::make('tanggal_surat')
                     ->label('Tanggal Surat')
-                    ->native(false)
+                    // ->native(false)
 
                     ->required(),
 
                 Forms\Components\DatePicker::make('masa_berlaku')
                     ->label('Masa Berlaku')
-                    ->native(false)
+                    // ->native(false)
 
                     ->required(),
             ]);

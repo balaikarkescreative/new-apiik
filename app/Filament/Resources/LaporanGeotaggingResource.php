@@ -70,8 +70,14 @@ class LaporanGeotaggingResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.name')->label('Klinik/RS')->searchable()->visible(fn() => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
-                Tables\Columns\TextColumn::make('google_drive_link')->label('Link Google Drive')->url(fn($record) => $record->google_drive_link),
+                Tables\Columns\TextColumn::make('user.name')
+                    ->label('Klinik/RS')
+                    ->searchable()
+                    ->visible(fn() => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
+                Tables\Columns\TextColumn::make('google_drive_link')
+                    ->label('Link Google Drive')
+                    ->limit(60)
+                    ->url(fn($record) => $record->google_drive_link),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

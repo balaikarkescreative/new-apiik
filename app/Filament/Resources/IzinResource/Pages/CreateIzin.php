@@ -190,7 +190,7 @@ class CreateIzin extends CreateRecord
      */
     private function checkVaksinatorRequirement(int $userId): void
     {
-        $vaksinator = Vaksinator::where('id_akun', $userId)->first();
+        $vaksinator = Vaksinator::where('id_akun', $userId)->aktif()->first();
 
         if (!$vaksinator) {
             Notification::make()
@@ -468,7 +468,7 @@ class CreateIzin extends CreateRecord
      */
     private function validateUserVaksinator(int $userId): void
     {
-        $vaksinator = Vaksinator::where('id_akun', $userId)->first();
+        $vaksinator = Vaksinator::where('id_akun', $userId)->aktif()->first();
 
         if (!$vaksinator) {
             $user = \App\Models\User::find($userId);
