@@ -349,7 +349,7 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                                 $sisa_vaksin += $latestReport->sisa_vaksin;
                             }
                         }
-                        
+
                         return [
                             // Informasi Dasar
                             Section::make('Informasi Pengajuan')
@@ -385,6 +385,47 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                                             ->default($sisa_vaksin)
                                             ->disabled()
                                             ->dehydrated(false),
+                                    ]),
+                                    Grid::make(2)->schema([
+                                        TextInput::make('laporan_geotagging_link')
+                                            ->label('Link Laporan Geotagging')
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->formatStateUsing(function () use ($record) {
+                                                $link = $record->user->laporanGeotagging?->google_drive_link;
+                                                return $link ?: 'Belum ada';
+                                            })
+                                            ->suffixAction(
+                                                \Filament\Forms\Components\Actions\Action::make('open_geotagging')
+                                                    ->icon('heroicon-m-arrow-top-right-on-square')
+                                                    ->url(function () use ($record) {
+                                                        return $record->user->laporanGeotagging?->google_drive_link;
+                                                    })
+                                                    ->openUrlInNewTab()
+                                                    ->visible(function () use ($record) {
+                                                        return !empty($record->user->laporanGeotagging?->google_drive_link);
+                                                    })
+                                            ),
+
+                                        TextInput::make('link_sosialisasi_link')
+                                            ->label('Link Sosialisasi')
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->formatStateUsing(function () use ($record) {
+                                                $link = $record->user->linkSosialisasi?->link;
+                                                return $link ?: 'Belum ada';
+                                            })
+                                            ->suffixAction(
+                                                \Filament\Forms\Components\Actions\Action::make('open_sosialisasi')
+                                                    ->icon('heroicon-m-arrow-top-right-on-square')
+                                                    ->url(function () use ($record) {
+                                                        return $record->user->linkSosialisasi?->link;
+                                                    })
+                                                    ->openUrlInNewTab()
+                                                    ->visible(function () use ($record) {
+                                                        return !empty($record->user->linkSosialisasi?->link);
+                                                    })
+                                            ),
                                     ]),
                                     PdfViewerField::make('file')
                                         ->label('File Persetujuan Izin')

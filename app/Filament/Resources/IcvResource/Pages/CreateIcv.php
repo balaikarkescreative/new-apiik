@@ -47,6 +47,18 @@ class CreateIcv extends CreateRecord
             return;
         }
 
+        // Jika user (bukan admin) belum punya link sosialisasi, redirect ke create link sosialisasi
+        if (auth()->user()->hasRole('user') && !auth()->user()->linkSosialisasi) {
+            Notification::make()
+                ->title('Link Sosialisasi Belum Ada')
+                ->body('Anda harus membuat link sosialisasi terlebih dahulu sebelum mengajukan ICV.')
+                ->danger()
+                ->persistent()
+                ->send();
+            redirect()->route('filament.admin.resources.link-sosialisasi.create');
+            return;
+        }
+
         if (!auth()->user()->hasRole('admin')) {
             $this->checkOperationalHoursWithRedirect('icv', IcvResource::getUrl('daftar-pengajuan'));
         }

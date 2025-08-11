@@ -92,4 +92,9 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasOne(LaporanGeotagging::class);
     }
+
+    public function linkSosialisasi()
+    {
+        return $this->hasOne(LinkSosialisasi::class);
+    }
 }
