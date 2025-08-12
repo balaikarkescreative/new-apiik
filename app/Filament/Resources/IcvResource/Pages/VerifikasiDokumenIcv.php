@@ -427,6 +427,28 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                                                     })
                                             ),
                                     ]),
+                                    Grid::make(1)->schema([
+                                        TextInput::make('pakta_integritas_file')
+                                            ->label('File Pakta Integritas')
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->formatStateUsing(function () use ($record) {
+                                                $file = $record->user->paktaIntegritas?->file;
+                                                return $file ? basename($file) : 'Belum ada';
+                                            })
+                                            ->suffixAction(
+                                                \Filament\Forms\Components\Actions\Action::make('open_pakta_integritas')
+                                                    ->icon('heroicon-m-arrow-down-tray')
+                                                    ->url(function () use ($record) {
+                                                        $file = $record->user->paktaIntegritas?->file;
+                                                        return $file ? asset('storage/' . $file) : null;
+                                                    })
+                                                    ->openUrlInNewTab()
+                                                    ->visible(function () use ($record) {
+                                                        return !empty($record->user->paktaIntegritas?->file);
+                                                    })
+                                            ),
+                                    ]),
                                     PdfViewerField::make('file')
                                         ->label('File Persetujuan Izin')
                                         ->fileUrl(function ($record) {

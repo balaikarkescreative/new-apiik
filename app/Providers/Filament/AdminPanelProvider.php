@@ -6,6 +6,7 @@ use App\Filament\Pages\Auth\CombinedAuth;
 use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\Auth\Register;
 use App\Filament\Pages\EditProfil;
+use App\Http\Middleware\CheckPaktaIntegritas;
 use Filament\Enums\ThemeMode;
 use Filament\Navigation\MenuItem;
 
@@ -210,6 +211,7 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                CheckPaktaIntegritas::class
             ])
             ->authMiddleware([Authenticate::class])
             ->colors([

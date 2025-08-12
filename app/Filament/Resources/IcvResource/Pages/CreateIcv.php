@@ -59,6 +59,18 @@ class CreateIcv extends CreateRecord
             return;
         }
 
+        // Jika user (bukan admin) belum punya pakta integritas, redirect ke create pakta integritas
+        if (auth()->user()->hasRole('user') && !auth()->user()->paktaIntegritas) {
+            Notification::make()
+                ->title('Pakta Integritas Belum Ada')
+                ->body('Anda harus mengupload pakta integritas terlebih dahulu sebelum mengajukan ICV.')
+                ->danger()
+                ->persistent()
+                ->send();
+            redirect()->route('filament.admin.resources.pakta-integritas.create');
+            return;
+        }
+
         if (!auth()->user()->hasRole('admin')) {
             $this->checkOperationalHoursWithRedirect('icv', IcvResource::getUrl('daftar-pengajuan'));
         }

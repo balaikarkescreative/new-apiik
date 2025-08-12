@@ -40,6 +40,18 @@ class CreateIzin extends CreateRecord
             redirect()->route('filament.admin.pages.edit-profil');
         }
 
+        // Jika user (bukan admin) belum punya pakta integritas, redirect ke create pakta integritas
+        if (auth()->user()->hasRole('user') && !auth()->user()->paktaIntegritas) {
+            Notification::make()
+                ->title('Pakta Integritas Belum Ada')
+                ->body('Anda harus mengupload pakta integritas terlebih dahulu sebelum mengajukan izin.')
+                ->danger()
+                ->persistent()
+                ->send();
+            redirect()->route('filament.admin.resources.pakta-integritas.create');
+            return;
+        }
+
         // Cek jika user belum memiliki vaksinator (untuk non-admin)
         if (!auth()->user()->hasRole('admin')) {
             $this->checkVaksinatorRequirement(auth()->id());

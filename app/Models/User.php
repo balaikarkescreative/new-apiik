@@ -97,4 +97,9 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasOne(LinkSosialisasi::class);
     }
+
+    public function paktaIntegritas()
+    {
+        return $this->hasOne(PaktaIntegritas::class);
+    }
 }
