@@ -33,6 +33,7 @@ class CheckPaktaIntegritas
             'filament.admin.resources.pakta-integritas.create',
             'filament.admin.resources.pakta-integritas.edit',
             'filament.admin.resources.pakta-integritas.view',
+            'filament.admin.auth.logout'
         ];
 
         if (in_array($request->route()->getName(), $exemptRoutes)) {
