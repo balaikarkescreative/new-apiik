@@ -441,13 +441,9 @@ class CombinedAuth extends SimplePage implements HasForms
             'kontak_pj' => $data['kontak_pj'],
             'pertanyaan1' => $data['pertanyaan1'],
             'pertanyaan2' => $data['pertanyaan2'],
+            'verifikasi_akun' => ($data['pertanyaan1'] === 'tidak' || $data['pertanyaan2'] === 'tidak') ? 'Ditolak' : null,
             'date_updated' => now(),
         ]);
-
-
-        if ($data['pertanyaan1'] === 'tidak' || $data['pertanyaan2'] === 'tidak') {
-            $user->verifikasi_akun = 'Ditolak';
-        }
 
         $user->assignRole('user');
 
