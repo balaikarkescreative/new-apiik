@@ -170,6 +170,89 @@ class UserResource extends Resource
                             ->dehydrateStateUsing(fn($state) => Hash::make($state))
                             ->columnSpan(2),
 
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('generateCredentials')
+                                ->label('Generate Username & Password')
+                                ->icon('heroicon-o-key')
+                                ->color('success')
+                                ->action(function (callable $set, callable $get, $record) {
+                                    $name = $get('name');
+                                    if (empty($name)) {
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Error')
+                                            ->body('Nama Klinik/RS harus diisi terlebih dahulu')
+                                            ->danger()
+                                            ->send();
+                                        return;
+                                    }
+
+                                    // Generate username
+                                    $cleanName = preg_replace('/[^a-zA-Z0-9]/', '', strtolower($name));
+                                    $baseUsername = $cleanName . '_bkkbandung';
+
+                                    // Check if username already exists (exclude current user)
+                                    $username = $baseUsername;
+                                    $iteration = 1;
+
+                                    $query = User::where('username', $username);
+                                    if ($record && $record->exists) {
+                                        $query->where('id', '!=', $record->id);
+                                    }
+
+                                    while ($query->exists()) {
+                                        $username = $baseUsername . $iteration;
+                                        $query = User::where('username', $username);
+                                        if ($record && $record->exists) {
+                                            $query->where('id', '!=', $record->id);
+                                        }
+                                        $iteration++;
+                                    }
+
+                                    // Set the generated values
+                                    $set('username', $username);
+                                    $set('password', '12345678');
+
+                                    \Filament\Notifications\Notification::make()
+                                        ->title('Berhasil')
+                                        ->body('Username dan password berhasil di-generate')
+                                        ->success()
+                                        ->send();
+                                }),
+
+                            Forms\Components\Actions\Action::make('copyCredentials')
+                                ->label('Copy Kredensial')
+                                ->icon('heroicon-o-clipboard-document')
+                                ->color('info')
+                                ->action(function (callable $get, $livewire) {
+                                    $username = $get('username');
+                                    $password = $get('password');
+                                    $name = $get('name');
+                                    $kontak = $get('kontak_pj');
+                                    $email = $get('email');
+
+                                    if (empty($username) || empty($password)) {
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Error')
+                                            ->body('Username dan password harus diisi terlebih dahulu')
+                                            ->danger()
+                                            ->send();
+                                        return;
+                                    }
+
+                                    $credentials = "Nama Faskes: {$name}\\n";
+                                    $credentials .= "Username: {$username}\\n";
+                                    $credentials .= "Email: {$email}\\n";
+                                    $credentials .= "Password: {$password}\\n";
+                                    $credentials .= "Kontak PJ: {$kontak}\\n";
+
+                                    $livewire->js('
+                                        window.navigator.clipboard.writeText("'.$credentials.'");
+                                        $tooltip("Kredensial berhasil disalin ke clipboard", { timeout: 2000 });
+                                    ');
+                                })
+                        ])
+                        ->columnSpanFull(),
+
                         Forms\Components\Select::make('verifikasi_akun')
                             ->label('Status Verifikasi')
                             ->options([
