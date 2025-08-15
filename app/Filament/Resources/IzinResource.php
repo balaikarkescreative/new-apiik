@@ -180,14 +180,14 @@ class IzinResource extends Resource
                                         $state === "Izin Baru"
                                     ) {
                                         $userId = $get("user_id") ?? auth()->id();
-                                        $existingIzinBaru = Izin::where(
-                                            "user_id",
-                                            $userId
-                                        )
-                                            ->where("kategori_izin", "Izin Baru")
+                                        $existingNewPermit = Izin::where('user_id', $userId)
+                                            ->where('kategori_izin', 'Izin Baru')
+                                            ->whereHas('izinDokumenPks', function ($query) {
+                                                $query->whereNotNull('dokumen_pks_bkk');
+                                            })
                                             ->exists();
 
-                                        if ($existingIzinBaru) {
+                                        if ($existingNewPermit) {
                                             Notification::make()
                                                 ->title("Peringatan")
                                                 ->body(

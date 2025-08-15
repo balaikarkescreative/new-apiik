@@ -590,6 +590,9 @@ class CreateIzin extends CreateRecord
         // Cek apakah user sudah pernah mengajukan izin baru
         $existingNewPermit = Izin::where('user_id', $userId)
             ->where('kategori_izin', 'Izin Baru')
+            ->whereHas('izinDokumenPks', function ($query) {
+                $query->whereNotNull('dokumen_pks_bkk');
+            })
             ->exists();
 
         // Hanya validasi untuk non-admin atau jika admin membuat untuk user yang sudah ada izin baru

@@ -79,10 +79,13 @@ class AdminPanelProvider extends PanelProvider
                 // Izin
                 NavigationItem::make(function () {
                     $userId = Auth::user()?->id;
-                    $existingIzinBaru = Izin::where('user_id', $userId)
+                    $existingNewPermit = Izin::where('user_id', $userId)
                         ->where('kategori_izin', 'Izin Baru')
+                        ->whereHas('izinDokumenPks', function ($query) {
+                            $query->whereNotNull('dokumen_pks_bkk');
+                        })
                         ->exists();
-                    if ($existingIzinBaru) {
+                    if ($existingNewPermit) {
                         return 'Buat Pengajuan Izin Perpanjang';
                     }
                     return 'Buat Pengajuan Izin Baru';
@@ -93,10 +96,13 @@ class AdminPanelProvider extends PanelProvider
                     ->group('Izin')
                     ->url(function (Izin $record) {
                         $userId = Auth::user()?->id;
-                        $existingIzinBaru = Izin::where('user_id', $userId)
+                        $existingNewPermit = Izin::where('user_id', $userId)
                             ->where('kategori_izin', 'Izin Baru')
+                            ->whereHas('izinDokumenPks', function ($query) {
+                                $query->whereNotNull('dokumen_pks_bkk');
+                            })
                             ->exists();
-                        if ($existingIzinBaru) {
+                        if ($existingNewPermit) {
                             return IzinResource::getUrl('create', ['type' => 'perpanjang']);
                         }
                         return IzinResource::getUrl('create', ['type' => 'baru']);
