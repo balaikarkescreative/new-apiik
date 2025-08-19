@@ -384,6 +384,35 @@ class PenerbitanKodeBilling extends Page implements HasTable
                         ->body("Kode billing berhasil diubah menjadi {$data['kode_billing']}")
                         ->send();
                 }),
+
+            Action::make('hapus_billing')
+                ->label('Hapus Billing')
+                ->icon('heroicon-o-trash')
+                ->color('danger')
+                ->requiresConfirmation()
+                ->modalHeading(fn($record) => 'Hapus Kode Billing - ' . $record->user->name)
+                ->modalDescription('Apakah Anda yakin ingin menghapus kode billing ICV ini?')
+                ->modalSubmitActionLabel('Ya, Hapus')
+                ->visible(fn($record) => $record->icvBilling?->kode_billing !== null)
+                ->action(function ($record) {
+                    try {
+                        // Hapus data billing
+                        $record->icvBilling()?->delete();
+
+                        Notification::make()
+                            ->title('Kode Billing Berhasil Dihapus')
+                            ->success()
+                            ->body('Kode billing ICV berhasil dihapus.')
+                            ->send();
+
+                    } catch (\Exception $e) {
+                        Notification::make()
+                            ->title('Gagal Menghapus Data')
+                            ->danger()
+                            ->body('Terjadi kesalahan saat menghapus data: ' . $e->getMessage())
+                            ->send();
+                    }
+                }),
         ])
         ->striped()
         ->filters([
@@ -652,7 +681,7 @@ class PenerbitanKodeBilling extends Page implements HasTable
                                             ->send();
 
                                         $this->redirect(PenerbitanKodeBilling::getUrl());
-                                    }),
+                                    })
                             ]),
                         ]),
 

@@ -71,4 +71,9 @@ class SuratPersetujuanIcv extends Model
     {
         return $query->whereBetween('masa_berlaku', [now(), now()->addDays($days)]);
     }
+
+    public function scopeKadaluarsa($query)
+    {
+        return $query->where('masa_berlaku', '<', now());
+    }
 }

@@ -793,6 +793,37 @@ class VerifikasiIzin extends Page implements HasTable
                                             ->send();
 
                                         $this->redirect(VerifikasiIzin::getUrl());
+                                    }),
+
+                                Actions\Action::make('hapus_verifikasi')
+                                    ->label('Hapus Verifikasi')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->visible(fn($record) => $record->izinDokumen && $record->izinDokumen->hasil)
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Verifikasi Dokumen')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus hasil verifikasi ini? Tindakan ini akan menghapus verifikasi, tanggal perbaikan, dan riwayat perbaikan. Tindakan ini tidak dapat dibatalkan.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record) {
+                                        if ($record->izinDokumen) {
+                                            $record->izinDokumen->delete();
+                                        }
+
+                                        // Hapus juga tanggal perbaikan dan riwayat perbaikan
+                                        $record->update([
+                                            'tanggal_perbaikan' => null,
+                                            'riwayat_perbaikan' => null,
+                                        ]);
+
+                                        $record->refresh();
+
+                                        Notification::make()
+                                            ->title('Verifikasi Berhasil Dihapus')
+                                            ->success()
+                                            ->body('Record verifikasi dokumen, tanggal perbaikan, dan riwayat perbaikan telah dihapus.')
+                                            ->send();
+
+                                        $this->redirect(VerifikasiIzin::getUrl());
                                     })
                             ])
                         ]),
@@ -892,6 +923,34 @@ class VerifikasiIzin extends Page implements HasTable
                                         // Reset field
                                         $this->redirect(VerifikasiIzin::getUrl());
 
+                                    }),
+
+                                Actions\Action::make('hapus_jadwal_visitasi')
+                                    ->label('Hapus Jadwal')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->visible(fn($record) => $record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi)
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Jadwal Visitasi')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus jadwal visitasi ini? Tindakan ini tidak dapat dibatalkan.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record) {
+                                        if ($record->izinDokumenPks) {
+                                            // Hapus hanya tanggal visitasi, bukan seluruh record
+                                            $record->izinDokumenPks->update([
+                                                'tanggal_visitasi' => null
+                                            ]);
+                                        }
+
+                                        $record->refresh();
+
+                                        Notification::make()
+                                            ->title('Jadwal Visitasi Berhasil Dihapus')
+                                            ->success()
+                                            ->body('Jadwal visitasi telah dihapus.')
+                                            ->send();
+
+                                        $this->redirect(VerifikasiIzin::getUrl());
                                     })
                             ])
                         ]),
@@ -1091,6 +1150,49 @@ class VerifikasiIzin extends Page implements HasTable
 
                                         // Redirect to refresh the page
                                         $this->redirect(VerifikasiIzin::getUrl());
+                                    }),
+
+                                Actions\Action::make('hapus_persetujuan')
+                                    ->label('Hapus Persetujuan')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->visible(fn($record) => $record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan)
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Persetujuan')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus persetujuan ini? Tindakan ini akan menghapus data persetujuan dan data terkait di Surat Persetujuan ICV. Tindakan ini tidak dapat dibatalkan.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record, Get $get) {
+                                        $userId = $record->user_id;
+
+                                        // Hapus file persetujuan dari storage jika ada
+                                        if ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) {
+                                            try {
+                                                \Storage::disk('public')->delete($record->izinPersetujuan->file_persetujuan);
+                                            } catch (\Exception $e) {
+                                                error_log('Failed to delete approval file: ' . $e->getMessage());
+                                            }
+                                        }
+                                        // Hapus atau reset data terkait di SuratPersetujuanIcv
+                                        $suratPersetujuan = SuratPersetujuanIcv::where('id_akun', $userId)->where('nomor_surat', $get('nomor_surat'))->first();
+                                        if ($suratPersetujuan) {
+                                            $suratPersetujuan->delete();
+                                        }
+
+                                        // Hapus record dari tabel IzinPersetujuan
+                                        if ($record->izinPersetujuan) {
+                                            $record->izinPersetujuan->delete();
+                                        }
+
+
+                                        $record->refresh();
+
+                                        Notification::make()
+                                            ->title('Persetujuan Berhasil Dihapus')
+                                            ->success()
+                                            ->body('Data persetujuan dan file terkait telah dihapus.')
+                                            ->send();
+
+                                        $this->redirect(VerifikasiIzin::getUrl());
                                     })
                             ])
                         ]),
@@ -1232,6 +1334,44 @@ class VerifikasiIzin extends Page implements HasTable
                                         // Reset field
                                         $this->redirect(VerifikasiIzin::getUrl());
 
+                                    }),
+
+                                Actions\Action::make('hapus_pks')
+                                    ->label('Hapus PKS')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->visible(fn($record) => $record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk)
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus PKS')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus file PKS ini? Tindakan ini akan menghapus file PKS dan mengatur ulang status dokumen. Tindakan ini tidak dapat dibatalkan.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record) {
+                                        // Hapus file PKS dari storage jika ada
+                                        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
+                                            try {
+                                                \Storage::disk('public')->delete($record->izinDokumenPks->dokumen_pks_bkk);
+                                            } catch (\Exception $e) {
+                                                error_log('Failed to delete PKS file: ' . $e->getMessage());
+                                            }
+                                        }
+
+                                        // Hapus field dokumen_pks_bkk dan reset status_dokumen
+                                        if ($record->izinDokumenPks) {
+                                            $record->izinDokumenPks->update([
+                                                'dokumen_pks_bkk' => null,
+                                                'status_dokumen' => null,
+                                            ]);
+                                        }
+
+                                        $record->refresh();
+
+                                        Notification::make()
+                                            ->title('PKS Berhasil Dihapus')
+                                            ->success()
+                                            ->body('File PKS telah dihapus dan status dokumen direset.')
+                                            ->send();
+
+                                        $this->redirect(VerifikasiIzin::getUrl());
                                     })
                             ])
                         ]),

@@ -802,9 +802,43 @@ class VerifikasiIcv extends Page implements HasTable
                                             ->send();
 
                                         $this->redirect(VerifikasiIcv::getUrl());
-                                    })
+                                    }),
 
-                            ])
+                                FormAction::make('hapus_verifikasi')
+                                    ->label('Hapus Verifikasi')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Data Verifikasi')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus data verifikasi dokumen ICV ini?')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record) {
+                                        try {
+                                            // Hapus hanya data verifikasi dokumen
+                                            $record->icvCekDokumen()?->delete();
+
+                                            // Hapus riwayat perbaikan dan tanggal perbaikan
+                                            $record->update([
+                                                'riwayat_perbaikan' => null,
+                                                'tanggal_perbaikan' => null,
+                                            ]);
+
+                                            Notification::make()
+                                                ->title('Data Verifikasi Berhasil Dihapus')
+                                                ->success()
+                                                ->body('Data verifikasi dokumen berhasil dihapus. Data pengajuan ICV tetap tersimpan.')
+                                                ->send();
+
+                                            $this->redirect(VerifikasiIcv::getUrl());
+
+                                        } catch (\Exception $e) {
+                                            Notification::make()
+                                                ->title('Gagal Menghapus Data')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat menghapus data: ' . $e->getMessage())
+                                                ->send();
+                                        }
+                                    })                            ])
                         ]),
 
                     // Tab 2: ICV Allocation - Disabled jika verifikasi belum selesai atau tidak lengkap
@@ -900,6 +934,37 @@ class VerifikasiIcv extends Page implements HasTable
                                         $this->redirect(VerifikasiIcv::getUrl());
 
                                     }),
+
+                                Actions\Action::make('hapus_alokasi')
+                                    ->label('Hapus Alokasi')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Data Alokasi')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus data alokasi ICV ini?')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->visible(fn($record) => $record->icvAlokasi !== null)
+                                    ->action(function ($record) {
+                                        try {
+                                            // Hapus data alokasi
+                                            $record->icvAlokasi()?->delete();
+
+                                            Notification::make()
+                                                ->title('Data Alokasi Berhasil Dihapus')
+                                                ->success()
+                                                ->body('Data alokasi ICV berhasil dihapus.')
+                                                ->send();
+
+                                            $this->redirect(VerifikasiIcv::getUrl());
+
+                                        } catch (\Exception $e) {
+                                            Notification::make()
+                                                ->title('Gagal Menghapus Data')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat menghapus data: ' . $e->getMessage())
+                                                ->send();
+                                        }
+                                    })
                             ])
                         ]),
 
@@ -990,9 +1055,38 @@ class VerifikasiIcv extends Page implements HasTable
 
                                         $this->redirect(VerifikasiIcv::getUrl());
 
-
-
                                     }),
+
+                                Actions\Action::make('hapus_billing')
+                                    ->label('Hapus Billing')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Data Billing')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus data billing ICV ini?')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->visible(fn($record) => $record->icvBilling !== null)
+                                    ->action(function ($record) {
+                                        try {
+                                            // Hapus data billing
+                                            $record->icvBilling()?->delete();
+
+                                            Notification::make()
+                                                ->title('Data Billing Berhasil Dihapus')
+                                                ->success()
+                                                ->body('Data billing ICV berhasil dihapus.')
+                                                ->send();
+
+                                            $this->redirect(VerifikasiIcv::getUrl());
+
+                                        } catch (\Exception $e) {
+                                            Notification::make()
+                                                ->title('Gagal Menghapus Data')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat menghapus data: ' . $e->getMessage())
+                                                ->send();
+                                        }
+                                    })
                             ]),
                         ]),
 
@@ -1070,6 +1164,48 @@ class VerifikasiIcv extends Page implements HasTable
                             Textarea::make('catatan_bayar')
                                 ->label('Catatan')
                                 ->rows(2),
+
+                            Actions::make([
+                                Actions\Action::make('hapus_bukti_bayar')
+                                    ->label('Hapus Bukti Bayar')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Data Bukti Bayar')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus data bukti bayar ICV ini? Data jadwal dan sinkarkes terkait juga akan dihapus.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->visible(fn($record) => $record->icvBuktiBayar !== null)
+                                    ->action(function ($record) {
+                                        try {
+                                            // Hapus file bukti bayar dari storage jika ada
+                                            if ($record->icvBuktiBayar?->file_bukti_bayar) {
+                                                if (Storage::disk('public')->exists($record->icvBuktiBayar->file_bukti_bayar)) {
+                                                    Storage::disk('public')->delete($record->icvBuktiBayar->file_bukti_bayar);
+                                                }
+                                            }
+
+                                            // Hapus data terkait bukti bayar
+                                            $record->icvBuktiBayar()?->delete();
+                                            $record->icvJadwal()?->delete();
+                                            $record->icvSbbk()?->delete();
+
+                                            Notification::make()
+                                                ->title('Data Bukti Bayar Berhasil Dihapus')
+                                                ->success()
+                                                ->body('Data bukti bayar, jadwal, dan sinkarkes berhasil dihapus.')
+                                                ->send();
+
+                                            $this->redirect(VerifikasiIcv::getUrl());
+
+                                        } catch (\Exception $e) {
+                                            Notification::make()
+                                                ->title('Gagal Menghapus Data')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat menghapus data: ' . $e->getMessage())
+                                                ->send();
+                                        }
+                                    })
+                            ])
                         ]),
 
                     // Tab 5: Distribution Schedule - Disabled jika pembayaran belum diverifikasi

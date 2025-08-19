@@ -647,6 +647,43 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                                                         ->send();
                                                 }
                                             }),
+
+                                        Actions\Action::make('hapus_verifikasi')
+                                            ->label('Hapus Verifikasi')
+                                            ->icon('heroicon-o-trash')
+                                            ->color('danger')
+                                            ->requiresConfirmation()
+                                            ->modalHeading('Hapus Data Verifikasi')
+                                            ->modalDescription('Apakah Anda yakin ingin menghapus data verifikasi dokumen ICV ini? Data pengajuan ICV akan tetap ada.')
+                                            ->modalSubmitActionLabel('Ya, Hapus')
+                                            ->visible(fn($record) => $record && $record->icvCekDokumen !== null)
+                                            ->action(function ($record) {
+                                                try {
+                                                    // Hapus hanya data verifikasi dokumen
+                                                    $record->icvCekDokumen()?->delete();
+
+                                                    // Hapus riwayat perbaikan dan tanggal perbaikan
+                                                    $record->update([
+                                                        'riwayat_perbaikan' => null,
+                                                        'tanggal_perbaikan' => null,
+                                                    ]);
+
+                                                    Notification::make()
+                                                        ->title('Data Verifikasi Berhasil Dihapus')
+                                                        ->success()
+                                                        ->body('Data verifikasi dokumen berhasil dihapus. Data pengajuan ICV tetap tersimpan.')
+                                                        ->send();
+
+                                                    $this->redirect(VerifikasiDokumenIcv::getUrl());
+
+                                                } catch (\Exception $e) {
+                                                    Notification::make()
+                                                        ->title('Gagal Menghapus Data')
+                                                        ->danger()
+                                                        ->body('Terjadi kesalahan saat menghapus data: ' . $e->getMessage())
+                                                        ->send();
+                                                }
+                                            })
                                     ]),
                                 ]),
 
