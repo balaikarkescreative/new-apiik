@@ -14,6 +14,18 @@ class CreateUser extends CreateRecord
 
     protected static bool $canCreateAnother = false;
 
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $location = $data['location'] ?? null;
+
+        if ($location) {
+            $data['latitude'] = $location['lat'] ?? null;
+            $data['longitude'] = $location['lng'] ?? null;
+        }
+
+        return $data;
+    }
+
     protected function afterCreate(): void
     {
         // assign role 'user' to the newly created user
