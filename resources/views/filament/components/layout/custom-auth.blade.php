@@ -14,10 +14,13 @@
     <div class="min-h-screen flex flex-col bg-cover bg-center bg-no-repeat bg-fixed bg-blend-overlay bg-[rgba(198,255,255,0.2)] dark:bg-[rgba(30,41,59,0.3)]"
          style="background-image: url('{{ $backgroundUrl }}');"
     >
+        {{-- HUT RI Banner - Only for CombinedAuth --}}
+        @include('components.hut-ri-banner')
+
         {{-- Top Bar with Logos --}}
         @if (($hasTopbar ?? true) && filament()->auth()->check())
             {{-- Authenticated state - show notifications on right --}}
-            <div class="absolute end-0 top-0 flex h-12 sm:h-16 items-center gap-x-2 sm:gap-x-4 pe-2 sm:pe-4 md:pe-6 lg:pe-8 z-40">
+            <div class="absolute end-0 top-10 flex h-12 sm:h-16 items-center gap-x-2 sm:gap-x-4 pe-2 sm:pe-4 md:pe-6 lg:pe-8 z-30">
                 @if (filament()->hasDatabaseNotifications())
                     @livewire(Filament\Livewire\DatabaseNotifications::class, [
                         'lazy' => filament()->hasLazyLoadedDatabaseNotifications()
@@ -26,7 +29,7 @@
             </div>
 
             {{-- Kemenkes Logo on left when authenticated --}}
-            <div class="absolute start-0 top-0 flex h-12 sm:h-16 items-center gap-x-2 sm:gap-x-4 ps-2 sm:ps-4 md:ps-6 lg:ps-8 my-2 sm:my-4 z-40">
+            <div class="absolute start-0 top-10 flex h-12 sm:h-16 items-center gap-x-2 sm:gap-x-4 ps-2 sm:ps-4 md:ps-6 lg:ps-8 my-2 sm:my-4 z-30">
                 <img src="{{ asset('storage/assets/site_logo.png') }}"
                      alt="Logo Kemenkes"
                      class="h-8 sm:h-10 md:h-12 w-auto transition-transform duration-200 ease-in-out hover:scale-110 dark:brightness-110">
@@ -34,14 +37,14 @@
         @else
             {{-- Not authenticated - show all logos --}}
             {{-- Kemenkes Logo on left --}}
-            <div class="absolute start-0 top-0 flex h-12 sm:h-16 items-center gap-x-2 sm:gap-x-4 ps-2 sm:ps-4 md:ps-6 lg:ps-8 my-2 sm:my-4 z-40">
+            <div class="absolute start-0 top-10 flex h-12 sm:h-16 items-center gap-x-2 sm:gap-x-4 ps-2 sm:ps-4 md:ps-6 lg:ps-8 my-2 sm:my-4 z-30">
                 <img src="{{ asset('storage/assets/site_logo.png') }}"
                      alt="Logo Kemenkes"
                      class="h-8 sm:h-10 md:h-12 w-auto transition-transform duration-200 ease-in-out hover:scale-110 dark:brightness-110">
             </div>
 
             {{-- Institutional Logos on right --}}
-            <div class="absolute end-0 top-0 flex h-12 sm:h-16 items-center gap-x-1 sm:gap-x-4 pe-2 sm:pe-4 md:pe-6 lg:pe-8 my-2 sm:my-4 z-40">
+            <div class="absolute end-0 top-10 flex h-12 sm:h-16 items-center gap-x-1 sm:gap-x-4 pe-2 sm:pe-4 md:pe-6 lg:pe-8 my-2 sm:my-4 z-30">
                 <div class="flex items-center gap-x-1 sm:gap-x-3 md:gap-x-6">
                     <img src="{{ asset('images/logo_anti_korupsi_bkk.png') }}"
                          alt="Logo Anti Korupsi"
@@ -292,12 +295,12 @@
             backdrop-filter: blur(4px);
             z-index: 9999 !important;
         }
-        
+
         /* Ensure modal overlay is above everything */
         .fi-modal-window {
             z-index: 10000 !important;
         }
-        
+
         /* Modal backdrop should be above fixed elements */
         .fi-modal-backdrop {
             z-index: 9998 !important;
@@ -390,12 +393,12 @@
         .absolute.end-0.top-0 {
             z-index: 40;
         }
-        
+
         /* Floating button transitions */
         .fixed button {
             transition: opacity 0.3s ease, transform 0.3s ease, background-color 0.2s ease;
         }
-        
+
         .fixed button.opacity-0 {
             opacity: 0;
             transform: scale(0.95);
