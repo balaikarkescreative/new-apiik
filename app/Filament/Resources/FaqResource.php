@@ -216,6 +216,11 @@ class FaqResource extends Resource
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make()
                     ->label('Buat FAQ Baru'),
+                Tables\Actions\Action::make('bulk-create')
+                    ->label('Tambah FAQ Massal')
+                    ->icon('heroicon-o-plus-circle')
+                    ->color('success')
+                    ->url(fn (): string => static::getUrl('bulk-create')),
             ]);
     }
 
@@ -231,6 +236,7 @@ class FaqResource extends Resource
         return [
             'index' => Pages\ListFaqs::route('/'),
             'create' => Pages\CreateFaq::route('/create'),
+            'bulk-create' => Pages\BulkCreateFaqs::route('/bulk-create'),
             'edit' => Pages\EditFaq::route('/{record}/edit'),
         ];
     }
