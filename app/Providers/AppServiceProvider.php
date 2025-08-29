@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Observers\IzinObserver;
 use App\Observers\PersetujuanObserver;
+use App\Observers\VideoPanduanObserver;
 use App\Models\Izin;
 use App\Models\IzinPersetujuan;
+use App\Models\VideoPanduan;
 use Illuminate\Support\ServiceProvider;
 
 use App\Models\User;
@@ -29,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Izin::observe(IzinObserver::class);
         IzinPersetujuan::observe(PersetujuanObserver::class);
+        VideoPanduan::observe(VideoPanduanObserver::class);
         
         Gate::define('viewPulse', function (User $user) {
 
