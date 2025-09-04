@@ -132,11 +132,6 @@ class IcvResource extends Resource
                         })
                         ->searchable()
                         ->required(),
-
-                    Forms\Components\TextInput::make("link_google")
-                        ->label("Link Google Drive Laporan Geotagging  ")
-                        ->required()
-                        ->url()
                 ]),
             ]),
 

@@ -85,39 +85,49 @@ class CreateIcv extends CreateRecord
         //     $this->checkSuratPersetujuanIcvRequirement(auth()->id());
         // }
 
-        // if (auth()->user()->hasRole('user')) {
-        //     $icvTertahan = \App\Models\Icv::where('user_id', auth()->id())
-        //         // Jika belum ada icvCekDokumen, juga dianggap tertahan
-        //         ->where(function ($q) {
-        //             $q->whereDoesntHave('icvCekDokumen')
-        //                 ->orWhereHas('icvCekDokumen', function ($qq) {
-        //                     $qq->where('hasil_verif', 1);
-        //                 });
-        //         })
-        //         ->where(function ($q) {
-        //             $q->whereDoesntHave('icvSbbk')
-        //                 ->orWhereHas('icvSbbk', function ($qq) {
-        //                     $qq->whereNull('sinkarkes')->orWhere('sinkarkes', '!=', 'Sudah');
-        //                 })
-        //                 ->orWhereDoesntHave('icvBuktiBayar')
-        //                 ->orWhereHas('icvBuktiBayar', function ($qq) {
-        //                     $qq->whereNull('file_bukti_bayar')->orWhere('file_bukti_bayar', '');
-        //                 });
-        //         })
-        //         ->exists();
+        if (auth()->user()->hasRole('user')) {
+            // Cek pengajuan terbaru untuk melihat apakah sudah ada bukti bayar
+            $pengajuanTerbaru = \App\Models\Icv::where('user_id', auth()->id())
+                ->where('tanggal_pengajuan', '>=', '2025-07-01')
+                ->orderBy('tanggal_pengajuan', 'desc')
+                ->first();
 
-        //     if ($icvTertahan) {
-        //         Notification::make()
-        //             ->title('Pengajuan ICV Ditolak')
-        //             ->body('Anda masih memiliki pengajuan ICV yang masih di proses. Silakan selesaikan pengajuan tersebut sebelum mengajukan ICV baru.')
-        //             ->danger()
-        //             ->persistent()
-        //             ->send();
+            if ($pengajuanTerbaru) {
+                // Cek apakah pengajuan terbaru sudah memiliki bukti bayar
+                $sudahAdaBuktiBayar = $pengajuanTerbaru->icvBuktiBayar && 
+                    !empty($pengajuanTerbaru->icvBuktiBayar->file_bukti_bayar);
 
-        //         redirect()->to(IcvResource::getUrl('daftar-pengajuan'));
-        //         return;
-        //     }
-        // }
+                // Jika pengajuan terbaru belum ada bukti bayar, cek apakah ada pengajuan lain yang tertahan
+                if (!$sudahAdaBuktiBayar) {
+                    $icvTertahan = \App\Models\Icv::where('user_id', auth()->id())
+                        // Hanya cek ICV yang diajukan minimal di bulan Juli 2025
+                        ->where('tanggal_pengajuan', '>=', '2025-07-01')
+                        // Hanya cek yang belum memiliki bukti bayar
+                        ->where(function ($q) {
+                            $q->whereDoesntHave('icvBuktiBayar')
+                                ->orWhereHas('icvBuktiBayar', function ($qq) {
+                                    $qq->whereNull('file_bukti_bayar')->orWhere('file_bukti_bayar', '');
+                                });
+                        })
+                        ->exists();
+
+                    if ($icvTertahan) {
+                        Notification::make()
+                            ->title('Pengajuan ICV Ditolak')
+                            ->body('Anda masih memiliki pengajuan ICV yang belum selesai. Silakan selesaikan pengajuan sebelumnya terlebih dahulu.')
+                            ->danger()
+                            ->persistent()
+                            ->send();
+
+                        redirect()->to(IcvResource::getUrl('daftar-pengajuan'));
+                        return;
+                    }
+                }
+                // Jika pengajuan terbaru sudah ada bukti bayar, boleh mengajukan ICV baru
+            }
+        }
+
+
 
 
 
