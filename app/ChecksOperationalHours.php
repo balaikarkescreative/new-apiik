@@ -19,6 +19,18 @@ trait ChecksOperationalHours
             return true;
         }
 
+        // Cek apakah layanan spesifik ditutup
+        if ($this->isServiceSpecificallyClosed($setting, $serviceType)) {
+            $message = $this->buildOperationalMessage($setting, $serviceType);
+
+            $this->sendOperationalNotification(
+                'Layanan Ditutup Sementara',
+                $message,
+                'warning'
+            );
+            return false;
+        }
+
         // Jika ada pengaturan aktif, cek jam operasional
         if (!$setting->isOpen()) {
             $message = $this->buildOperationalMessage($setting, $serviceType);
@@ -44,6 +56,19 @@ trait ChecksOperationalHours
         // Jika tidak ada pengaturan aktif, izinkan akses
         if (!$setting || !$setting->is_active) {
             return true;
+        }
+
+        // Cek apakah layanan spesifik ditutup
+        if ($this->isServiceSpecificallyClosed($setting, $serviceType)) {
+            $message = $this->buildOperationalMessage($setting, $serviceType);
+
+            $this->sendOperationalNotification(
+                'Layanan Ditutup Sementara',
+                $message,
+                'warning'
+            );
+            $this->redirectToRoute($redirectTo);
+            return false;
         }
 
         // Jika ada pengaturan aktif, cek jam operasional
@@ -74,6 +99,12 @@ trait ChecksOperationalHours
             return;
         }
 
+        // Cek apakah layanan spesifik ditutup
+        if ($this->isServiceSpecificallyClosed($setting, $serviceType)) {
+            $message = $this->buildOperationalMessage($setting, $serviceType);
+            throw new \Exception($message);
+        }
+
         // Jika ada pengaturan aktif, cek jam operasional
         if (!$setting->isOpen()) {
             $message = $this->buildOperationalMessage($setting, $serviceType);
@@ -84,7 +115,7 @@ trait ChecksOperationalHours
     /**
      * Get operational status for display
      */
-    protected function getOperationalStatus(): array
+    protected function getOperationalStatus(string $serviceType = 'default'): array
     {
         $setting = OperationalSetting::getActiveSettings();
 
@@ -96,10 +127,19 @@ trait ChecksOperationalHours
             ];
         }
 
+        // Cek apakah layanan spesifik ditutup
+        if ($this->isServiceSpecificallyClosed($setting, $serviceType)) {
+            return [
+                'status' => 'service_closed',
+                'message' => $this->buildOperationalMessage($setting, $serviceType),
+                'color' => 'danger'
+            ];
+        }
+
         if (!$setting->isOpen()) {
             return [
                 'status' => 'closed',
-                'message' => $this->buildOperationalMessage($setting),
+                'message' => $this->buildOperationalMessage($setting, $serviceType),
                 'color' => 'warning'
             ];
         }
@@ -116,6 +156,15 @@ trait ChecksOperationalHours
      */
     private function buildOperationalMessage(OperationalSetting $setting, string $serviceType = 'default'): string
     {
+        // Jika layanan spesifik ditutup
+        if ($this->isServiceSpecificallyClosed($setting, $serviceType)) {
+            return sprintf(
+                '%s sedang ditutup sementara oleh administrator.',
+                $this->getServiceName($serviceType)
+            ) . "\n\nSilakan coba lagi nanti atau hubungi administrator untuk informasi lebih lanjut.";
+        }
+
+        // Pesan normal untuk jam operasional
         $dayNames = [];
         if (!empty($setting->operational_days)) {
             foreach ($setting->operational_days as $day) {
@@ -132,6 +181,20 @@ trait ChecksOperationalHours
             date('H:i', strtotime($setting->start_time)),
             date('H:i', strtotime($setting->end_time))
         );
+    }
+
+    /**
+     * Check if specific service is closed
+     */
+    private function isServiceSpecificallyClosed(OperationalSetting $setting, string $serviceType): bool
+    {
+        // Cek penutupan layanan spesifik
+        return match($serviceType) {
+            'icv' => $setting->icv_closed ?? false,
+            'izin' => $setting->izin_closed ?? false,
+            'account', 'register' => $setting->account_closed ?? false,
+            default => false
+        };
     }
 
     /**
