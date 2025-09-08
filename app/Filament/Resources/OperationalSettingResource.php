@@ -51,6 +51,23 @@ class OperationalSettingResource extends Resource
             Forms\Components\Toggle::make('is_active')
                 ->label('Aktif')
                 ->default(true),
+            Forms\Components\Section::make('Penutupan Layanan Spesifik')
+                ->description('Pilih layanan tertentu yang ingin ditutup sementara')
+                ->schema([
+                    Forms\Components\Grid::make(3)
+                        ->schema([
+                            Forms\Components\Toggle::make('icv_closed')
+                                ->label('Tutup Pengajuan ICV')
+                                ->helperText('Tutup sementara layanan pengajuan ICV'),
+                            Forms\Components\Toggle::make('izin_closed')
+                                ->label('Tutup Pengajuan Izin')
+                                ->helperText('Tutup sementara layanan pengajuan izin'),
+                            Forms\Components\Toggle::make('account_closed')
+                                ->label('Tutup Pengajuan Akun')
+                                ->helperText('Tutup sementara layanan pengajuan akun'),
+                        ]),
+                ])
+                ->collapsible(),
         ]);
     }
 
@@ -108,7 +125,7 @@ class OperationalSettingResource extends Resource
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('Status')
                     ->getStateUsing(function ($record) {
-                        if (!$record->is_active) {
+                        if (!$record || !$record->is_active) {
                             return 'Tidak Aktif';
                         }
                         return $record->isOpen() ? 'Buka' : 'Tutup';
@@ -117,13 +134,60 @@ class OperationalSettingResource extends Resource
                         return match($state) {
                             'Buka' => 'success',
                             'Tutup' => 'warning',
-                            'Tidak Aktif' => 'danger',
+                            'Tidak Aktif' => 'gray',
                             default => 'gray',
                         };
+                    }),
+                Tables\Columns\TextColumn::make('closed_services_display')
+                    ->label('Layanan Ditutup')
+                    ->getStateUsing(function ($record) {
+                        if (!$record) return '-';
+                        
+                        $closedServices = [];
+                        
+                        if ($record->icv_closed) $closedServices[] = 'ICV';
+                        if ($record->izin_closed) $closedServices[] = 'Izin';
+                        if ($record->account_closed) $closedServices[] = 'Akun';
+                        
+                        return empty($closedServices) ? 'Semua Buka' : implode(', ', $closedServices);
+                    })
+                    ->color(function ($record) {
+                        if (!$record) return 'gray';
+                        return ($record->icv_closed || $record->izin_closed || $record->account_closed) ? 'danger' : 'success';
                     }),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('manage_services')
+                    ->label('Kelola Layanan')
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->color('warning')
+                    ->visible(fn ($record) => $record && $record->is_active)
+                    ->form([
+                        Forms\Components\Grid::make(1)
+                            ->schema([
+                                Forms\Components\Toggle::make('icv_closed')
+                                    ->label('Tutup Pengajuan ICV')
+                                    ->default(fn ($record) => $record->icv_closed),
+                                Forms\Components\Toggle::make('izin_closed')
+                                    ->label('Tutup Pengajuan Izin')
+                                    ->default(fn ($record) => $record->izin_closed),
+                                Forms\Components\Toggle::make('account_closed')
+                                    ->label('Tutup Pengajuan Akun')
+                                    ->default(fn ($record) => $record->account_closed),
+                            ]),
+                    ])
+                    ->action(function ($record, $data) {
+                        if (!$record) {
+                            return;
+                        }
+                        
+                        $record->update([
+                            'icv_closed' => $data['icv_closed'] ?? false,
+                            'izin_closed' => $data['izin_closed'] ?? false,
+                            'account_closed' => $data['account_closed'] ?? false,
+                        ]);
+                    }),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
