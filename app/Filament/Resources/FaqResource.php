@@ -29,6 +29,8 @@ class FaqResource extends Resource
 
     protected static ?string $pluralModelLabel = 'FAQ';
 
+    protected static ?int $navigationSort = 1;
+
     public static function canAccess(): bool
     {
         // Hanya admin yang bisa akses kelola admin
@@ -93,17 +95,6 @@ class FaqResource extends Resource
                     ->tooltip(function ($record): ?string {
                         $question = $record->question;
                         return strlen($question) > 60 ? $question : null;
-                    }),
-
-                Tables\Columns\TextColumn::make('answer')
-                    ->label('Jawaban')
-                    ->searchable()
-                    ->sortable()
-                    ->limit(100)
-                    ->html()
-                    ->tooltip(function ($record): ?string {
-                        $answer = strip_tags($record->answer);
-                        return strlen($answer) > 100 ? $answer : null;
                     }),
 
                 Tables\Columns\IconColumn::make('is_active')
@@ -235,8 +226,8 @@ class FaqResource extends Resource
     {
         return [
             'index' => Pages\ListFaqs::route('/'),
-            'create' => Pages\CreateFaq::route('/create'),
-            'bulk-create' => Pages\BulkCreateFaqs::route('/bulk-create'),
+            // 'create' => Pages\CreateFaq::route('/create'),
+            'create' => Pages\BulkCreateFaqs::route('/create'),
             'edit' => Pages\EditFaq::route('/{record}/edit'),
         ];
     }

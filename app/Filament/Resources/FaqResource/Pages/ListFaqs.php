@@ -13,14 +13,13 @@ class ListFaqs extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()
-                ->label('Buat FAQ Baru')
-                ->icon('heroicon-o-plus'),
-            Actions\Action::make('bulk-create')
-                ->label('Tambah FAQ Massal')
+            // Actions\CreateAction::make()
+            //     ->label('Buat FAQ Baru')
+            //     ->icon('heroicon-o-plus'),
+            Actions\Action::make('create')
+                ->label('Tambah FAQ')
                 ->icon('heroicon-o-plus-circle')
-                ->color('success')
-                ->url(fn (): string => FaqResource::getUrl('bulk-create')),
+                ->url(fn (): string => FaqResource::getUrl('create')),
         ];
     }
 
