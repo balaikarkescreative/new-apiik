@@ -13,6 +13,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Database\Eloquent\Collection;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Illuminate\Support\Str;
 
 class VideoPanduanResource extends Resource
 {
@@ -20,17 +22,18 @@ class VideoPanduanResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-play-circle';
 
-    protected static ?string $navigationLabel = 'Kelola Video Sosialisasi';
+    protected static ?string $navigationLabel = 'Kelola Video FAQ';
 
     protected static ?string $navigationGroup = 'Master Data';
 
-    protected static ?string $modelLabel = 'Video Sosialisasi';
+    protected static ?string $modelLabel = 'Video FAQ';
 
-    protected static ?string $pluralModelLabel = 'Video Sosialisasi';
+    protected static ?string $pluralModelLabel = 'Video FAQ';
+
+    protected static ?int $navigationSort = 2;
 
     public static function canAccess(): bool
     {
-        // Hanya admin yang bisa akses kelola video sosialisasi
         return auth()->check() && auth()->user()->hasRole('admin');
     }
 
@@ -39,18 +42,18 @@ class VideoPanduanResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Informasi Video')
-                    ->description('Upload dan kelola video sosialisasi untuk pengguna')
+                    ->description('Upload dan kelola video FAQ untuk pengguna')
                     ->schema([
                         Forms\Components\TextInput::make('title')
                             ->label('Judul Video')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('Masukkan judul video sosialisasi')
+                            ->placeholder('Masukkan judul video FAQ')
                             ->columnSpanFull(),
 
                         Forms\Components\Textarea::make('description')
                             ->label('Deskripsi')
-                            ->placeholder('Jelaskan isi dari video sosialisasi ini')
+                            ->placeholder('Jelaskan isi dari video FAQ ini')
                             ->columnSpanFull()
                             ->rows(3),
 
@@ -60,9 +63,21 @@ class VideoPanduanResource extends Resource
                             ->disk('public')
                             ->directory('video-panduan')
                             ->acceptedFileTypes(['video/mp4', 'video/avi', 'video/mov', 'video/wmv'])
-                            ->maxSize(1024 * 100) // 100MB
+                            ->getUploadedFileNameForStorageUsing(
+                                function (Forms\Get $get, TemporaryUploadedFile $file): string {
+                                    // Dapatkan judul video dari form
+                                    $title = $get('title');
+
+                                    // Buat slug dari judul, atau gunakan nama default jika judul kosong
+                                    $baseName = $title ? Str::slug($title) : 'video-upload';
+
+                                    // Tambahkan timestamp dan kembalikan nama file baru dengan ekstensi aslinya
+                                    return $baseName . '-' . now()->timestamp . '.' . $file->extension();
+                                }
+                            )
+                            ->maxSize(1024 * 200) // 200MB
                             ->columnSpanFull()
-                            ->helperText('Format yang didukung: MP4, AVI, MOV, WMV. Maksimal 100MB')
+                            ->helperText('Format yang didukung: MP4, AVI, MOV, WMV. Maksimal 200MB')
                             ->downloadable()
                             ->previewable(),
                     ]),
@@ -97,15 +112,6 @@ class VideoPanduanResource extends Resource
                     ->tooltip(function ($record): ?string {
                         $desc = $record->description;
                         return strlen($desc ?? '') > 100 ? $desc : null;
-                    }),
-
-                Tables\Columns\TextColumn::make('video_path')
-                    ->label('File Video')
-                    ->formatStateUsing(function ($state) {
-                        return $state ? basename($state) : '-';
-                    })
-                    ->tooltip(function ($record): ?string {
-                        return $record->video_size ?? 'Ukuran tidak diketahui';
                     }),
 
                 Tables\Columns\IconColumn::make('is_active')
@@ -211,12 +217,12 @@ class VideoPanduanResource extends Resource
             ])
             ->defaultSort('order', 'asc')
             ->paginated([10, 25, 50, 100])
-            ->emptyStateHeading('Belum ada Video Sosialisasi')
-            ->emptyStateDescription('Buat video sosialisasi pertama untuk membantu pengguna.')
+            ->emptyStateHeading('Belum ada Video FAQ')
+            ->emptyStateDescription('Buat video FAQ pertama untuk membantu pengguna.')
             ->emptyStateIcon('heroicon-o-play-circle')
             ->emptyStateActions([
                 Tables\Actions\CreateAction::make()
-                    ->label('Upload Video Sosialisasi'),
+                    ->label('Upload Video FAQ'),
             ]);
     }
 

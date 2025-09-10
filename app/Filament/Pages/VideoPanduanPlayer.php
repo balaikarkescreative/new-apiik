@@ -12,13 +12,13 @@ class VideoPanduanPlayer extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-play';
 
-    protected static ?string $navigationLabel = 'Video Sosialisasi';
+    protected static ?string $navigationLabel = 'Video FAQ';
 
-    protected static ?string $slug = 'video-sosialisasi';
+    protected static ?string $slug = 'video-faq';
 
     protected static string $view = 'filament.pages.video-panduan-player';
 
-    protected static ?string $title = 'Video Sosialisasi';
+    protected static ?string $title = 'Video FAQ';
 
     protected static ?int $navigationSort = 5;
     public ?Collection $videos = null;

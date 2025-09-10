@@ -171,7 +171,7 @@
                         @endforeach
                     @else
                         <div class="p-4 text-center text-gray-500 dark:text-gray-300">
-                            <p>Tidak ada video Sosialisasi tersedia.</p>
+                            <p>Tidak ada video FAQ tersedia.</p>
                         </div>
                     @endif
                 </div>
