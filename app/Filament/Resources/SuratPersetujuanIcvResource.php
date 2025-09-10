@@ -23,6 +23,7 @@ class SuratPersetujuanIcvResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $navigationLabel = 'Surat Persetujuan ICV';
     protected static ?string $navigationGroup = 'Master Data';
+    protected static ?int $navigationSort = 6;
 
     public static function canAccess(): bool
     {

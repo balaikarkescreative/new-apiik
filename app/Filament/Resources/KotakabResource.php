@@ -26,7 +26,7 @@ class KotakabResource extends Resource
 
     protected static ?string $navigationLabel = 'Kota/Kabupaten';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 8;
 
 
     public static function canAccess(): bool

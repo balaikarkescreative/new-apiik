@@ -23,6 +23,7 @@ class PaktaIntegritasResource extends Resource
     protected static ?string $label = 'Pakta Integritas';
     protected static ?string $slug = 'pakta-integritas';
     protected static ?string $pluralLabel = 'Pakta Integritas';
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {

@@ -23,6 +23,7 @@ class LaporanGeotaggingResource extends Resource
     protected static ?string $label = 'Laporan Geotagging';
     protected static ?string $slug = 'laporan-geotagging';
     protected static ?string $pluralLabel = 'Laporan Geotagging';
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {

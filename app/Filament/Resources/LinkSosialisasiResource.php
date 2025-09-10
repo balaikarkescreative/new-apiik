@@ -22,6 +22,7 @@ class LinkSosialisasiResource extends Resource
     protected static ?string $label = 'Link Sosialisasi';
     protected static ?string $slug = 'link-sosialisasi';
     protected static ?string $pluralLabel = 'Link Sosialisasi';
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {
