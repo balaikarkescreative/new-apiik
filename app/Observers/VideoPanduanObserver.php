@@ -3,8 +3,8 @@
 namespace App\Observers;
 
 use App\Models\VideoPanduan;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class VideoPanduanObserver
 {
@@ -17,7 +17,7 @@ class VideoPanduanObserver
         Log::info('Video panduan created', [
             'id' => $videoPanduan->id,
             'title' => $videoPanduan->title,
-            'video_path' => $videoPanduan->video_path
+            'video_path' => $videoPanduan->video_path,
         ]);
     }
 
@@ -29,15 +29,15 @@ class VideoPanduanObserver
         // Check if video file was changed
         if ($videoPanduan->isDirty('video_path')) {
             $originalPath = $videoPanduan->getOriginal('video_path');
-            
+
             // Delete old video file if it exists and is different
             if ($originalPath && $originalPath !== $videoPanduan->video_path) {
                 $this->deleteVideoFile($originalPath);
-                
+
                 Log::info('Old video file deleted due to update', [
                     'id' => $videoPanduan->id,
                     'old_path' => $originalPath,
-                    'new_path' => $videoPanduan->video_path
+                    'new_path' => $videoPanduan->video_path,
                 ]);
             }
         }
@@ -51,11 +51,11 @@ class VideoPanduanObserver
         // Delete associated video file when record is deleted
         if ($videoPanduan->video_path) {
             $this->deleteVideoFile($videoPanduan->video_path);
-            
+
             Log::info('Video file deleted', [
                 'id' => $videoPanduan->id,
                 'title' => $videoPanduan->title,
-                'video_path' => $videoPanduan->video_path
+                'video_path' => $videoPanduan->video_path,
             ]);
         }
     }
@@ -68,7 +68,7 @@ class VideoPanduanObserver
         // Log when video is restored (if using soft deletes)
         Log::info('Video panduan restored', [
             'id' => $videoPanduan->id,
-            'title' => $videoPanduan->title
+            'title' => $videoPanduan->title,
         ]);
     }
 
@@ -80,11 +80,11 @@ class VideoPanduanObserver
         // Delete associated video file when record is force deleted
         if ($videoPanduan->video_path) {
             $this->deleteVideoFile($videoPanduan->video_path);
-            
+
             Log::info('Video file force deleted', [
                 'id' => $videoPanduan->id,
                 'title' => $videoPanduan->title,
-                'video_path' => $videoPanduan->video_path
+                'video_path' => $videoPanduan->video_path,
             ]);
         }
     }
@@ -101,7 +101,7 @@ class VideoPanduanObserver
         } catch (\Exception $e) {
             Log::error('Failed to delete video file', [
                 'file_path' => $filePath,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }

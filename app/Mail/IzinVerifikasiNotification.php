@@ -2,20 +2,21 @@
 
 namespace App\Mail;
 
+use App\Models\Izin;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Izin;
 
 class IzinVerifikasiNotification extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $izin;
+
     public $hasilVerifikasi;
+
     public $catatan;
 
     public function __construct(Izin $izin, $hasilVerifikasi, $catatan = null)
@@ -32,7 +33,7 @@ class IzinVerifikasiNotification extends Mailable
             : 'Verifikasi Dokumen - Berkas Tidak Lengkap';
 
         return new Envelope(
-            subject: $subject . ' - ID: ' . $this->izin->id,
+            subject: $subject.' - ID: '.$this->izin->id,
         );
     }
 

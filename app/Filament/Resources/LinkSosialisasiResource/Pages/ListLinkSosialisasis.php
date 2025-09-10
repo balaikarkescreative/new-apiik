@@ -10,13 +10,13 @@ class ListLinkSosialisasis extends ListRecords
 {
     protected static string $resource = LinkSosialisasiResource::class;
 
-     protected function getHeaderActions(): array
+    protected function getHeaderActions(): array
     {
         return [
             Actions\CreateAction::make()
                 ->label('Tambah Link Sosialisasi')
                 ->icon('heroicon-o-plus')
-                ->color('primary')
+                ->color('primary'),
         ];
     }
 }

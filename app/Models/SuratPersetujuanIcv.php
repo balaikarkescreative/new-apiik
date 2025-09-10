@@ -10,7 +10,9 @@ class SuratPersetujuanIcv extends Model
     use HasFactory;
 
     protected $table = 'tbl_surat_persetujuan_icv';
+
     protected $primaryKey = 'id';
+
     public $timestamps = false; // Karena hanya ada date_updated
 
     protected $fillable = [
@@ -22,7 +24,7 @@ class SuratPersetujuanIcv extends Model
     ];
 
     protected $casts = [
-        'tanggal_surat'=> 'date',
+        'tanggal_surat' => 'date',
         'masa_berlaku' => 'date',
         'date_updated' => 'datetime',
     ];
@@ -40,7 +42,7 @@ class SuratPersetujuanIcv extends Model
      */
     public function getStatusMasaBerlakuAttribute()
     {
-        if (!$this->masa_berlaku) {
+        if (! $this->masa_berlaku) {
             return 'Tidak Ada Data';
         }
 

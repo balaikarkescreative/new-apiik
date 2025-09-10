@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\IzinResource\Pages;
 
 use App\Filament\Resources\IzinResource;
-use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 
 class PerpanjangIzin extends CreateRecord
@@ -16,7 +15,6 @@ class PerpanjangIzin extends CreateRecord
         $data['kategori_izin'] = 'Perpanjang Izin';
         $data['user_id'] = auth()->id();
         $data['tanggal_pengajuan'] = now();
-
 
         return $data;
     }

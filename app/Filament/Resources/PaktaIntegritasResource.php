@@ -4,25 +4,29 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\PaktaIntegritasResource\Pages;
 use App\Models\PaktaIntegritas;
+use App\Models\User;
 use Filament\Forms;
-use Filament\Resources\Resource;
 use Filament\Forms\Form;
+use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Table;
-
 use Illuminate\Database\Eloquent\Builder;
-use App\Models\User;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class PaktaIntegritasResource extends Resource
 {
     protected static ?string $model = PaktaIntegritas::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
     protected static ?string $navigationGroup = 'Master Data';
+
     protected static ?string $label = 'Pakta Integritas';
+
     protected static ?string $slug = 'pakta-integritas';
+
     protected static ?string $pluralLabel = 'Pakta Integritas';
+
     protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
@@ -37,17 +41,17 @@ class PaktaIntegritasResource extends Resource
                         titleAttribute: 'name',
                         modifyQueryUsing: function (Builder $query, ?User $record) {
                             // This single query correctly handles both 'create' and 'edit' scenarios.
-                            return $query->whereHas('roles', fn(Builder $q) => $q->where('name', 'user'))
+                            return $query->whereHas('roles', fn (Builder $q) => $q->where('name', 'user'))
                                 ->where(function (Builder $q) use ($record) {
-                                // It selects users who do not have a related 'paktaIntegritas',
-                                $q->whereDoesntHave('paktaIntegritas');
+                                    // It selects users who do not have a related 'paktaIntegritas',
+                                    $q->whereDoesntHave('paktaIntegritas');
 
-                                // OR, if editing a record, it ensures the currently assigned user
-                                // is always included in the options list.
-                                if ($record) {
-                                    $q->orWhere('id', $record->id);
-                                }
-                            });
+                                    // OR, if editing a record, it ensures the currently assigned user
+                                    // is always included in the options list.
+                                    if ($record) {
+                                        $q->orWhere('id', $record->id);
+                                    }
+                                });
                         }
                     )
                     ->searchable()
@@ -55,7 +59,7 @@ class PaktaIntegritasResource extends Resource
                     ->hiddenOn('edit') // Hide on edit, as the user should not change
                     // You only need `disabled`. If a user doesn't have the role, the field will be visible but not editable.
                     // The previous `visible` check was redundant with this logic.
-                    ->visible(fn() => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
+                    ->visible(fn () => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
 
                 Forms\Components\FileUpload::make('file')
                     ->label('File Pakta Integritas')
@@ -66,7 +70,7 @@ class PaktaIntegritasResource extends Resource
                     ->helperText('Upload file pakta integritas dalam format PDF, DOC, atau DOCX (maksimal 3MB).')
                     ->downloadable()
                     ->previewable()
-                    ->storeFileNamesIn('original_filename')
+                    ->storeFileNamesIn('original_filename'),
             ]);
     }
 
@@ -77,11 +81,11 @@ class PaktaIntegritasResource extends Resource
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Klinik/RS')
                     ->searchable()
-                    ->visible(fn() => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
+                    ->visible(fn () => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
                 Tables\Columns\TextColumn::make('file')
                     ->label('File Pakta Integritas')
-                    ->formatStateUsing(fn($state) => $state ? basename($state) : 'Tidak ada file')
-                    ->url(fn($record) => $record->file ? asset('storage/' . $record->file) : null)
+                    ->formatStateUsing(fn ($state) => $state ? basename($state) : 'Tidak ada file')
+                    ->url(fn ($record) => $record->file ? asset('storage/'.$record->file) : null)
                     ->openUrlInNewTab(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Tanggal Upload')
@@ -97,11 +101,11 @@ class PaktaIntegritasResource extends Resource
                     ->label('Klinik/RS')
                     ->relationship('user', 'name')
                     ->searchable()
-                    ->visible(fn() => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
+                    ->visible(fn () => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
                 // ...
             ], FiltersLayout::AboveContent)
             ->modifyQueryUsing(function ($query) {
-                if (!auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])) {
+                if (! auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])) {
                     $query->where('user_id', auth()->id());
                 }
             });

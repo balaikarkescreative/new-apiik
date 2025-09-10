@@ -15,20 +15,23 @@ class VaksinResource extends Resource
     protected static ?string $model = Vaksin::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-shield-check';
+
     protected static ?string $navigationLabel = 'Jenis Vaksin';
 
     protected static ?string $navigationGroup = 'Master Data';
+
     protected static ?string $pluralLabel = 'Jenis Vaksin';
+
     protected static ?string $label = 'Jenis Vaksin';
+
     protected static ?string $slug = 'jenis-vaksin';
 
     protected static ?int $navigationSort = 9;
 
-
     public static function canAccess(): bool
     {
         return auth()->check() && auth()->user()->hasRole('admin');
-    }/*  */
+    }/* */
 
     public static function form(Form $form): Form
     {

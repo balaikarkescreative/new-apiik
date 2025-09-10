@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\Vaksinator;
 use App\Models\User;
+use App\Models\Vaksinator;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Log;
 
 class VaksinatorSeeder extends Seeder
@@ -18,16 +17,18 @@ class VaksinatorSeeder extends Seeder
     {
         $jsonFile = database_path('seeders/tbl_akun_vaksinator.json');
 
-        if (!file_exists($jsonFile)) {
+        if (! file_exists($jsonFile)) {
             $this->command->error("File {$jsonFile} not found!");
+
             return;
         }
 
         $jsonContent = file_get_contents($jsonFile);
         $data = json_decode($jsonContent, true);
 
-        if (!$data || !isset($data[2]['data'])) {
-            $this->command->error("Invalid JSON structure!");
+        if (! $data || ! isset($data[2]['data'])) {
+            $this->command->error('Invalid JSON structure!');
+
             return;
         }
 
@@ -35,15 +36,16 @@ class VaksinatorSeeder extends Seeder
         $created = 0;
         $skipped = 0;
 
-        $this->command->info("Starting to seed vaksinator data...");
+        $this->command->info('Starting to seed vaksinator data...');
 
         foreach ($records as $record) {
             try {
                 // Find user by id_akun
                 $user = User::find($record['id_akun']);
-                if (!$user) {
+                if (! $user) {
                     $this->command->warn("User with ID {$record['id_akun']} not found for vaksinator ID {$record['id']}. Skipping...");
                     $skipped++;
+
                     continue;
                 }
 
@@ -71,13 +73,14 @@ class VaksinatorSeeder extends Seeder
                 $created++;
 
             } catch (\Exception $e) {
-                $this->command->error("Error processing vaksinator ID {$record['id']}: " . $e->getMessage());
+                $this->command->error("Error processing vaksinator ID {$record['id']}: ".$e->getMessage());
                 $skipped++;
+
                 continue;
             }
         }
 
-        $this->command->info("Vaksinator seeding completed!");
+        $this->command->info('Vaksinator seeding completed!');
         $this->command->info("Created/Updated: {$created}");
         $this->command->info("Skipped: {$skipped}");
     }
@@ -101,6 +104,7 @@ class VaksinatorSeeder extends Seeder
             return Carbon::parse($dateString);
         } catch (\Exception $e) {
             Log::warning("Failed to parse date: {$dateString}");
+
             return null;
         }
     }
@@ -118,6 +122,7 @@ class VaksinatorSeeder extends Seeder
             return Carbon::parse($dateTimeString);
         } catch (\Exception $e) {
             Log::warning("Failed to parse datetime: {$dateTimeString}");
+
             return now();
         }
     }

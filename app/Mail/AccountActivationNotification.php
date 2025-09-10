@@ -4,7 +4,6 @@ namespace App\Mail;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -15,7 +14,9 @@ class AccountActivationNotification extends Mailable
     use Queueable, SerializesModels;
 
     public User $user;
+
     public string $loginUrl;
+
     public string $defaultPassword;
 
     /**
@@ -34,7 +35,7 @@ class AccountActivationNotification extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Akun APIIK Anda Telah Aktif - ' . $this->user->name,
+            subject: 'Akun APIIK Anda Telah Aktif - '.$this->user->name,
         );
     }
 

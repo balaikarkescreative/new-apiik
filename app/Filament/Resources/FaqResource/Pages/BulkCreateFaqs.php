@@ -4,13 +4,12 @@ namespace App\Filament\Resources\FaqResource\Pages;
 
 use App\Filament\Resources\FaqResource;
 use App\Models\Faq;
+use Filament\Actions;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Pages\Concerns\InteractsWithFormActions;
-use Filament\Resources\Pages\Concerns\InteractsWithRecord;
-use Filament\Resources\Pages\Page;
-use Filament\Actions;
 use Filament\Notifications\Notification;
+use Filament\Pages\Concerns\InteractsWithFormActions;
+use Filament\Resources\Pages\Page;
 
 class BulkCreateFaqs extends Page
 {
@@ -32,8 +31,8 @@ class BulkCreateFaqs extends Page
                     'question' => '',
                     'answer' => '',
                     'is_active' => true,
-                ]
-            ]
+                ],
+            ],
         ]);
     }
 
@@ -93,12 +92,12 @@ class BulkCreateFaqs extends Page
     public function create(): void
     {
         $data = $this->form->getState();
-        
+
         $maxOrder = Faq::max('order') ?? 0;
         $createdCount = 0;
 
         foreach ($data['faqs'] as $index => $faqData) {
-            if (!empty($faqData['question']) && !empty($faqData['answer'])) {
+            if (! empty($faqData['question']) && ! empty($faqData['answer'])) {
                 Faq::create([
                     'question' => $faqData['question'],
                     'answer' => $faqData['answer'],

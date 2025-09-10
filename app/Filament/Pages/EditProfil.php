@@ -2,18 +2,18 @@
 
 namespace App\Filament\Pages;
 
-use Filament\Pages\Page;
-use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Dotswan\MapPicker\Fields\Map;
-use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 use App\Models\Kotakab;
 use App\Models\User;
+use Dotswan\MapPicker\Fields\Map;
+use Filament\Forms;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Form;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 
 class EditProfil extends Page implements HasForms
 {
@@ -128,7 +128,7 @@ class EditProfil extends Page implements HasForms
                                 ->icon('heroicon-o-question-mark-circle')
                                 ->link()
                                 ->url('https://support.google.com/maps/answer/18539?hl=id&co=GENIE.Platform%3DDesktop&sjid=5970428221449970434-NC')
-                                ->openUrlInNewTab()
+                                ->openUrlInNewTab(),
                         ]),
 
                         Forms\Components\Grid::make(2)
@@ -138,6 +138,7 @@ class EditProfil extends Page implements HasForms
                                     ->maxLength(20)
                                     ->default(function (callable $get) {
                                         $location = $get('location');
+
                                         return $location['lat'] ?? '';
                                     })
                                     ->afterStateUpdated(function (callable $set, callable $get, $state) {
@@ -145,7 +146,7 @@ class EditProfil extends Page implements HasForms
                                         if ($state && $lng) {
                                             $set('location', [
                                                 'lat' => (float) $state,
-                                                'lng' => (float) $lng
+                                                'lng' => (float) $lng,
                                             ]);
                                             // Trigger map refresh
                                             $this->dispatch('refreshMap');
@@ -158,6 +159,7 @@ class EditProfil extends Page implements HasForms
                                     ->maxLength(20)
                                     ->default(function (callable $get) {
                                         $location = $get('location');
+
                                         return $location['lng'] ?? '';
                                     })
                                     ->afterStateUpdated(function (callable $set, callable $get, $state) {
@@ -165,7 +167,7 @@ class EditProfil extends Page implements HasForms
                                         if ($state && $lat) {
                                             $set('location', [
                                                 'lat' => (float) $lat,
-                                                'lng' => (float) $state
+                                                'lng' => (float) $state,
                                             ]);
                                             // Trigger map refresh
                                             $this->dispatch('refreshMap');
@@ -202,8 +204,8 @@ class EditProfil extends Page implements HasForms
                             ->password()
                             ->revealable()
                             ->helperText('Masukkan password saat ini untuk mengubah password')
-                            ->visible(fn(callable $get) => !empty($get('new_password')) || !empty($get('new_password_confirmation')))
-                            ->required(fn(callable $get) => !empty($get('new_password')) && !Auth::user()->hasRole('admin'))
+                            ->visible(fn (callable $get) => ! empty($get('new_password')) || ! empty($get('new_password_confirmation')))
+                            ->required(fn (callable $get) => ! empty($get('new_password')) && ! Auth::user()->hasRole('admin'))
                             ->rule(function () {
                                 return function (string $attribute, $value, \Closure $fail) {
                                     // Skip validation if user is admin or if no new password is provided
@@ -211,7 +213,7 @@ class EditProfil extends Page implements HasForms
                                         return;
                                     }
 
-                                    if (!Hash::check($value, Auth::user()->password)) {
+                                    if (! Hash::check($value, Auth::user()->password)) {
                                         $fail('Password saat ini tidak sesuai.');
                                     }
                                 };
@@ -230,8 +232,8 @@ class EditProfil extends Page implements HasForms
                             ->password()
                             ->revealable()
                             ->same('new_password')
-                            ->visible(fn(callable $get) => !empty($get('new_password')))
-                            ->required(fn(callable $get) => !empty($get('new_password'))),
+                            ->visible(fn (callable $get) => ! empty($get('new_password')))
+                            ->required(fn (callable $get) => ! empty($get('new_password'))),
                     ])
                     ->columns(1)
                     ->collapsible()
@@ -256,7 +258,7 @@ class EditProfil extends Page implements HasForms
         // Handle password change
         $passwordChanged = false;
 
-        if (!empty($data['new_password'])) {
+        if (! empty($data['new_password'])) {
             $data['password'] = Hash::make($data['new_password']);
             $passwordChanged = true;
         }
@@ -277,6 +279,7 @@ class EditProfil extends Page implements HasForms
                 session()->flash('message', 'Password berhasil diubah. Silakan login ulang dengan password baru Anda.');
 
                 $this->redirect('/login');
+
                 return;
             }
 
@@ -294,7 +297,7 @@ class EditProfil extends Page implements HasForms
             // Error notification
             Notification::make()
                 ->title('Gagal menyimpan')
-                ->body('Terjadi kesalahan saat menyimpan data: ' . $e->getMessage())
+                ->body('Terjadi kesalahan saat menyimpan data: '.$e->getMessage())
                 ->danger()
                 ->send();
         }

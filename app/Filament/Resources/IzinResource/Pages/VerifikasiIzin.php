@@ -3,48 +3,47 @@
 namespace App\Filament\Resources\IzinResource\Pages;
 
 use App\Filament\Resources\IzinResource;
-use App\Models\IzinPersetujuan;
-use App\Models\SuratPersetujuanIcv;
-use Dom\Text;
-use Filament\Forms\Components\Placeholder;
-use Filament\Resources\Pages\Page;
-use App\Models\Izin;
-use Filament\Tables\Actions\Action;
-use Filament\Forms\Components\Actions\Action as FormAction;
-use Filament\Actions\Action as PageAction;
-use App\Models\IzinDokumen;
-use Filament\Notifications\Notification;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Table;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Tabs;
-use Filament\Forms\Components\Actions;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\IzinVerifikasiNotification;
-use App\Mail\IzinVisitasiNotification;
+use App\FileLabels;
 use App\Mail\IzinPersetujuanNotification;
 use App\Mail\IzinPksNotification;
-use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
-use Illuminate\Database\Eloquent\Builder;
+use App\Mail\IzinVerifikasiNotification;
+use App\Mail\IzinVisitasiNotification;
+use App\Models\Izin;
+use App\Models\IzinDokumen;
+use App\Models\IzinPersetujuan;
+use App\Models\SuratPersetujuanIcv;
 use Carbon\Carbon;
-use App\FileLabels;
+use Filament\Forms\Components\Actions;
+use Filament\Forms\Components\Actions\Action as FormAction;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Tabs;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\Page;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class VerifikasiIzin extends Page implements HasTable
 {
-    use InteractsWithTable, FileLabels;
+    use FileLabels, InteractsWithTable;
+
     protected static string $resource = IzinResource::class;
 
     protected static string $model = Izin::class;
@@ -62,7 +61,7 @@ class VerifikasiIzin extends Page implements HasTable
         parent::mountCanAuthorizeAccess();
 
         // Cek apakah user memiliki peran yang sesuai
-        if (!auth()->user()->hasRole(['admin'])) {
+        if (! auth()->user()->hasRole(['admin'])) {
             // abort(403, 'Akses ditolak. Hanya admin yang dapat mengelola verifikasi izin.');
             redirect()->to('/');
 
@@ -79,7 +78,7 @@ class VerifikasiIzin extends Page implements HasTable
                         'izinDokumen',
                         'izinVisitasi',
                         'izinPersetujuan',
-                        'izinDokumenPks'
+                        'izinDokumenPks',
                     ])
             )
             ->columns([
@@ -97,9 +96,9 @@ class VerifikasiIzin extends Page implements HasTable
                         $klinik = $record->user?->name ?? 'N/A';
                         $lokasi = $record->user?->kotakab ?? 'N/A';
 
-                        return '<div>' .
-                            '<div class="font-medium text-sm">' . e($klinik) . '</div>' .
-                            '<div class="text-xs text-gray-500">' . e($lokasi) . '</div>' .
+                        return '<div>'.
+                            '<div class="font-medium text-sm">'.e($klinik).'</div>'.
+                            '<div class="text-xs text-gray-500">'.e($lokasi).'</div>'.
                             '</div>';
                     })
                     ->html()
@@ -119,10 +118,10 @@ class VerifikasiIzin extends Page implements HasTable
                     ->label('Kategori Izin')
                     ->badge()
                     ->color(
-                        fn($state) => match ($state) {
-                            "Izin Baru" => "success",
-                            "Perpanjang Izin" => "warning",
-                            default => "gray",
+                        fn ($state) => match ($state) {
+                            'Izin Baru' => 'success',
+                            'Perpanjang Izin' => 'warning',
+                            default => 'gray',
                         }
                     )
                     ->searchable()
@@ -148,6 +147,7 @@ class VerifikasiIzin extends Page implements HasTable
                     ->badge()
                     ->color(function ($state) {
                         $percentage = (int) filter_var($state, FILTER_SANITIZE_NUMBER_INT);
+
                         return match (true) {
                             $percentage === 100 => 'success',
                             $percentage >= 75 => 'warning',
@@ -178,11 +178,12 @@ class VerifikasiIzin extends Page implements HasTable
                         // Jika ada tanggal_perbaikan dan (belum ada izinDokumen atau hasil terakhir = 2), tampilkan (Perbaikan)
                         if ($record->tanggal_perbaikan) {
                             if (
-                                !$record->izinDokumen
+                                ! $record->izinDokumen
                             ) {
                                 return ' (Perbaikan)';
                             }
                         }
+
                         return '';
                     })
                     ->getStateUsing(function ($record) {
@@ -224,15 +225,15 @@ class VerifikasiIzin extends Page implements HasTable
                                 2 => 'Tidak Lengkap',
                                 default => 'Pending'
                             };
-                            $details[] = "Verifikasi: " . $hasil;
+                            $details[] = 'Verifikasi: '.$hasil;
                         }
 
                         if ($record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi) {
-                            $details[] = "Visitasi: " . Carbon::parse($record->izinDokumenPks->tanggal_visitasi)->translatedFormat('d M');
+                            $details[] = 'Visitasi: '.Carbon::parse($record->izinDokumenPks->tanggal_visitasi)->translatedFormat('d M');
                         }
 
                         if ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) {
-                            $details[] = "Persetujuan: " . Carbon::parse($record->izinPersetujuan->date_updated)->translatedFormat('d M');
+                            $details[] = 'Persetujuan: '.Carbon::parse($record->izinPersetujuan->date_updated)->translatedFormat('d M');
                         }
 
                         return implode("\n", $details) ?: 'Belum ada detail';
@@ -240,15 +241,15 @@ class VerifikasiIzin extends Page implements HasTable
                     ->html()
                     ->formatStateUsing(function ($state) {
                         if ($state === 'Belum ada detail') {
-                            return '<span class="text-xs text-gray-400">' . $state . '</span>';
+                            return '<span class="text-xs text-gray-400">'.$state.'</span>';
                         }
 
                         $lines = explode("\n", $state);
                         $formatted = array_map(function ($line) {
-                            return '<div class="text-xs">' . $line . '</div>';
+                            return '<div class="text-xs">'.$line.'</div>';
                         }, $lines);
 
-                        return '<div class="space-y-1">' . implode('', $formatted) . '</div>';
+                        return '<div class="space-y-1">'.implode('', $formatted).'</div>';
                     })
                     ->toggleable()
                     ->toggledHiddenByDefault(),
@@ -278,8 +279,9 @@ class VerifikasiIzin extends Page implements HasTable
                             ->pluck('users.kotakab', 'users.kotakab');
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return $query->whereHas('user', function (Builder $query) use ($data) {
                             $query->where('kotakab', $data['value']);
@@ -308,7 +310,7 @@ class VerifikasiIzin extends Page implements HasTable
                         'selesai' => 'Selesai',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) {
+                        if (! $data['value']) {
                             return $query;
                         }
 
@@ -328,7 +330,7 @@ class VerifikasiIzin extends Page implements HasTable
                                 return $query->whereNotNull('tanggal_perbaikan')
                                     ->where(function ($q) {
                                         $q->whereDoesntHave('izinDokumen')
-                                          ->orWhereHas('izinDokumen', fn($q2) => $q2->where('hasil', 2));
+                                            ->orWhereHas('izinDokumen', fn ($q2) => $q2->where('hasil', 2));
                                     });
 
                             case 'perbaikan_dokumen':
@@ -381,14 +383,15 @@ class VerifikasiIzin extends Page implements HasTable
                         'belum_verifikasi' => 'Belum Verifikasi',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return match ($data['value']) {
-                            'lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 1)),
-                            'tidak_lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 2)),
+                            'lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 1)),
+                            'tidak_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 2)),
                             'belum_verifikasi' => $query->whereDoesntHave('izinDokumen')
-                                ->orWhereHas('izinDokumen', fn($q) => $q->where('hasil', 0)),
+                                ->orWhereHas('izinDokumen', fn ($q) => $q->where('hasil', 0)),
                             default => $query,
                         };
                     }),
@@ -400,7 +403,7 @@ class VerifikasiIzin extends Page implements HasTable
                     ->icon('heroicon-o-cog-6-tooth')
                     ->color('primary')
                     ->size('sm')
-                    ->modalHeading(fn($record) => 'Detail Verifikasi Izin - ' . $record->user->name)
+                    ->modalHeading(fn ($record) => 'Detail Verifikasi Izin - '.$record->user->name)
                     ->modalWidth('8xl')
                     ->modalSubmitAction(false)
                     ->form($this->getDetailVerificationForm())
@@ -431,7 +434,7 @@ class VerifikasiIzin extends Page implements HasTable
                     })
                     ->action(function (array $data, $record) {
                         $this->processVerificationSteps($data, $record);
-                    })
+                    }),
             ])
             ->defaultSort('tanggal_pengajuan', 'desc')
             ->striped()
@@ -440,41 +443,43 @@ class VerifikasiIzin extends Page implements HasTable
 
     private function getActiveTab($record): int
     {
-        if (!$record->izinDokumen || !$record->izinDokumen->hasil) {
+        if (! $record->izinDokumen || ! $record->izinDokumen->hasil) {
             return 1;
         }
         if ($record->izinDokumen->hasil == 2) {
             return 1;
         }
-        if (!$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi) {
+        if (! $record->izinDokumenPks || ! $record->izinDokumenPks->tanggal_visitasi) {
             return 2;
         }
-        if (!$record->izinPersetujuan) {
+        if (! $record->izinPersetujuan) {
             return 3;
         }
-        if (!$record->izinDokumenPks || !$record->izinDokumenPks->dokumen_pks_bkk) {
+        if (! $record->izinDokumenPks || ! $record->izinDokumenPks->dokumen_pks_bkk) {
             return 4;
         }
+
         return 1;
     }
 
     private function getCurrentStep($record): string
     {
-        if (!$record->izinDokumen || !$record->izinDokumen->hasil) {
+        if (! $record->izinDokumen || ! $record->izinDokumen->hasil) {
             return 'Verifikasi Dokumen';
         }
         if ($record->izinDokumen->hasil == 2) {
             return 'Perbaikan Dokumen';
         }
-        if (!$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi) {
+        if (! $record->izinDokumenPks || ! $record->izinDokumenPks->tanggal_visitasi) {
             return 'Jadwal Visitasi';
         }
-        if (!$record->izinPersetujuan) {
+        if (! $record->izinPersetujuan) {
             return 'Proses Persetujuan';
         }
-        if (!$record->izinDokumenPks || !$record->izinDokumenPks->dokumen_pks_bkk) {
+        if (! $record->izinDokumenPks || ! $record->izinDokumenPks->dokumen_pks_bkk) {
             return 'Upload PKS';
         }
+
         return 'Selesai';
     }
 
@@ -520,7 +525,7 @@ class VerifikasiIzin extends Page implements HasTable
                     $notifications[] = 'Dokumen berhasil diverifikasi, email tidak terkirim (user tidak memiliki email)';
                 }
             } catch (\Exception $e) {
-                error_log('Failed to send verification email: ' . $e->getMessage());
+                error_log('Failed to send verification email: '.$e->getMessage());
                 $notifications[] = 'Dokumen berhasil diverifikasi, email gagal terkirim';
             }
         }
@@ -546,7 +551,7 @@ class VerifikasiIzin extends Page implements HasTable
                     $notifications[] = 'Visitasi berhasil dijadwalkan, email tidak terkirim (user tidak memiliki email)';
                 }
             } catch (\Exception $e) {
-                error_log('Failed to send visitasi email: ' . $e->getMessage());
+                error_log('Failed to send visitasi email: '.$e->getMessage());
                 $notifications[] = 'Visitasi berhasil dijadwalkan, email gagal terkirim';
             }
         }
@@ -576,7 +581,7 @@ class VerifikasiIzin extends Page implements HasTable
                     $notifications[] = 'Persetujuan berhasil diterbitkan, email tidak terkirim (user tidak memiliki email)';
                 }
             } catch (\Exception $e) {
-                error_log('Failed to send persetujuan email: ' . $e->getMessage());
+                error_log('Failed to send persetujuan email: '.$e->getMessage());
                 $notifications[] = 'Persetujuan berhasil diterbitkan, email gagal terkirim';
             }
         }
@@ -605,13 +610,13 @@ class VerifikasiIzin extends Page implements HasTable
                     $notifications[] = 'PKS berhasil diupload, email tidak terkirim (user tidak memiliki email)';
                 }
             } catch (\Exception $e) {
-                error_log('Failed to send PKS email: ' . $e->getMessage());
+                error_log('Failed to send PKS email: '.$e->getMessage());
                 $notifications[] = 'PKS berhasil diupload, email gagal terkirim';
             }
         }
 
         // Show consolidated notification
-        if (!empty($notifications)) {
+        if (! empty($notifications)) {
             Notification::make()
                 ->title('Verifikasi Izin Berhasil Diperbarui')
                 ->success()
@@ -674,19 +679,23 @@ class VerifikasiIzin extends Page implements HasTable
                         ->label('1. Verifikasi Dokumen')
                         ->icon('heroicon-o-document-check')
                         ->badge(function ($record) {
-                            if (!$record->izinDokumen?->hasil)
+                            if (! $record->izinDokumen?->hasil) {
                                 return '';
+                            }
+
                             return $record->izinDokumen->hasil == 1 ? '✓' : '✗';
                         })
                         ->badgeColor(function ($record) {
-                            if (!$record->izinDokumen?->hasil)
+                            if (! $record->izinDokumen?->hasil) {
                                 return 'gray';
+                            }
+
                             return $record->izinDokumen->hasil == 1 ? 'success' : 'danger';
                         })
                         ->schema([
                             Section::make('Riwayat Catatan')
                                 ->collapsible()
-                                ->visible(fn($record) => $record->riwayat_perbaikan ?? false)
+                                ->visible(fn ($record) => $record->riwayat_perbaikan ?? false)
                                 ->schema(function ($record) {
                                     return $this->getRiwayatPerbaikanSchema($record->riwayat_perbaikan ?? []);
                                 }),
@@ -707,21 +716,21 @@ class VerifikasiIzin extends Page implements HasTable
                             Textarea::make('catatan')
                                 ->label('Catatan')
                                 ->rows(4)
-                                ->visible(fn(Get $get): bool => $get('hasil') === 2 || $get('hasil') === '2')
-                                ->required(fn(Get $get): bool => $get('hasil') === '2' || $get('hasil') === 2),
+                                ->visible(fn (Get $get): bool => $get('hasil') === 2 || $get('hasil') === '2')
+                                ->required(fn (Get $get): bool => $get('hasil') === '2' || $get('hasil') === 2),
 
                             DatePicker::make('tanggal_perbaikan')
                                 ->label('Tanggal Perbaikan')
                                 ->native(false)
                                 ->displayFormat('d F Y H:i')
                                 ->disabled()
-                                ->visible(fn($state) => $state ? true : false)
+                                ->visible(fn ($state) => $state ? true : false)
                                 ->dehydrated(false),
 
                             TextInput::make('verifikasi_date')
                                 ->label('Tanggal Verifikasi')
                                 ->disabled()
-                                ->formatStateUsing(fn($record) => $record->izinDokumen?->date_updated?->translatedFormat('d F Y H:i') ?? now()->translatedFormat('d F Y H:i'))
+                                ->formatStateUsing(fn ($record) => $record->izinDokumen?->date_updated?->translatedFormat('d F Y H:i') ?? now()->translatedFormat('d F Y H:i'))
                                 ->dehydrated(false),
 
                             Actions::make([
@@ -731,22 +740,24 @@ class VerifikasiIzin extends Page implements HasTable
                                     ->color('success')
                                     ->action(function (Get $get, Set $set, $record) {
                                         $hasil = $get('hasil');
-                                        if (!$hasil) {
+                                        if (! $hasil) {
                                             Notification::make()
                                                 ->title('Gagal Verifikasi')
                                                 ->danger()
                                                 ->body('Hasil verifikasi harus dipilih.')
                                                 ->send();
+
                                             return;
                                         }
 
                                         $catatan = $get('catatan');
-                                        if ($hasil == '2' && !$catatan) {
+                                        if ($hasil == '2' && ! $catatan) {
                                             Notification::make()
                                                 ->title('Gagal Verifikasi')
                                                 ->danger()
                                                 ->body('Catatan harus diisi jika berkas tidak lengkap.')
                                                 ->send();
+
                                             return;
                                         }
 
@@ -782,14 +793,14 @@ class VerifikasiIzin extends Page implements HasTable
                                                 $emailStatus = ' Email tidak dikirim (user tidak memiliki email).';
                                             }
                                         } catch (\Exception $e) {
-                                            error_log('Failed to send verification email: ' . $e->getMessage());
+                                            error_log('Failed to send verification email: '.$e->getMessage());
                                             $emailStatus = ' Email gagal dikirim.';
                                         }
 
                                         Notification::make()
                                             ->title('Verifikasi Dokumen Berhasil')
                                             ->success()
-                                            ->body('Status verifikasi dokumen telah diperbarui.' . $emailStatus)
+                                            ->body('Status verifikasi dokumen telah diperbarui.'.$emailStatus)
                                             ->send();
 
                                         $this->redirect(VerifikasiIzin::getUrl());
@@ -799,7 +810,7 @@ class VerifikasiIzin extends Page implements HasTable
                                     ->label('Hapus Verifikasi')
                                     ->icon('heroicon-o-trash')
                                     ->color('danger')
-                                    ->visible(fn($record) => $record->izinDokumen && $record->izinDokumen->hasil)
+                                    ->visible(fn ($record) => $record->izinDokumen && $record->izinDokumen->hasil)
                                     ->requiresConfirmation()
                                     ->modalHeading('Hapus Verifikasi Dokumen')
                                     ->modalDescription('Apakah Anda yakin ingin menghapus hasil verifikasi ini? Tindakan ini akan menghapus verifikasi, tanggal perbaikan, dan riwayat perbaikan. Tindakan ini tidak dapat dibatalkan.')
@@ -824,8 +835,8 @@ class VerifikasiIzin extends Page implements HasTable
                                             ->send();
 
                                         $this->redirect(VerifikasiIzin::getUrl());
-                                    })
-                            ])
+                                    }),
+                            ]),
                         ]),
 
                     // Tab 2: Visitasi
@@ -833,7 +844,7 @@ class VerifikasiIzin extends Page implements HasTable
                         ->label('2. Jadwal Visitasi')
                         ->icon('heroicon-o-calendar')
                         ->disabled(function ($record) {
-                            return !$record->izinDokumen || $record->izinDokumen->hasil != 1;
+                            return ! $record->izinDokumen || $record->izinDokumen->hasil != 1;
                         })
                         ->badge(function ($record) {
                             return $record->izinDokumenPks?->tanggal_visitasi ? '✓' : '';
@@ -845,7 +856,7 @@ class VerifikasiIzin extends Page implements HasTable
                             \Filament\Forms\Components\Placeholder::make('visitasi_disabled_notice')
                                 ->content('⚠️ Tab ini akan aktif setelah dokumen diverifikasi dan lengkap.')
                                 ->visible(function ($record) {
-                                    return !$record->izinDokumen || $record->izinDokumen->hasil != 1;
+                                    return ! $record->izinDokumen || $record->izinDokumen->hasil != 1;
                                 }),
 
                             Grid::make(2)->schema([
@@ -864,7 +875,7 @@ class VerifikasiIzin extends Page implements HasTable
                                 TextInput::make('verification_date_info')
                                     ->label('Tanggal Verifikasi')
                                     ->disabled()
-                                    ->formatStateUsing(fn($record) => $record->izinDokumen?->date_updated?->translatedFormat('d F Y H:i') ?? '-')
+                                    ->formatStateUsing(fn ($record) => $record->izinDokumen?->date_updated?->translatedFormat('d F Y H:i') ?? '-')
                                     ->dehydrated(false),
                             ]),
 
@@ -873,7 +884,6 @@ class VerifikasiIzin extends Page implements HasTable
                                 ->native(false)
                                 ->displayFormat('d F Y'),
 
-
                             Actions::make([
                                 Actions\Action::make('set_jadwal_visitasi')
                                     ->label('Tetapkan Jadwal')
@@ -881,12 +891,13 @@ class VerifikasiIzin extends Page implements HasTable
                                     ->color('success')
                                     ->action(function (Get $get, Set $set, $record) {
                                         $tanggalVisitasi = $get('tanggal_visitasi');
-                                        if (!$tanggalVisitasi) {
+                                        if (! $tanggalVisitasi) {
                                             Notification::make()
                                                 ->title('Gagal Menetapkan Jadwal')
                                                 ->danger()
                                                 ->body('Tanggal visitasi harus dipilih.')
                                                 ->send();
+
                                             return;
                                         }
 
@@ -909,7 +920,7 @@ class VerifikasiIzin extends Page implements HasTable
                                                 $emailStatus = ' Email tidak dikirim (user tidak memiliki email).';
                                             }
                                         } catch (\Exception $e) {
-                                            error_log('Failed to send visitasi email: ' . $e->getMessage());
+                                            error_log('Failed to send visitasi email: '.$e->getMessage());
                                             $emailStatus = ' Email gagal dikirim.';
                                         }
 
@@ -917,7 +928,7 @@ class VerifikasiIzin extends Page implements HasTable
                                         Notification::make()
                                             ->title('Visitasi Berhasil Dijadwalkan')
                                             ->success()
-                                            ->body("Tanggal visitasi telah ditetapkan pada {$tanggalText}." . $emailStatus)
+                                            ->body("Tanggal visitasi telah ditetapkan pada {$tanggalText}.".$emailStatus)
                                             ->send();
 
                                         // Reset field
@@ -929,7 +940,7 @@ class VerifikasiIzin extends Page implements HasTable
                                     ->label('Hapus Jadwal')
                                     ->icon('heroicon-o-trash')
                                     ->color('danger')
-                                    ->visible(fn($record) => $record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi)
+                                    ->visible(fn ($record) => $record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi)
                                     ->requiresConfirmation()
                                     ->modalHeading('Hapus Jadwal Visitasi')
                                     ->modalDescription('Apakah Anda yakin ingin menghapus jadwal visitasi ini? Tindakan ini tidak dapat dibatalkan.')
@@ -938,7 +949,7 @@ class VerifikasiIzin extends Page implements HasTable
                                         if ($record->izinDokumenPks) {
                                             // Hapus hanya tanggal visitasi, bukan seluruh record
                                             $record->izinDokumenPks->update([
-                                                'tanggal_visitasi' => null
+                                                'tanggal_visitasi' => null,
                                             ]);
                                         }
 
@@ -951,8 +962,8 @@ class VerifikasiIzin extends Page implements HasTable
                                             ->send();
 
                                         $this->redirect(VerifikasiIzin::getUrl());
-                                    })
-                            ])
+                                    }),
+                            ]),
                         ]),
 
                     // Tab 3: Persetujuan
@@ -960,7 +971,7 @@ class VerifikasiIzin extends Page implements HasTable
                         ->label('3. Proses Persetujuan')
                         ->icon('heroicon-o-check-circle')
                         ->disabled(function ($record) {
-                            return !$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi;
+                            return ! $record->izinDokumenPks || ! $record->izinDokumenPks->tanggal_visitasi;
                         })
                         ->badge(function ($record) {
                             return $record->izinPersetujuan ? '✓' : '';
@@ -972,7 +983,7 @@ class VerifikasiIzin extends Page implements HasTable
                             \Filament\Forms\Components\Placeholder::make('persetujuan_disabled_notice')
                                 ->content('⚠️ Tab ini akan aktif setelah jadwal visitasi ditetapkan.')
                                 ->visible(function ($record) {
-                                    return !$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi;
+                                    return ! $record->izinDokumenPks || ! $record->izinDokumenPks->tanggal_visitasi;
                                 }),
 
                             Grid::make(2)->schema([
@@ -991,7 +1002,7 @@ class VerifikasiIzin extends Page implements HasTable
                                 TextInput::make('visitasi_info')
                                     ->label('Tanggal Visitasi')
                                     ->disabled()
-                                    ->formatStateUsing(fn($record) => $record->izinDokumenPks?->tanggal_visitasi?->translatedFormat('d F Y') ?? 'Belum dijadwalkan')
+                                    ->formatStateUsing(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi?->translatedFormat('d F Y') ?? 'Belum dijadwalkan')
                                     ->dehydrated(false),
                             ]),
 
@@ -1008,7 +1019,8 @@ class VerifikasiIzin extends Page implements HasTable
                                 ->directory('surat-persetujuan')
                                 ->getUploadedFileNameForStorageUsing(function ($file) {
                                     $extension = $file->getClientOriginalExtension();
-                                    return "Surat Persetujuan [" . date("dmyHis") . "]." . $extension;
+
+                                    return 'Surat Persetujuan ['.date('dmyHis').'].'.$extension;
                                 })
                                 ->openable()
                                 ->helperText('Upload file surat persetujuan dalam format PDF (Maksimal 3MB)'),
@@ -1040,30 +1052,33 @@ class VerifikasiIzin extends Page implements HasTable
                                         $nomorSurat = $get('nomor_surat');
                                         $masaBerlaku = $get('masa_berlaku');
 
-                                        if (!$filePersetujuan) {
+                                        if (! $filePersetujuan) {
                                             Notification::make()
                                                 ->title('Gagal Menyimpan Persetujuan')
                                                 ->danger()
                                                 ->body('File surat persetujuan harus diupload.')
                                                 ->send();
+
                                             return;
                                         }
 
-                                        if (!$nomorSurat) {
+                                        if (! $nomorSurat) {
                                             Notification::make()
                                                 ->title('Gagal Menyimpan Persetujuan')
                                                 ->danger()
                                                 ->body('Nomor surat persetujuan harus diisi.')
                                                 ->send();
+
                                             return;
                                         }
 
-                                        if (!$masaBerlaku) {
+                                        if (! $masaBerlaku) {
                                             Notification::make()
                                                 ->title('Gagal Menyimpan Persetujuan')
                                                 ->danger()
                                                 ->body('Masa berlaku izin harus diisi.')
                                                 ->send();
+
                                             return;
                                         }
 
@@ -1096,20 +1111,21 @@ class VerifikasiIzin extends Page implements HasTable
                                                     ->putFileAs(
                                                         'surat-persetujuan',
                                                         $uploadedFile,
-                                                        'Surat Persetujuan ' . $record->user->name . ' [' . now()->format('dmYHis') . '].' . $uploadedFile->getClientOriginalExtension()
+                                                        'Surat Persetujuan '.$record->user->name.' ['.now()->format('dmYHis').'].'.$uploadedFile->getClientOriginalExtension()
                                                     );
                                             }
-                                        } else if (is_string($filePersetujuan)) {
+                                        } elseif (is_string($filePersetujuan)) {
                                             // Existing file path
                                             $filePath = $filePersetujuan;
                                         }
 
-                                        if (!$filePath) {
+                                        if (! $filePath) {
                                             Notification::make()
                                                 ->title('Gagal Menyimpan Persetujuan')
                                                 ->danger()
                                                 ->body('Terjadi kesalahan saat memproses file.')
                                                 ->send();
+
                                             return;
                                         }
 
@@ -1139,13 +1155,13 @@ class VerifikasiIzin extends Page implements HasTable
                                             }
                                         } catch (\Exception $e) {
                                             $emailStatus = ' Email gagal dikirim.';
-                                            error_log('Failed to send approval email: ' . $e->getMessage());
+                                            error_log('Failed to send approval email: '.$e->getMessage());
                                         }
 
                                         Notification::make()
                                             ->title('Persetujuan Berhasil')
                                             ->success()
-                                            ->body('Izin telah disetujui dan surat persetujuan telah diupload.' . $emailStatus)
+                                            ->body('Izin telah disetujui dan surat persetujuan telah diupload.'.$emailStatus)
                                             ->send();
 
                                         // Redirect to refresh the page
@@ -1156,7 +1172,7 @@ class VerifikasiIzin extends Page implements HasTable
                                     ->label('Hapus Persetujuan')
                                     ->icon('heroicon-o-trash')
                                     ->color('danger')
-                                    ->visible(fn($record) => $record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan)
+                                    ->visible(fn ($record) => $record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan)
                                     ->requiresConfirmation()
                                     ->modalHeading('Hapus Persetujuan')
                                     ->modalDescription('Apakah Anda yakin ingin menghapus persetujuan ini? Tindakan ini akan menghapus data persetujuan dan data terkait di Surat Persetujuan ICV. Tindakan ini tidak dapat dibatalkan.')
@@ -1169,7 +1185,7 @@ class VerifikasiIzin extends Page implements HasTable
                                             try {
                                                 \Storage::disk('public')->delete($record->izinPersetujuan->file_persetujuan);
                                             } catch (\Exception $e) {
-                                                error_log('Failed to delete approval file: ' . $e->getMessage());
+                                                error_log('Failed to delete approval file: '.$e->getMessage());
                                             }
                                         }
                                         // Hapus atau reset data terkait di SuratPersetujuanIcv
@@ -1183,7 +1199,6 @@ class VerifikasiIzin extends Page implements HasTable
                                             $record->izinPersetujuan->delete();
                                         }
 
-
                                         $record->refresh();
 
                                         Notification::make()
@@ -1193,8 +1208,8 @@ class VerifikasiIzin extends Page implements HasTable
                                             ->send();
 
                                         $this->redirect(VerifikasiIzin::getUrl());
-                                    })
-                            ])
+                                    }),
+                            ]),
                         ]),
 
                     // Tab 4: PKS
@@ -1202,7 +1217,7 @@ class VerifikasiIzin extends Page implements HasTable
                         ->label('4. Upload PKS')
                         ->icon('heroicon-o-document-arrow-up')
                         ->disabled(function ($record) {
-                            return !$record->izinPersetujuan;
+                            return ! $record->izinPersetujuan;
                         })
                         ->badge(function ($record) {
                             return $record->izinDokumenPks?->dokumen_pks_bkk ? '✓' : '';
@@ -1214,14 +1229,14 @@ class VerifikasiIzin extends Page implements HasTable
                             \Filament\Forms\Components\Placeholder::make('pks_disabled_notice')
                                 ->content('⚠️ Tab ini akan aktif setelah persetujuan diproses.')
                                 ->visible(function ($record) {
-                                    return !$record->izinPersetujuan;
+                                    return ! $record->izinPersetujuan;
                                 }),
 
                             Grid::make(2)->schema([
                                 TextInput::make('persetujuan_info')
                                     ->label('Tanggal Persetujuan')
                                     ->disabled()
-                                    ->formatStateUsing(fn($record) => $record->izinPersetujuan?->date_updated?->translatedFormat('d F Y') ?? 'Belum disetujui')
+                                    ->formatStateUsing(fn ($record) => $record->izinPersetujuan?->date_updated?->translatedFormat('d F Y') ?? 'Belum disetujui')
                                     ->dehydrated(false),
 
                                 TextInput::make('file_persetujuan_info')
@@ -1235,10 +1250,10 @@ class VerifikasiIzin extends Page implements HasTable
                                         FormAction::make('download_persetujuan')
                                             ->icon('heroicon-o-arrow-down-tray')
                                             ->label('Unduh File Persetujuan')
-                                            ->url(fn($record) => $record->izinPersetujuan?->file_persetujuan ?
-                                                asset('storage/' . $record->izinPersetujuan->file_persetujuan) : '#')
+                                            ->url(fn ($record) => $record->izinPersetujuan?->file_persetujuan ?
+                                                asset('storage/'.$record->izinPersetujuan->file_persetujuan) : '#')
                                             ->openUrlInNewTab()
-                                            ->visible(fn($record) => $record->izinPersetujuan?->file_persetujuan !== null)
+                                            ->visible(fn ($record) => $record->izinPersetujuan?->file_persetujuan !== null)
                                     )
                                     ->dehydrated(false),
                             ]),
@@ -1250,7 +1265,8 @@ class VerifikasiIzin extends Page implements HasTable
                                 ->directory('perjanjian-kerjasama')
                                 ->getUploadedFileNameForStorageUsing(function ($file, $record) {
                                     $extension = $file->getClientOriginalExtension();
-                                    return "PKS " . $record->user->name . " [" . date("dmyHis") . "]." . $extension;
+
+                                    return 'PKS '.$record->user->name.' ['.date('dmyHis').'].'.$extension;
                                 })
                                 ->openable()
                                 ->helperText('Upload file PKS dalam format PDF (Maksimal 3MB)'),
@@ -1263,12 +1279,13 @@ class VerifikasiIzin extends Page implements HasTable
                                     ->action(function (Get $get, Set $set, $record) {
                                         $pks = $get('dokumen_pks_bkk');
 
-                                        if (!$pks) {
+                                        if (! $pks) {
                                             Notification::make()
                                                 ->title('Gagal Upload PKS')
                                                 ->danger()
                                                 ->body('File PKS harus diupload.')
                                                 ->send();
+
                                             return;
                                         }
 
@@ -1284,18 +1301,19 @@ class VerifikasiIzin extends Page implements HasTable
                                                 ->putFileAs(
                                                     'perjanjian-kerjasama',
                                                     $pksFile,
-                                                    'PKS ' . $record->user->name . ' [' . now()->format('dmYHis') . '].' . $pksFile->getClientOriginalExtension()
+                                                    'PKS '.$record->user->name.' ['.now()->format('dmYHis').'].'.$pksFile->getClientOriginalExtension()
                                                 );
                                         } else {
                                             $filePath = null;
                                         }
 
-                                        if (!$filePath) {
+                                        if (! $filePath) {
                                             Notification::make()
                                                 ->title('Gagal Upload PKS')
                                                 ->danger()
                                                 ->body('Terjadi kesalahan saat memproses file PKS.')
                                                 ->send();
+
                                             return;
                                         }
 
@@ -1321,14 +1339,14 @@ class VerifikasiIzin extends Page implements HasTable
                                                 $emailStatus = ' Email tidak dikirim (user tidak memiliki email).';
                                             }
                                         } catch (\Exception $e) {
-                                            error_log('Failed to send PKS email: ' . $e->getMessage());
+                                            error_log('Failed to send PKS email: '.$e->getMessage());
                                             $emailStatus = ' Email gagal dikirim.';
                                         }
 
                                         Notification::make()
                                             ->title('PKS Berhasil Diupload')
                                             ->success()
-                                            ->body('File Perjanjian Kerjasama telah berhasil diupload.' . $emailStatus)
+                                            ->body('File Perjanjian Kerjasama telah berhasil diupload.'.$emailStatus)
                                             ->send();
 
                                         // Reset field
@@ -1340,7 +1358,7 @@ class VerifikasiIzin extends Page implements HasTable
                                     ->label('Hapus PKS')
                                     ->icon('heroicon-o-trash')
                                     ->color('danger')
-                                    ->visible(fn($record) => $record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk)
+                                    ->visible(fn ($record) => $record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk)
                                     ->requiresConfirmation()
                                     ->modalHeading('Hapus PKS')
                                     ->modalDescription('Apakah Anda yakin ingin menghapus file PKS ini? Tindakan ini akan menghapus file PKS dan mengatur ulang status dokumen. Tindakan ini tidak dapat dibatalkan.')
@@ -1351,7 +1369,7 @@ class VerifikasiIzin extends Page implements HasTable
                                             try {
                                                 \Storage::disk('public')->delete($record->izinDokumenPks->dokumen_pks_bkk);
                                             } catch (\Exception $e) {
-                                                error_log('Failed to delete PKS file: ' . $e->getMessage());
+                                                error_log('Failed to delete PKS file: '.$e->getMessage());
                                             }
                                         }
 
@@ -1372,16 +1390,16 @@ class VerifikasiIzin extends Page implements HasTable
                                             ->send();
 
                                         $this->redirect(VerifikasiIzin::getUrl());
-                                    })
-                            ])
+                                    }),
+                            ]),
                         ]),
-                ])
+                ]),
         ];
     }
 
     private function getRiwayatPerbaikanSchema(array $riwayat): array
     {
-        error_log('Riwayat Perbaikan: ' . json_encode($riwayat));
+        error_log('Riwayat Perbaikan: '.json_encode($riwayat));
         $schema = [];
         foreach ($riwayat as $index => $item) {
             $schema[] = Placeholder::make("riwayat_{$index}")
@@ -1398,7 +1416,7 @@ class VerifikasiIzin extends Page implements HasTable
 
         for ($i = 1; $i <= 14; $i++) {
             $fields[] = TextInput::make("file{$i}")
-                ->label(fn() => self::getIzinLabel("file{$i}"))
+                ->label(fn () => self::getIzinLabel("file{$i}"))
                 ->readOnly()
                 ->prefix("{$i}")
                 ->formatStateUsing(function ($record) use ($i) {
@@ -1412,10 +1430,10 @@ class VerifikasiIzin extends Page implements HasTable
                 ->hintAction(
                     FormAction::make("unduh_file{$i}")
                         ->icon('heroicon-o-arrow-down-tray')
-                        ->label(fn() => "Unduh " . self::getIzinLabel("file{$i}"))
-                        ->url(fn($record) => $record->{"file{$i}"} ? asset('storage/' . $record->{"file{$i}"}) : '#')
+                        ->label(fn () => 'Unduh '.self::getIzinLabel("file{$i}"))
+                        ->url(fn ($record) => $record->{"file{$i}"} ? asset('storage/'.$record->{"file{$i}"}) : '#')
                         ->openUrlInNewTab()
-                        ->visible(fn($record) => $record->{"file{$i}"} !== null)
+                        ->visible(fn ($record) => $record->{"file{$i}"} !== null)
                 )
                 ->dehydrated(false);
         }

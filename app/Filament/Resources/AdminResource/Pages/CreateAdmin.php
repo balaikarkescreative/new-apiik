@@ -1,18 +1,17 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Resources/AdminResource/Pages/CreateAdmin.php
 
 namespace App\Filament\Resources\AdminResource\Pages;
 
 use App\Filament\Resources\AdminResource;
 use Filament\Resources\Pages\CreateRecord;
-use Filament\Notifications\Notification;
 
 class CreateAdmin extends CreateRecord
 {
     protected static string $resource = AdminResource::class;
 
     protected static bool $canCreateAnother = false;
-
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {

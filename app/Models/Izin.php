@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
 class Izin extends Model
 {
-    protected $table = "tbl_izin";
+    protected $table = 'tbl_izin';
 
     public $timestamps = false;
 
@@ -76,6 +76,7 @@ class Izin extends Model
     public function getCatatanTerakhir(): ?array
     {
         $riwayat = $this->riwayat_perbaikan ?? [];
+
         return empty($riwayat) ? null : end($riwayat);
     }
 

@@ -2,13 +2,12 @@
 
 namespace App\Mail;
 
+use App\Models\Izin;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Izin;
 
 class IzinPersetujuanNotification extends Mailable
 {
@@ -25,7 +24,7 @@ class IzinPersetujuanNotification extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Izin Disetujui - ID: ' . $this->izin->id,
+            subject: 'Izin Disetujui - ID: '.$this->izin->id,
         );
     }
 
@@ -45,8 +44,8 @@ class IzinPersetujuanNotification extends Mailable
             $attachments[] = \Illuminate\Mail\Mailables\Attachment::fromStorageDisk(
                 'public',
                 $this->izin->izinPersetujuan->file_persetujuan
-            )->as('Surat_Persetujuan_' . $this->izin->id . '.pdf')
-            ->withMime('application/pdf');
+            )->as('Surat_Persetujuan_'.$this->izin->id.'.pdf')
+                ->withMime('application/pdf');
         }
 
         return $attachments;

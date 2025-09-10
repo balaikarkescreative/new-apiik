@@ -2,20 +2,21 @@
 
 namespace App\Mail;
 
+use App\Models\Icv;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Icv;
 
 class IcvVerifikasiNotification extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $icv;
+
     public $hasilVerifikasi;
+
     public $catatan;
 
     public function __construct(Icv $icv, $hasilVerifikasi, $catatan = null)
@@ -32,7 +33,7 @@ class IcvVerifikasiNotification extends Mailable
             : 'Verifikasi ICV - Berkas Tidak Lengkap';
 
         return new Envelope(
-            subject: $subject . ' - ID: ' . $this->icv->id,
+            subject: $subject.' - ID: '.$this->icv->id,
         );
     }
 

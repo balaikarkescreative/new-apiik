@@ -18,13 +18,13 @@ class IzinDokumenPks extends Model
         'dokumen_pks_bkk',
         'status_dokumen',
         'tanggal_visitasi',
-        'date_updated'
+        'date_updated',
     ];
 
     protected $casts = [
         'tanggal_visitasi' => 'date',
         'date_updated' => 'datetime',
-        'id_izin' => 'integer'
+        'id_izin' => 'integer',
     ];
 
     public $timestamps = false;

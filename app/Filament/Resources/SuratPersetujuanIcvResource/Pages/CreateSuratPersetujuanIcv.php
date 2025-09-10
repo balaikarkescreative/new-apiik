@@ -17,7 +17,7 @@ class CreateSuratPersetujuanIcv extends CreateRecord
         $user = Auth::user();
 
         // Jika user bukan admin dan id_akun kosong, set ke user yang login
-        if ((!$user->hasRole('admin') && !$user->hasRole('super_admin')) || empty($data['id_akun'])) {
+        if ((! $user->hasRole('admin') && ! $user->hasRole('super_admin')) || empty($data['id_akun'])) {
             $data['id_akun'] = $user->id;
         }
 

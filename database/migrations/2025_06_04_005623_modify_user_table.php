@@ -26,7 +26,7 @@ return new class extends Migration
             $table->enum('pertanyaan1', ['Ya', 'Tidak'])->nullable();
             $table->enum('pertanyaan2', ['Ya', 'Tidak'])->nullable();
             $table->enum('status_akun', ['Aktif', 'Tidak Aktif'])->nullable();
-            $table->enum('verifikasi_akun', ['Diterima','Ditolak'])->nullable();
+            $table->enum('verifikasi_akun', ['Diterima', 'Ditolak'])->nullable();
             $table->datetime('date_updated')->nullable();
         });
     }
@@ -52,7 +52,7 @@ return new class extends Migration
                 'pertanyaan1',
                 'pertanyaan2',
                 'status_akun',
-                'date_updated'
+                'date_updated',
             ]);
         });
     }

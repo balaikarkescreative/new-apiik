@@ -1,15 +1,15 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Mail/IcvSbbkNotification.php
 
 namespace App\Mail;
 
+use App\Models\Icv;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Icv;
 
 class IcvSbbkNotification extends Mailable
 {
@@ -25,7 +25,7 @@ class IcvSbbkNotification extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'SBBK ICV Diterbitkan - Distribusi Selesai - ID: ' . $this->icv->id,
+            subject: 'SBBK ICV Diterbitkan - Distribusi Selesai - ID: '.$this->icv->id,
         );
     }
 

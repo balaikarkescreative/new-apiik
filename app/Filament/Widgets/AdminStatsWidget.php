@@ -1,14 +1,13 @@
 <?php
+
 namespace App\Filament\Widgets;
 
-use Filament\Widgets\StatsOverviewWidget as BaseWidget;
-use Filament\Widgets\StatsOverviewWidget\Stat;
-use App\Models\User;
-use App\Models\Izin;
 use App\Models\Icv;
 use App\Models\IcvAlokasi;
-use App\Models\IcvSbbk;
-use App\Models\IzinDokumen;
+use App\Models\Izin;
+use App\Models\User;
+use Filament\Widgets\StatsOverviewWidget as BaseWidget;
+use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\DB;
 
 class AdminStatsWidget extends BaseWidget
@@ -43,25 +42,25 @@ class AdminStatsWidget extends BaseWidget
 
         return [
             Stat::make('Total Klinik/RS', $totalKlinik)
-                ->description($klinikVerified . ' telah diverifikasi')
+                ->description($klinikVerified.' telah diverifikasi')
                 ->descriptionIcon('heroicon-m-building-office-2')
                 ->color('primary')
                 ->chart($this->getKlinikChartData()),
 
             Stat::make('Izin Klinik', $totalIzin)
-                ->description($izinMenunggu . ' menunggu verifikasi')
+                ->description($izinMenunggu.' menunggu verifikasi')
                 ->descriptionIcon('heroicon-m-document-text')
                 ->color('warning')
                 ->chart($this->getIzinChartData()),
 
             Stat::make('ICV Dialokasikan', number_format($icvData['total_dialokasikan']))
-                ->description(number_format($icvData['sudah_upload_bukti_bayar']) . ' sudah upload bukti bayar')
+                ->description(number_format($icvData['sudah_upload_bukti_bayar']).' sudah upload bukti bayar')
                 ->descriptionIcon('heroicon-m-clipboard-document-check')
                 ->color('success')
                 ->chart($icvData['chart']),
 
             Stat::make('Pendapatan PNBP', $this->formatRupiahSingkat($pnbpData['total']))
-                ->description($this->formatRupiahSingkat($pnbpData['tahun_ini']) . ' tahun ini')
+                ->description($this->formatRupiahSingkat($pnbpData['tahun_ini']).' tahun ini')
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('info')
                 ->chart($pnbpData['chart']),
@@ -174,6 +173,7 @@ class AdminStatsWidget extends BaseWidget
 
             $chartData[] = $count;
         }
+
         return $chartData;
     }
 
@@ -189,6 +189,7 @@ class AdminStatsWidget extends BaseWidget
 
             $chartData[] = $count;
         }
+
         return $chartData;
     }
 
@@ -198,12 +199,13 @@ class AdminStatsWidget extends BaseWidget
     private function formatRupiahSingkat($angka): string
     {
         if ($angka >= 1000000000) {
-            return 'Rp ' . number_format($angka / 1000000000, 1, ',', '.') . ' M';
+            return 'Rp '.number_format($angka / 1000000000, 1, ',', '.').' M';
         } elseif ($angka >= 1000000) {
-            return 'Rp ' . number_format($angka / 1000000, 1, ',', '.') . ' Jt';
+            return 'Rp '.number_format($angka / 1000000, 1, ',', '.').' Jt';
         } elseif ($angka >= 1000) {
-            return 'Rp ' . number_format($angka / 1000, 1, ',', '.') . ' Rb';
+            return 'Rp '.number_format($angka / 1000, 1, ',', '.').' Rb';
         }
-        return 'Rp ' . number_format($angka, 0, ',', '.');
+
+        return 'Rp '.number_format($angka, 0, ',', '.');
     }
 }

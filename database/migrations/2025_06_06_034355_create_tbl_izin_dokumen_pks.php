@@ -19,7 +19,7 @@ return new class extends Migration
             $table->enum('status_dokumen', ['sign both', 'not sign'])->default('not sign');
             $table->date('tanggal_visitasi')->nullable();
             $table->timestamp('date_updated')->useCurrent();
-            
+
             // Foreign key constraint
             $table->foreign('id_izin')->references('id')->on('tbl_izin')->onDelete('cascade');
         });

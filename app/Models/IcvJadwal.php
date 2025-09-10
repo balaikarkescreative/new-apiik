@@ -7,22 +7,23 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class IcvJadwal extends Model
 {
-    protected $table = "tbl_icv_jadwal";
+    protected $table = 'tbl_icv_jadwal';
 
     protected $fillable = [
-        "id_icv",
-        "jadwal_pengambilan",
-        "status",
-        "date_updated",
+        'id_icv',
+        'jadwal_pengambilan',
+        'status',
+        'date_updated',
     ];
 
     protected $casts = [
-        "jadwal_pengambilan" => "date",
-        "status" => "integer",
-        "date_updated" => "timestamp",
+        'jadwal_pengambilan' => 'date',
+        'status' => 'integer',
+        'date_updated' => 'timestamp',
     ];
 
-    public const UPDATED_AT = "date_updated";
+    public const UPDATED_AT = 'date_updated';
+
     public const CREATED_AT = null;
 
     /**
@@ -30,7 +31,7 @@ class IcvJadwal extends Model
      */
     public function icv(): BelongsTo
     {
-        return $this->belongsTo(Icv::class, "id_icv", "id");
+        return $this->belongsTo(Icv::class, 'id_icv', 'id');
     }
 
     /**

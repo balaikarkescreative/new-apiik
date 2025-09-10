@@ -16,7 +16,7 @@ class CreateLinkSosialisasi extends CreateRecord
         parent::mount();
 
         $user = auth()->user();
-        if (!$user->hasRole(['admin', 'verifikator1', 'verifikator2']) && $user->linkSosialisasi) {
+        if (! $user->hasRole(['admin', 'verifikator1', 'verifikator2']) && $user->linkSosialisasi) {
             \Filament\Notifications\Notification::make()
                 ->title('Anda sudah memiliki link sosialisasi')
                 ->body('Anda hanya dapat membuat satu link sosialisasi. Silakan edit link yang sudah ada jika ingin mengubah data.')

@@ -2,15 +2,15 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
-use App\Models\VideoPanduan;
-use App\Models\IzinDokumenPks;
+use App\Models\Icv;
 use App\Models\IcvBuktiBayar;
 use App\Models\IcvSbbk;
+use App\Models\IzinDokumenPks;
 use App\Models\IzinPersetujuan;
-use App\Models\Icv;
+use App\Models\VideoPanduan;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class CleanupOrphanedFiles extends Command
 {
@@ -88,16 +88,16 @@ class CleanupOrphanedFiles extends Command
             }
 
             $this->info("\n📂 Processing {$modelClass}...");
-            
+
             $result = $this->cleanupModelFiles($modelClass, $config, $dryRun);
             $totalDeleted += $result['deleted'];
             $totalSize += $result['size'];
         }
 
         $this->newLine();
-        $this->info("✅ Cleanup completed!");
-        $this->info("📊 Total files " . ($dryRun ? 'would be ' : '') . "deleted: {$totalDeleted}");
-        $this->info("💾 Total space " . ($dryRun ? 'would be ' : '') . "freed: " . $this->formatBytes($totalSize));
+        $this->info('✅ Cleanup completed!');
+        $this->info('📊 Total files '.($dryRun ? 'would be ' : '')."deleted: {$totalDeleted}");
+        $this->info('💾 Total space '.($dryRun ? 'would be ' : '').'freed: '.$this->formatBytes($totalSize));
 
         Log::info('Orphaned files cleanup completed', [
             'files_deleted' => $totalDeleted,
@@ -124,14 +124,15 @@ class CleanupOrphanedFiles extends Command
                 ->where($field, '!=', '')
                 ->pluck($field)
                 ->filter()
-                ->map(function($file) use ($config) {
+                ->map(function ($file) use ($config) {
                     // Remove path prefix if present
                     if (str_starts_with($file, $config['path_prefix'])) {
                         return $file;
                     }
-                    return $config['path_prefix'] . $file;
+
+                    return $config['path_prefix'].$file;
                 });
-            
+
             $referencedFiles = $referencedFiles->merge($files);
         }
 
@@ -140,8 +141,9 @@ class CleanupOrphanedFiles extends Command
         $this->info("📋 Found {$referencedFiles->count()} files referenced in database");
 
         // Get all files from storage directory
-        if (!$disk->exists($config['path_prefix'])) {
+        if (! $disk->exists($config['path_prefix'])) {
             $this->warn("⚠️  Directory {$config['path_prefix']} does not exist");
+
             return ['deleted' => 0, 'size' => 0];
         }
 
@@ -149,12 +151,13 @@ class CleanupOrphanedFiles extends Command
         $this->info("💾 Found {$allFiles->count()} files in storage directory");
 
         // Find orphaned files
-        $orphanedFiles = $allFiles->reject(function($file) use ($referencedFiles) {
+        $orphanedFiles = $allFiles->reject(function ($file) use ($referencedFiles) {
             return $referencedFiles->contains($file);
         });
 
         if ($orphanedFiles->isEmpty()) {
-            $this->info("✅ No orphaned files found");
+            $this->info('✅ No orphaned files found');
+
             return ['deleted' => 0, 'size' => 0];
         }
 
@@ -167,15 +170,15 @@ class CleanupOrphanedFiles extends Command
                 $totalSize += $size;
 
                 if ($dryRun) {
-                    $this->line("  Would delete: {$file} (" . $this->formatBytes($size) . ")");
+                    $this->line("  Would delete: {$file} (".$this->formatBytes($size).')');
                 } else {
                     $disk->delete($file);
-                    $this->line("  Deleted: {$file} (" . $this->formatBytes($size) . ")");
+                    $this->line("  Deleted: {$file} (".$this->formatBytes($size).')');
                 }
-                
+
                 $deletedCount++;
             } catch (\Exception $e) {
-                $this->error("❌ Failed to process {$file}: " . $e->getMessage());
+                $this->error("❌ Failed to process {$file}: ".$e->getMessage());
                 Log::error('Failed to cleanup file', [
                     'file' => $file,
                     'model' => $modelClass,
@@ -194,12 +197,12 @@ class CleanupOrphanedFiles extends Command
     {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         $i = 0;
-        
+
         while ($bytes >= 1024 && $i < count($units) - 1) {
             $bytes /= 1024;
             $i++;
         }
-        
-        return round($bytes, 2) . ' ' . $units[$i];
+
+        return round($bytes, 2).' '.$units[$i];
     }
 }

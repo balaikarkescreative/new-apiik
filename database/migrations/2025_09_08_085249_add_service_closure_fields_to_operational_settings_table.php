@@ -27,8 +27,8 @@ return new class extends Migration
         Schema::table('operational_settings', function (Blueprint $table) {
             $table->dropColumn([
                 'icv_closed',
-                'izin_closed', 
-                'account_closed'
+                'izin_closed',
+                'account_closed',
             ]);
         });
     }

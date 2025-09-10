@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\IcvBuktiBayar;
 use App\Models\Icv;
+use App\Models\IcvBuktiBayar;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class IcvBuktiBayarSeeder extends Seeder
 {
@@ -17,8 +16,9 @@ class IcvBuktiBayarSeeder extends Seeder
     {
         $jsonPath = database_path('seeders/tbl_icv_bukti_bayar.json');
 
-        if (!file_exists($jsonPath)) {
+        if (! file_exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
+
             return;
         }
 
@@ -34,30 +34,34 @@ class IcvBuktiBayarSeeder extends Seeder
             }
         }
 
-        if (!$buktiBayarData) {
+        if (! $buktiBayarData) {
             $this->command->error('No ICV bukti bayar data found in JSON file');
+
             return;
         }
 
-        $this->command->info('Processing ' . count($buktiBayarData) . ' ICV bukti bayar records...');
+        $this->command->info('Processing '.count($buktiBayarData).' ICV bukti bayar records...');
 
         foreach ($buktiBayarData as $record) {
             // Skip if ID already exists
-            if (!empty($record['id']) && IcvBuktiBayar::where('id', $record['id'])->exists()) {
+            if (! empty($record['id']) && IcvBuktiBayar::where('id', $record['id'])->exists()) {
                 $this->command->warn("IcvBuktiBayar with ID {$record['id']} already exists. Skipping...");
+
                 continue;
             }
 
             // Skip if id_icv is 0 or empty
             if (empty($record['id_icv']) || $record['id_icv'] == '0') {
                 $this->command->warn("Skipping ICV bukti bayar ID {$record['id']} - id_icv is 0 or empty");
+
                 continue;
             }
 
             // Find ICV by id_icv
             $icv = Icv::find($record['id_icv']);
-            if (!$icv) {
+            if (! $icv) {
                 $this->command->warn("ICV with ID {$record['id_icv']} not found for bukti bayar ID {$record['id']}. Skipping...");
+
                 continue;
             }
 
@@ -86,7 +90,7 @@ class IcvBuktiBayarSeeder extends Seeder
      */
     private function parseDateTime($datetimeString)
     {
-        if (!$datetimeString || $datetimeString === '0000-00-00 00:00:00') {
+        if (! $datetimeString || $datetimeString === '0000-00-00 00:00:00') {
             return now();
         }
 
@@ -94,6 +98,7 @@ class IcvBuktiBayarSeeder extends Seeder
             return Carbon::parse($datetimeString);
         } catch (\Exception $e) {
             $this->command->warn("Invalid datetime format: {$datetimeString}");
+
             return now();
         }
     }
@@ -124,7 +129,7 @@ class IcvBuktiBayarSeeder extends Seeder
         }
 
         // Add icv-bukti-bayar/ prefix to valid filenames
-        return 'icv/bukti-bayar/' . $filename;
+        return 'icv/bukti-bayar/'.$filename;
     }
 
     /**
@@ -156,7 +161,7 @@ class IcvBuktiBayarSeeder extends Seeder
      */
     private function mapStatus($status)
     {
-        $status = (int)$status;
+        $status = (int) $status;
 
         if ($status === 1) {
             return 0;

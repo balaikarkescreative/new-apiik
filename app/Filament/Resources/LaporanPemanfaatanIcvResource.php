@@ -8,9 +8,9 @@ use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
+use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Table;
-use Filament\Tables;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
@@ -18,7 +18,9 @@ use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 class LaporanPemanfaatanIcvResource extends Resource
 {
     protected static ?string $model = LaporanPemanfaatanIcv::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
     protected static ?string $navigationLabel = 'Laporan Pemanfaatan ICV';
 
     public static function canAccess(): bool
@@ -47,7 +49,7 @@ class LaporanPemanfaatanIcvResource extends Resource
                         $user = Auth::user();
 
                         // Jika bukan admin, set default ke user yang login
-                        if (!$user->hasRole('admin') && !$user->hasRole('super_admin')) {
+                        if (! $user->hasRole('admin') && ! $user->hasRole('super_admin')) {
                             return $user->id;
                         }
 
@@ -57,7 +59,7 @@ class LaporanPemanfaatanIcvResource extends Resource
                         $user = Auth::user();
 
                         // Disable jika bukan admin (user hanya bisa pilih dirinya sendiri)
-                        return !$user->hasRole('admin') && !$user->hasRole('super_admin');
+                        return ! $user->hasRole('admin') && ! $user->hasRole('super_admin');
                     })
                     ->searchable()
                     ->dehydrated(true) // Pastikan field ini tetap dikirim meski disabled
@@ -77,7 +79,7 @@ class LaporanPemanfaatanIcvResource extends Resource
                     ->maxSize(1024 * 3) // Maksimal 3MB
                     ->helperText('Format PDF, maksimal 3MB')
                     ->getUploadedFileNameForStorageUsing(function ($file) {
-                        return 'Laporan Pemanfaatan ICV - ' . now()->format('Y-m-d') . '.' . $file->getClientOriginalExtension();
+                        return 'Laporan Pemanfaatan ICV - '.now()->format('Y-m-d').'.'.$file->getClientOriginalExtension();
                     })
                     ->required()
                     ->downloadable(),
@@ -109,12 +111,14 @@ class LaporanPemanfaatanIcvResource extends Resource
                         if ($state) {
                             return 'Download';
                         }
+
                         return 'Tidak ada file';
                     })
                     ->url(function ($record) {
                         if ($record->file) {
-                            return asset('storage/' . $record->file);
+                            return asset('storage/'.$record->file);
                         }
+
                         return null;
                     })
                     ->openUrlInNewTab(),
@@ -125,22 +129,25 @@ class LaporanPemanfaatanIcvResource extends Resource
                     ->relationship('user', 'name')
                     ->visible(function () {
                         $user = Auth::user();
+
                         return $user->hasRole('admin') || $user->hasRole('super_admin');
                     }),
 
                 DateRangeFilter::make('tanggal')
-                    ->label('Tanggal')
+                    ->label('Tanggal'),
 
             ], FiltersLayout::AboveContent)
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->visible(function ($record) {
                         $user = Auth::user();
+
                         return $user->hasRole('admin') || $record->id_klinik == $user->id;
                     }),
                 Tables\Actions\DeleteAction::make()
                     ->visible(function ($record) {
                         $user = Auth::user();
+
                         return $user->hasRole('admin') || $record->id_klinik == $user->id;
                     }),
             ])
@@ -148,6 +155,7 @@ class LaporanPemanfaatanIcvResource extends Resource
                 Tables\Actions\DeleteBulkAction::make()
                     ->visible(function () {
                         $user = Auth::user();
+
                         return $user->hasRole('admin');
                     }),
             ])

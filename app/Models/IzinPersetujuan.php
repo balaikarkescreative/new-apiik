@@ -18,13 +18,13 @@ class IzinPersetujuan extends Model
         'id_izin',
         'file_persetujuan',
         'status',
-        'date_updated'
+        'date_updated',
     ];
 
     protected $casts = [
         'date_updated' => 'datetime',
         'status' => 'integer',
-        'id_izin' => 'integer'
+        'id_izin' => 'integer',
     ];
 
     // Relationship with Izin model

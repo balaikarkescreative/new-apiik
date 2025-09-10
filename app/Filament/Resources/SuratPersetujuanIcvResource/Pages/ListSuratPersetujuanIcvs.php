@@ -10,7 +10,7 @@ class ListSuratPersetujuanIcvs extends ListRecords
 {
     protected static string $resource = SuratPersetujuanIcvResource::class;
 
-    protected static ?string $title = "Surat Persetujuan ICV";
+    protected static ?string $title = 'Surat Persetujuan ICV';
 
     protected function getHeaderActions(): array
     {

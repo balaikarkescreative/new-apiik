@@ -3,46 +3,39 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\IzinResource\Pages;
-use App\Filament\Resources\IzinResource\RelationManagers;
+use App\FileLabels;
+use App\Mail\IzinCreatedNotification;
 use App\Models\Izin;
-use App\Models\IzinDokumen;
 use App\Models\User;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
-use Filament\Tables\Table;
 use Filament\Tables\Enums\FiltersLayout;
-use Filament\Notifications\Notification;
-use Filament\Navigation\NavigationGroup;
-use Filament\Navigation\NavigationItem;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
-use Illuminate\Support\Collection;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\IzinCreatedNotification;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
-use Filament\Forms\Components\DatePicker;
-use Carbon\Carbon;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Mail;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
-
-use App\FileLabels;
 
 class IzinResource extends Resource
 {
     use FileLabels;
+
     protected static ?string $model = Izin::class;
 
-    protected static ?string $navigationIcon = "heroicon-o-newspaper";
+    protected static ?string $navigationIcon = 'heroicon-o-newspaper';
 
-    protected static ?string $navigationLabel = "Kelola Pengajuan Izin";
+    protected static ?string $navigationLabel = 'Kelola Pengajuan Izin';
 
-    protected static ?string $title = "Pengajuan Izin";
+    protected static ?string $title = 'Pengajuan Izin';
 
-    protected static ?string $slug = "izin";
+    protected static ?string $slug = 'izin';
 
     public static function shouldRegisterNavigation(): bool
     {
@@ -55,38 +48,38 @@ class IzinResource extends Resource
     private static function generateCustomFilename(
         string $documentType,
         string $extension,
-        int $userId = null,
+        ?int $userId = null,
     ): string {
         if (auth()->user()->hasRole('admin')) {
 
             $userName = User::find($userId)
-                    ?->name ?? 'Admin';
+                ?->name ?? 'Admin';
         } else {
             $userName = auth()->user()->name;
         }
-        $timestamp = date("dmyHi");
+        $timestamp = date('dmyHi');
 
         // Clean filename from special characters
         $cleanDocumentType = preg_replace(
             "/[^A-Za-z0-9\s\-_]/",
-            "",
+            '',
             $documentType
         );
-        $cleanUserName = preg_replace("/[^A-Za-z0-9\s\-_]/", "", $userName);
+        $cleanUserName = preg_replace("/[^A-Za-z0-9\s\-_]/", '', $userName);
 
-        return $cleanDocumentType .
-            " " .
-            $cleanUserName .
-            " [" .
-            $timestamp .
-            "]." .
+        return $cleanDocumentType.
+            ' '.
+            $cleanUserName.
+            ' ['.
+            $timestamp.
+            '].'.
             $extension;
     }
 
     public static function canCreate(): bool
     {
         // Admin selalu bisa create
-        if (auth()->user()->name === "Admin") {
+        if (auth()->user()->name === 'Admin') {
             return true;
         }
 
@@ -115,14 +108,14 @@ class IzinResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make("Informasi Pengajuan Izin")
+            Forms\Components\Section::make('Informasi Pengajuan Izin')
                 ->schema([
                     Forms\Components\Grid::make(3)
                         ->schema([
-                            Forms\Components\Select::make("user_id")
-                                ->label("Pemohon")
+                            Forms\Components\Select::make('user_id')
+                                ->label('Pemohon')
                                 ->required()
-                                ->relationship("user", "name", function (Builder $query) {
+                                ->relationship('user', 'name', function (Builder $query) {
                                     // Admin can see all active users, regular users only see themselves
                                     if (auth()->user()->hasRole('admin')) {
                                         return $query->where('status_akun', 'Aktif')
@@ -138,10 +131,10 @@ class IzinResource extends Resource
                                     $kotakab = $record->kotakab ?? 'Lokasi tidak diset';
 
                                     if (auth()->user()->hasRole('admin')) {
-                                        return $name . ' (' . $kotakab . ')';
+                                        return $name.' ('.$kotakab.')';
                                     }
 
-                                    return $name . ' (' . $kotakab . ')';
+                                    return $name.' ('.$kotakab.')';
                                 })
                                 ->placeholder(function () {
                                     if (auth()->user()->hasRole('admin')) {
@@ -149,37 +142,39 @@ class IzinResource extends Resource
                                     }
 
                                     $kotakab = auth()->user()->kotakab ?? 'Lokasi tidak diset';
-                                    return auth()->user()->name . ' (' . $kotakab . ')';
+
+                                    return auth()->user()->name.' ('.$kotakab.')';
                                 })
-                                ->disabled(fn() => !auth()->user()->hasRole('admin'))
+                                ->disabled(fn () => ! auth()->user()->hasRole('admin'))
                                 ->dehydrated(true) // Ensure value is saved even when disabled
 
                                 ->searchable(['name', 'kotakab']),
 
-                            Forms\Components\Select::make("kategori_izin")
-                                ->label("Kategori Izin")
+                            Forms\Components\Select::make('kategori_izin')
+                                ->label('Kategori Izin')
                                 ->options([
-                                    "Izin Baru" => "Izin Baru",
-                                    "Perpanjang Izin" => "Perpanjang Izin",
+                                    'Izin Baru' => 'Izin Baru',
+                                    'Perpanjang Izin' => 'Perpanjang Izin',
                                 ])
                                 ->dehydrated()
                                 ->required()
                                 ->default(function () {
-                                    $type = request()->get("type");
+                                    $type = request()->get('type');
+
                                     return match ($type) {
-                                        "baru" => "Izin Baru",
-                                        "perpanjang" => "Perpanjang Izin",
-                                        default => "Izin Baru",
+                                        'baru' => 'Izin Baru',
+                                        'perpanjang' => 'Perpanjang Izin',
+                                        default => 'Izin Baru',
                                     };
                                 })
                                 ->reactive()
                                 ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                     // Hanya validasi untuk non-admin
                                     if (
-                                        auth()->user()->hasRole("user") &&
-                                        $state === "Izin Baru"
+                                        auth()->user()->hasRole('user') &&
+                                        $state === 'Izin Baru'
                                     ) {
-                                        $userId = $get("user_id") ?? auth()->id();
+                                        $userId = $get('user_id') ?? auth()->id();
                                         $existingNewPermit = Izin::where('user_id', $userId)
                                             ->where('kategori_izin', 'Izin Baru')
                                             ->whereHas('izinDokumenPks', function ($query) {
@@ -189,390 +184,393 @@ class IzinResource extends Resource
 
                                         if ($existingNewPermit) {
                                             Notification::make()
-                                                ->title("Peringatan")
+                                                ->title('Peringatan')
                                                 ->body(
-                                                    "Anda sudah pernah mengajukan Izin Baru sebelumnya. Silakan gunakan Perpanjang Izin untuk memperpanjang izin yang sudah ada."
+                                                    'Anda sudah pernah mengajukan Izin Baru sebelumnya. Silakan gunakan Perpanjang Izin untuk memperpanjang izin yang sudah ada.'
                                                 )
                                                 ->warning()
                                                 ->send();
 
-                                            $set("kategori_izin", "Perpanjang Izin");
+                                            $set('kategori_izin', 'Perpanjang Izin');
                                         }
                                     }
                                 }),
 
-                            Forms\Components\DatePicker::make("tanggal_pengajuan")
-                                ->label("Tanggal Pengajuan")
+                            Forms\Components\DatePicker::make('tanggal_pengajuan')
+                                ->label('Tanggal Pengajuan')
                                 ->native(false)
 
                                 ->default(now())
-                                ->disabled(fn() => auth()->user()->name !== "Admin")
+                                ->disabled(fn () => auth()->user()->name !== 'Admin')
                                 ->required(),
                         ]),
 
                     Forms\Components\Grid::make(3)
                         ->schema([
-                            Forms\Components\TextInput::make("nomor_surat")
-                                ->label("Nomor Surat Pengajuan")
+                            Forms\Components\TextInput::make('nomor_surat')
+                                ->label('Nomor Surat Pengajuan')
                                 ->maxLength(255)
                                 ->required(),
 
-                            Forms\Components\DatePicker::make("tanggal_surat")
-                                ->label("Tanggal Surat")
+                            Forms\Components\DatePicker::make('tanggal_surat')
+                                ->label('Tanggal Surat')
                                 ->native(false)
 
                                 ->required(),
 
-                            Forms\Components\Select::make("status")
-                                ->label("Status")
+                            Forms\Components\Select::make('status')
+                                ->label('Status')
                                 ->options([
-                                    0 => "Pending",
-                                    1 => "Disetujui",
-                                    2 => "Ditolak",
+                                    0 => 'Pending',
+                                    1 => 'Disetujui',
+                                    2 => 'Ditolak',
                                 ])
                                 ->default(0)
-                                ->visible(fn() => auth()->user()->name === "Admin"),
+                                ->visible(fn () => auth()->user()->name === 'Admin'),
                         ]),
                 ])
                 ->compact()
                 ->collapsible(false),
 
-            Forms\Components\Section::make("Catatan Hasil Verifikasi")
+            Forms\Components\Section::make('Catatan Hasil Verifikasi')
                 ->schema([
                     Forms\Components\Textarea::make('catatan_perbaikan')
                         ->label('Catatan')
                         ->disabled()
-                        ->formatStateUsing(fn($record) => $record->izinDokumen?->catatan ?? '')
+                        ->formatStateUsing(fn ($record) => $record->izinDokumen?->catatan ?? '')
                         ->rows(3)
                         ->columnSpanFull()
                         ->visible(function ($record) {
-                            if (!$record)
+                            if (! $record) {
                                 return false;
+                            }
 
                             $izinDokumen = \App\Models\IzinDokumen::where('izin_id', $record->id)->first();
+
                             return $izinDokumen &&
                                 $izinDokumen->catatan &&
                                 $izinDokumen->hasil === 2; // Hanya tampil jika berkas tidak lengkap
                         }),
                 ])
                 ->visible(function ($record) {
-                    if (!$record)
+                    if (! $record) {
                         return false;
+                    }
 
                     $izinDokumen = \App\Models\IzinDokumen::where('izin_id', $record->id)->first();
+
                     return $izinDokumen && $izinDokumen->catatan;
                 })
                 ->collapsible()
                 ->collapsed(false)
                 ->icon('heroicon-o-chat-bubble-left-right'),
 
-            Forms\Components\Section::make("Dokumen Pendukung")
-                ->description("Semua dokumen wajib diupload. Format PDF, maksimal 3MB per dokumen.")
+            Forms\Components\Section::make('Dokumen Pendukung')
+                ->description('Semua dokumen wajib diupload. Format PDF, maksimal 3MB per dokumen.')
                 ->schema([
-                    Forms\Components\FileUpload::make("file1")
-                        ->label(self::getIzinLabel("file1"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file1')
+                        ->label(self::getIzinLabel('file1'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file1"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file1'),
                                 $file->getClientOriginalExtension(),
                                 // get user ID if available from the form data
-                                $get("user_id") ?? auth()->user()->id
-
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file2")
-                        ->label(self::getIzinLabel("file2"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file2')
+                        ->label(self::getIzinLabel('file2'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file2"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file2'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file3")
-                        ->label(self::getIzinLabel("file3"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file3')
+                        ->label(self::getIzinLabel('file3'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file3"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file3'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file4")
-                        ->label(self::getIzinLabel("file4"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file4')
+                        ->label(self::getIzinLabel('file4'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file4"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file4'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file5")
-                        ->label(self::getIzinLabel("file5"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file5')
+                        ->label(self::getIzinLabel('file5'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file5"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file5'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file6")
-                        ->label(self::getIzinLabel("file6"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file6')
+                        ->label(self::getIzinLabel('file6'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file6"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file6'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file7")
-                        ->label(self::getIzinLabel("file7"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file7')
+                        ->label(self::getIzinLabel('file7'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file7"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file7'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file8")
-                        ->label(self::getIzinLabel("file8"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file8')
+                        ->label(self::getIzinLabel('file8'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file8"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file8'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file9")
-                        ->label(self::getIzinLabel("file9"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file9')
+                        ->label(self::getIzinLabel('file9'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file9"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file9'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file10")
-                        ->label(self::getIzinLabel("file10"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file10')
+                        ->label(self::getIzinLabel('file10'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file10"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file10'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file11")
-                        ->label(self::getIzinLabel("file11"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file11')
+                        ->label(self::getIzinLabel('file11'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file11"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file11'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file12")
-                        ->label(self::getIzinLabel("file12"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file12')
+                        ->label(self::getIzinLabel('file12'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file12"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file12'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file13")
-                        ->label(self::getIzinLabel("file13"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file13')
+                        ->label(self::getIzinLabel('file13'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file13"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file13'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file14")
-                        ->label(self::getIzinLabel("file14"))
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                    Forms\Components\FileUpload::make('file14')
+                        ->label(self::getIzinLabel('file14'))
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->disk("public")
-                        ->directory("izin-documents")
+                        ->disk('public')
+                        ->directory('izin-documents')
                         ->downloadable()
                         ->openable()
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
-                            fn(
-                            TemporaryUploadedFile $file, callable $get
-                        ): string => self::generateCustomFilename(
-                                self::getIzinLabel("file14"),
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getIzinLabel('file14'),
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->user()->id
+                                $get('user_id') ?? auth()->user()->id
 
                             )
                         ),
 
-                    Forms\Components\DateTimePicker::make("date_updated")
-                        ->label("Tanggal Update")
+                    Forms\Components\DateTimePicker::make('date_updated')
+                        ->label('Tanggal Update')
                         ->default(now())
                         ->hidden(),
                 ])
                 ->columns(2)
                 ->disabled(function () {
-                    return auth()->user()->name !== "Admin" && empty(auth()->user()->email);
+                    return auth()->user()->name !== 'Admin' && empty(auth()->user()->email);
                 })
                 ->collapsible(),
         ]);
@@ -584,14 +582,14 @@ class IzinResource extends Resource
             ->query(
                 Izin::query()
                     ->with([
-                        "user",
-                        "izinDokumen",
-                        "izinVisitasi",
-                        "izinPersetujuan",
-                        "izinDokumenPks",
+                        'user',
+                        'izinDokumen',
+                        'izinVisitasi',
+                        'izinPersetujuan',
+                        'izinDokumenPks',
                     ])
             )
-            ->defaultSort("tanggal_pengajuan", "desc")
+            ->defaultSort('tanggal_pengajuan', 'desc')
             ->searchable()
             ->headerActions([
                 Tables\Actions\Action::make('downloadLaporan')
@@ -648,8 +646,8 @@ class IzinResource extends Resource
                 Tables\Columns\TextColumn::make('tanggal_pengajuan')
                     ->label('Tanggal')
                     ->date('d F Y')
-                    ->description(function ($record){
-                        return $record->nomor_surat . " - " . $record->kategori_izin;
+                    ->description(function ($record) {
+                        return $record->nomor_surat.' - '.$record->kategori_izin;
                     })
                     ->sortable()
                     ->searchable(),
@@ -659,10 +657,12 @@ class IzinResource extends Resource
                     ->label('Klinik/RS & Lokasi')
                     ->getStateUsing(function ($record) {
                         $klinik = $record->user?->name ?? 'N/A';
+
                         return $klinik;
                     })
                     ->description(function ($record) {
                         $kotakab = $record->user?->kotakab ?? 'Lokasi tidak diset';
+
                         return $kotakab;
                     })
                     ->searchable(query: function (Builder $query, string $search): Builder {
@@ -677,8 +677,8 @@ class IzinResource extends Resource
                     }),
 
                 // Progress Status - Similar to IcvResource
-                Tables\Columns\TextColumn::make("progress_status")
-                    ->label("Status")
+                Tables\Columns\TextColumn::make('progress_status')
+                    ->label('Status')
                     ->badge()
                     ->getStateUsing(function ($record) {
                         // Cek apakah sudah ada PKS
@@ -686,7 +686,7 @@ class IzinResource extends Resource
                             $record->izinDokumenPks &&
                             $record->izinDokumenPks->dokumen_pks_bkk
                         ) {
-                            return "Selesai";
+                            return 'Selesai';
                         }
 
                         // Cek apakah sudah disetujui
@@ -694,7 +694,7 @@ class IzinResource extends Resource
                             $record->izinPersetujuan &&
                             $record->izinPersetujuan->file_persetujuan
                         ) {
-                            return "Disetujui - Menunggu PKS";
+                            return 'Disetujui - Menunggu PKS';
                         }
 
                         // Cek apakah sudah dijadwalkan visitasi
@@ -702,33 +702,33 @@ class IzinResource extends Resource
                             $record->izinDokumenPks &&
                             $record->izinDokumenPks->tanggal_visitasi
                         ) {
-                            return "Visitasi Dijadwalkan";
+                            return 'Visitasi Dijadwalkan';
                         }
 
                         // Cek apakah dokumen sudah diverifikasi
                         if ($record->izinDokumen) {
                             switch ($record->izinDokumen->hasil) {
                                 case 1:
-                                    return "Berkas Lengkap";
+                                    return 'Berkas Lengkap';
                                 case 2:
-                                    return "Berkas Tidak Lengkap";
+                                    return 'Berkas Tidak Lengkap';
                                 default:
-                                    return "Menunggu Verifikasi";
+                                    return 'Menunggu Verifikasi';
                             }
                         }
 
-                        return "Dokumen Diajukan";
+                        return 'Dokumen Diajukan';
                     })
                     ->color(function ($state) {
                         return match ($state) {
-                            "Selesai" => "success",
-                            "Disetujui - Menunggu PKS" => "info",
-                            "Visitasi Dijadwalkan" => "warning",
-                            "Berkas Lengkap" => "success",
-                            "Berkas Tidak Lengkap" => "danger",
-                            "Menunggu Verifikasi" => "gray",
-                            "Dokumen Diajukan" => "gray",
-                            default => "gray",
+                            'Selesai' => 'success',
+                            'Disetujui - Menunggu PKS' => 'info',
+                            'Visitasi Dijadwalkan' => 'warning',
+                            'Berkas Lengkap' => 'success',
+                            'Berkas Tidak Lengkap' => 'danger',
+                            'Menunggu Verifikasi' => 'gray',
+                            'Dokumen Diajukan' => 'gray',
+                            default => 'gray',
                         };
                     })
                     ->sortable(query: function (Builder $query, string $direction): Builder {
@@ -764,15 +764,15 @@ class IzinResource extends Resource
                                 2 => 'Tidak Lengkap',
                                 default => 'Pending'
                             };
-                            $details[] = "Verifikasi: " . $hasil;
+                            $details[] = 'Verifikasi: '.$hasil;
                         }
 
                         if ($record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi) {
-                            $details[] = "Visitasi: " . Carbon::parse($record->izinDokumenPks->tanggal_visitasi)->translatedFormat('d M Y');
+                            $details[] = 'Visitasi: '.Carbon::parse($record->izinDokumenPks->tanggal_visitasi)->translatedFormat('d M Y');
                         }
 
                         if ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) {
-                            $details[] = "Status: Disetujui";
+                            $details[] = 'Status: Disetujui';
                         }
 
                         return implode("\n", $details) ?: 'Belum ada detail';
@@ -780,15 +780,15 @@ class IzinResource extends Resource
                     ->html()
                     ->formatStateUsing(function ($state) {
                         if ($state === 'Belum ada detail') {
-                            return '<span class="text-xs text-gray-400">' . $state . '</span>';
+                            return '<span class="text-xs text-gray-400">'.$state.'</span>';
                         }
 
                         $lines = explode("\n", $state);
                         $formatted = array_map(function ($line) {
-                            return '<div class="text-xs">' . $line . '</div>';
+                            return '<div class="text-xs">'.$line.'</div>';
                         }, $lines);
 
-                        return '<div class="space-y-1">' . implode('', $formatted) . '</div>';
+                        return '<div class="space-y-1">'.implode('', $formatted).'</div>';
                     })
                     ->toggleable()
                     ->toggledHiddenByDefault(),
@@ -817,8 +817,9 @@ class IzinResource extends Resource
                             ->pluck('users.kotakab', 'users.kotakab');
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return $query->whereHas('user', function (Builder $query) use ($data) {
                             $query->where('kotakab', $data['value']);
@@ -827,11 +828,11 @@ class IzinResource extends Resource
                     ->preload(),
 
                 // Kategori Izin Filter
-                SelectFilter::make("kategori_izin")
-                    ->label("Kategori Izin")
+                SelectFilter::make('kategori_izin')
+                    ->label('Kategori Izin')
                     ->options([
-                        "Izin Baru" => "Izin Baru",
-                        "Perpanjang Izin" => "Perpanjang Izin",
+                        'Izin Baru' => 'Izin Baru',
+                        'Perpanjang Izin' => 'Perpanjang Izin',
                     ]),
 
                 // Progress Status Filter
@@ -849,17 +850,18 @@ class IzinResource extends Resource
                     ])
                     ->default('semua')
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return match ($data['value']) {
                             'dokumen_diajukan' => $query->whereDoesntHave('izinDokumen'),
-                            'menunggu_verifikasi' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 0)),
-                            'berkas_lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 1)),
-                            'berkas_tidak_lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 2)),
-                            'visitasi_dijadwalkan' => $query->whereHas('izinDokumenPks', fn($q) => $q->whereNotNull('tanggal_visitasi')),
-                            'disetujui' => $query->whereHas('izinPersetujuan', fn($q) => $q->whereNotNull('file_persetujuan')),
-                            'selesai' => $query->whereHas('izinDokumenPks', fn($q) => $q->whereNotNull('dokumen_pks_bkk')),
+                            'menunggu_verifikasi' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 0)),
+                            'berkas_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 1)),
+                            'berkas_tidak_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 2)),
+                            'visitasi_dijadwalkan' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('tanggal_visitasi')),
+                            'disetujui' => $query->whereHas('izinPersetujuan', fn ($q) => $q->whereNotNull('file_persetujuan')),
+                            'selesai' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('dokumen_pks_bkk')),
                             default => $query,
                         };
                     }),
@@ -877,47 +879,47 @@ class IzinResource extends Resource
             ->persistFiltersInSession()
             ->actions([
                 Tables\Actions\ViewAction::make()
-                    ->label("Lihat Detail")
-                    ->icon("heroicon-o-eye")
+                    ->label('Lihat Detail')
+                    ->icon('heroicon-o-eye')
                     ->size('sm'),
 
                 Tables\Actions\EditAction::make()
-                    ->label("Edit Izin")
-                    ->icon("heroicon-o-pencil")
+                    ->label('Edit Izin')
+                    ->icon('heroicon-o-pencil')
                     ->size('sm'),
 
-                Tables\Actions\Action::make("verifikasi_dokumen")
-                    ->label("Verifikasi Dokumen")
-                    ->icon("heroicon-o-document-check")
-                    ->color("info")
+                Tables\Actions\Action::make('verifikasi_dokumen')
+                    ->label('Verifikasi Dokumen')
+                    ->icon('heroicon-o-document-check')
+                    ->color('info')
                     ->size('sm')
                     ->visible(
-                        fn($record) => !$record->izinDokumenPks ||
+                        fn ($record) => ! $record->izinDokumenPks ||
                         $record->izinDokumenPks->dokumen_pks_bkk === null
                     )
                     ->url(
-                        fn($record) => IzinResource::getUrl("verifikasi", [
-                            "record" => $record->id,
+                        fn ($record) => IzinResource::getUrl('verifikasi', [
+                            'record' => $record->id,
                         ])
                     ),
 
                 Tables\Actions\DeleteAction::make()
-                    ->label("Hapus")
-                    ->icon("heroicon-o-trash")
+                    ->label('Hapus')
+                    ->icon('heroicon-o-trash')
                     ->size('sm'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()->label(
-                        "Hapus Terpilih"
+                        'Hapus Terpilih'
                     ),
                 ]),
             ])
-            ->emptyStateHeading("Belum Ada Data Izin")
+            ->emptyStateHeading('Belum Ada Data Izin')
             ->emptyStateDescription(
-                "Belum ada pengajuan izin yang masuk ke sistem."
+                'Belum ada pengajuan izin yang masuk ke sistem.'
             )
-            ->emptyStateIcon("heroicon-o-document-text")
+            ->emptyStateIcon('heroicon-o-document-text')
             ->striped()
             ->paginated([15, 30, 50]);
     }
@@ -930,15 +932,15 @@ class IzinResource extends Resource
     public static function getPages(): array
     {
         return [
-            "index" => Pages\ListIzins::route("/"),
-            "create" => Pages\CreateIzin::route("/create"),
-            "edit" => Pages\EditIzin::route("/{record}/edit"),
-            "verifikasi" => Pages\VerifikasiIzin::route("verifikasi"),
-            "daftar-pengajuan" => Pages\DaftarPengajuan::route(
-                "daftar-pengajuan"
+            'index' => Pages\ListIzins::route('/'),
+            'create' => Pages\CreateIzin::route('/create'),
+            'edit' => Pages\EditIzin::route('/{record}/edit'),
+            'verifikasi' => Pages\VerifikasiIzin::route('verifikasi'),
+            'daftar-pengajuan' => Pages\DaftarPengajuan::route(
+                'daftar-pengajuan'
             ),
-            "surat-persetujuan" => Pages\SuratPersetujuan::route(
-                "/surat-persetujuan"
+            'surat-persetujuan' => Pages\SuratPersetujuan::route(
+                '/surat-persetujuan'
             ),
         ];
     }
@@ -950,7 +952,8 @@ class IzinResource extends Resource
             if ($izin->user && $izin->user->email) {
                 Mail::to($izin->user->email)->send(new IzinCreatedNotification($izin));
             } else {
-                error_log('Cannot send email notification for Izin ID: ' . $izin->id . '. User email is empty.');
+                error_log('Cannot send email notification for Izin ID: '.$izin->id.'. User email is empty.');
+
                 return;
             }
 
@@ -962,7 +965,7 @@ class IzinResource extends Resource
 
         } catch (\Exception $e) {
             // Log error jika email gagal dikirim
-            error_log('Failed to send email notification for Izin ID: ' . $izin->id . '. Error: ' . $e->getMessage());
+            error_log('Failed to send email notification for Izin ID: '.$izin->id.'. Error: '.$e->getMessage());
         }
     }
 
@@ -986,22 +989,22 @@ class IzinResource extends Resource
         if ($data['status_progress'] !== 'semua') {
             switch ($data['status_progress']) {
                 case 'menunggu_verifikasi':
-                    $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 0));
+                    $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 0));
                     break;
                 case 'berkas_lengkap':
-                    $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 1));
+                    $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 1));
                     break;
                 case 'berkas_tidak_lengkap':
-                    $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 2));
+                    $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 2));
                     break;
                 case 'visitasi_dijadwalkan':
-                    $query->whereHas('izinDokumenPks', fn($q) => $q->whereNotNull('tanggal_visitasi'));
+                    $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('tanggal_visitasi'));
                     break;
                 case 'disetujui':
-                    $query->whereHas('izinPersetujuan', fn($q) => $q->whereNotNull('file_persetujuan'));
+                    $query->whereHas('izinPersetujuan', fn ($q) => $q->whereNotNull('file_persetujuan'));
                     break;
                 case 'selesai':
-                    $query->whereHas('izinDokumenPks', fn($q) => $q->whereNotNull('dokumen_pks_bkk'));
+                    $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('dokumen_pks_bkk'));
                     break;
             }
         }
@@ -1022,11 +1025,11 @@ class IzinResource extends Resource
 
     protected static function downloadExcelIzin(Collection $data, array $params)
     {
-        $filename = 'laporan_pengajuan_izin_' . date('Y-m-d_H-i-s') . '.csv';
+        $filename = 'laporan_pengajuan_izin_'.date('Y-m-d_H-i-s').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Content-Transfer-Encoding' => 'binary',
             'Expires' => '0',
@@ -1037,7 +1040,7 @@ class IzinResource extends Resource
             $output = fopen('php://output', 'w');
 
             // BOM untuk UTF-8
-            fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
             // Header
             fputcsv($output, [
@@ -1049,7 +1052,7 @@ class IzinResource extends Resource
                 'Tanggal Pengajuan',
                 'Tanggal Surat',
                 'Status Progress',
-                'Tanggal Update'
+                'Tanggal Update',
             ]);
 
             // Data
@@ -1091,7 +1094,7 @@ class IzinResource extends Resource
             'status_progress' => $params['status_progress'],
         ]);
 
-        $filename = 'laporan_pengajuan_izin_' . date('Y-m-d_H-i-s') . '.pdf';
+        $filename = 'laporan_pengajuan_izin_'.date('Y-m-d_H-i-s').'.pdf';
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
@@ -1102,31 +1105,31 @@ class IzinResource extends Resource
     {
         // Cek apakah sudah ada PKS
         if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
-            return "Selesai";
+            return 'Selesai';
         }
 
         // Cek apakah sudah disetujui
         if ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) {
-            return "Disetujui - Menunggu PKS";
+            return 'Disetujui - Menunggu PKS';
         }
 
         // Cek apakah sudah dijadwalkan visitasi (dari izinDokumenPks)
         if ($record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi) {
-            return "Visitasi Dijadwalkan";
+            return 'Visitasi Dijadwalkan';
         }
 
         // Cek apakah dokumen sudah diverifikasi
         if ($record->izinDokumen) {
             switch ($record->izinDokumen->hasil) {
                 case 1:
-                    return "Berkas Lengkap";
+                    return 'Berkas Lengkap';
                 case 2:
-                    return "Berkas Tidak Lengkap";
+                    return 'Berkas Tidak Lengkap';
                 default:
-                    return "Menunggu Verifikasi";
+                    return 'Menunggu Verifikasi';
             }
         }
 
-        return "Dokumen Diajukan";
+        return 'Dokumen Diajukan';
     }
 }

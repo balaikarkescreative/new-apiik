@@ -7,25 +7,26 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class IcvBilling extends Model
 {
-    protected $table = "tbl_icv_billing";
+    protected $table = 'tbl_icv_billing';
 
     protected $fillable = [
-        "id",
-        "id_icv",
-        "kode_billing",
-        "nominal",
-        "status",
-        "bayar",
-        "date_updated",
+        'id',
+        'id_icv',
+        'kode_billing',
+        'nominal',
+        'status',
+        'bayar',
+        'date_updated',
     ];
 
     protected $casts = [
-        "kode_billing" => "integer",
-        "status" => "integer",
-        "date_updated" => "datetime",
+        'kode_billing' => 'integer',
+        'status' => 'integer',
+        'date_updated' => 'datetime',
     ];
 
-    public const UPDATED_AT = "date_updated";
+    public const UPDATED_AT = 'date_updated';
+
     public const CREATED_AT = null;
 
     /**
@@ -33,7 +34,7 @@ class IcvBilling extends Model
      */
     public function icv(): BelongsTo
     {
-        return $this->belongsTo(Icv::class, "id_icv", "id");
+        return $this->belongsTo(Icv::class, 'id_icv', 'id');
     }
 
     /**

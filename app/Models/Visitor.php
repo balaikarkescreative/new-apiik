@@ -1,4 +1,5 @@
 <?php
+
 // filepath: app/Models/Visitor.php
 
 namespace App\Models;

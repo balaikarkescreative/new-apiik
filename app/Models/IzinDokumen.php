@@ -3,13 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Izin;
 
 class IzinDokumen extends Model
 {
     public $timestamps = false;
-    
-    protected $table = "tbl_izin_dokumen";
+
+    protected $table = 'tbl_izin_dokumen';
+
     protected $fillable = [
         'izin_id',
         'hasil',
@@ -17,7 +17,7 @@ class IzinDokumen extends Model
         'status',
         'date_updated',
     ];
-    
+
     protected $casts = [
         'date_updated' => 'datetime',
         'hasil' => 'integer',
@@ -27,13 +27,13 @@ class IzinDokumen extends Model
     /**
      * Get the user that owns the Izin.
      */
-
     protected static function booted()
     {
         static::updating(function ($model) {
             $model->date_updated = now();
         });
     }
+
     public function izin()
     {
         return $this->belongsTo(Izin::class, 'izin_id');
@@ -41,7 +41,7 @@ class IzinDokumen extends Model
 
     public function getHasilLabel()
     {
-        return match($this->hasil) {
+        return match ($this->hasil) {
             0 => 'Belum Diverifikasi',
             1 => 'Berkas Tidak Lengkap',
             2 => 'Berkas Lengkap',

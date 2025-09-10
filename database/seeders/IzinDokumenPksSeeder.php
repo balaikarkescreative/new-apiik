@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\IzinDokumenPks;
 use App\Models\Izin;
+use App\Models\IzinDokumenPks;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class IzinDokumenPksSeeder extends Seeder
 {
@@ -17,8 +16,9 @@ class IzinDokumenPksSeeder extends Seeder
     {
         $jsonPath = database_path('seeders/tbl_izin_dokumen_pks.json');
 
-        if (!file_exists($jsonPath)) {
+        if (! file_exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
+
             return;
         }
 
@@ -34,30 +34,34 @@ class IzinDokumenPksSeeder extends Seeder
             }
         }
 
-        if (!$izinDokumenPksData) {
+        if (! $izinDokumenPksData) {
             $this->command->error('No izin dokumen PKS data found in JSON file');
+
             return;
         }
 
-        $this->command->info('Processing ' . count($izinDokumenPksData) . ' izin dokumen PKS records...');
+        $this->command->info('Processing '.count($izinDokumenPksData).' izin dokumen PKS records...');
 
         foreach ($izinDokumenPksData as $record) {
             // Skip if ID already exists
-            if (!empty($record['id']) && IzinDokumenPks::where('id', $record['id'])->exists()) {
+            if (! empty($record['id']) && IzinDokumenPks::where('id', $record['id'])->exists()) {
                 $this->command->warn("IzinDokumenPks with ID {$record['id']} already exists. Skipping...");
+
                 continue;
             }
 
             // Skip if id_izin is 0 or empty
             if (empty($record['id_izin']) || $record['id_izin'] == '0') {
                 $this->command->warn("Skipping izin dokumen PKS ID {$record['id']} - id_izin is 0 or empty");
+
                 continue;
             }
 
             // Find Izin by id_izin
             $izin = Izin::find($record['id_izin']);
-            if (!$izin) {
+            if (! $izin) {
                 $this->command->warn("Izin with ID {$record['id_izin']} not found for izin dokumen PKS ID {$record['id']}. Skipping...");
+
                 continue;
             }
 
@@ -87,7 +91,7 @@ class IzinDokumenPksSeeder extends Seeder
      */
     private function parseDate($dateString)
     {
-        if (!$dateString || $dateString === '0000-00-00' || $dateString === '0' || $dateString === null) {
+        if (! $dateString || $dateString === '0000-00-00' || $dateString === '0' || $dateString === null) {
             return null;
         }
 
@@ -95,6 +99,7 @@ class IzinDokumenPksSeeder extends Seeder
             return Carbon::parse($dateString)->format('Y-m-d');
         } catch (\Exception $e) {
             $this->command->warn("Invalid date format: {$dateString}");
+
             return null;
         }
     }
@@ -104,7 +109,7 @@ class IzinDokumenPksSeeder extends Seeder
      */
     private function parseDateTime($datetimeString)
     {
-        if (!$datetimeString || $datetimeString === '0000-00-00 00:00:00') {
+        if (! $datetimeString || $datetimeString === '0000-00-00 00:00:00') {
             return now();
         }
 
@@ -112,6 +117,7 @@ class IzinDokumenPksSeeder extends Seeder
             return Carbon::parse($datetimeString);
         } catch (\Exception $e) {
             $this->command->warn("Invalid datetime format: {$datetimeString}");
+
             return now();
         }
     }
@@ -147,7 +153,7 @@ class IzinDokumenPksSeeder extends Seeder
         }
 
         // Add izin-pks-documents/ prefix to valid filenames
-        return 'perjanjian-kerjasama/' . $filename;
+        return 'perjanjian-kerjasama/'.$filename;
     }
 
     /**
@@ -179,7 +185,7 @@ class IzinDokumenPksSeeder extends Seeder
      */
     private function getStatusLabel($status)
     {
-        return match($status) {
+        return match ($status) {
             'sign both' => 'Ditandatangani Kedua Pihak',
             'not sign' => 'Belum Ditandatangani',
             default => $status,

@@ -3,19 +3,18 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\VaksinatorResource\Pages;
-use App\Models\Vaksinator;
 use App\Models\User;
+use App\Models\Vaksinator;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Filament\Tables\Filters\SelectFilter;
-use Carbon\Carbon;
 
 class VaksinatorResource extends Resource
 {
@@ -47,8 +46,8 @@ class VaksinatorResource extends Resource
                             ->relationship('user', 'name')
                             ->searchable()
                             ->preload()
-                            ->default(fn() => auth()->user()->hasRole('admin') ? auth()->id() : auth()->id())
-                            ->disabled(fn() => auth()->user()->hasRole('admin') ? false : true)
+                            ->default(fn () => auth()->user()->hasRole('admin') ? auth()->id() : auth()->id())
+                            ->disabled(fn () => auth()->user()->hasRole('admin') ? false : true)
                             ->required()
                             ->columnSpanFull(),
 
@@ -102,7 +101,7 @@ class VaksinatorResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function (Builder $query) {
-                if (!Auth::user()->hasRole('admin')) {
+                if (! Auth::user()->hasRole('admin')) {
                     $query->join('users', 'tbl_vaksinator.id_akun', '=', 'users.id')
                         ->select('tbl_vaksinator.*', 'users.name as user_name')
                         ->where('tbl_vaksinator.id_akun', Auth::id());
@@ -110,6 +109,7 @@ class VaksinatorResource extends Resource
                     $query->join('users', 'tbl_vaksinator.id_akun', '=', 'users.id')
                         ->select('tbl_vaksinator.*', 'users.name as user_name');
                 }
+
                 return $query->with(['user']);
             })
             ->columns([
@@ -119,19 +119,21 @@ class VaksinatorResource extends Resource
                     ->getStateUsing(function ($record) {
                         $nama = $record->nama_vaksinator;
                         $klinik = $record->user->name ?? 'N/A';
+
                         return "{$nama}\n{$klinik}";
                     })
                     ->html()
                     ->formatStateUsing(function ($state) {
                         $lines = explode("\n", $state);
-                        return '<div class="space-y-1">' .
-                            '<div class="font-medium text-sm">' . $lines[0] . '</div>' .
-                            '<div class="text-xs text-gray-500">' . $lines[1] . '</div>' .
+
+                        return '<div class="space-y-1">'.
+                            '<div class="font-medium text-sm">'.$lines[0].'</div>'.
+                            '<div class="text-xs text-gray-500">'.$lines[1].'</div>'.
                             '</div>';
                     })
                     ->searchable([
                         'tbl_vaksinator.nama_vaksinator',
-                        'users.name'
+                        'users.name',
                     ])
                     ->sortable(['nama_vaksinator']),
 
@@ -142,6 +144,7 @@ class VaksinatorResource extends Resource
                         $nomor = $record->nomor_izin_praktek;
                         $tanggal = Carbon::parse($record->masa_aktif_izin_praktek)->translatedFormat('d M Y');
                         $status = $record->status_izin_praktek;
+
                         return "{$nomor}\n{$tanggal} • {$status}";
                     })
                     ->html()
@@ -149,16 +152,16 @@ class VaksinatorResource extends Resource
                         $lines = explode("\n", $state);
                         $status = $record->status_izin_praktek;
 
-                        $color = match($status) {
+                        $color = match ($status) {
                             'Aktif' => 'text-green-600',
                             'Akan Habis' => 'text-yellow-600',
                             'Kadaluarsa' => 'text-red-600',
                             default => 'text-gray-600'
                         };
 
-                        return '<div class="space-y-1">' .
-                            '<div class="font-medium text-sm">' . $lines[0] . '</div>' .
-                            '<div class="text-xs ' . $color . '">' . $lines[1] . '</div>' .
+                        return '<div class="space-y-1">'.
+                            '<div class="font-medium text-sm">'.$lines[0].'</div>'.
+                            '<div class="text-xs '.$color.'">'.$lines[1].'</div>'.
                             '</div>';
                     })
                     ->searchable(['tbl_vaksinator.nomor_izin_praktek'])
@@ -171,6 +174,7 @@ class VaksinatorResource extends Resource
                         $nomor = $record->nomor_sertifikat_vaksinator;
                         $tanggal = Carbon::parse($record->masa_aktif_sertifikat)->translatedFormat('d M Y');
                         $status = $record->status_sertifikat;
+
                         return "{$nomor}\n{$tanggal} • {$status}";
                     })
                     ->html()
@@ -178,16 +182,16 @@ class VaksinatorResource extends Resource
                         $lines = explode("\n", $state);
                         $status = $record->status_sertifikat;
 
-                        $color = match($status) {
+                        $color = match ($status) {
                             'Aktif' => 'text-green-600',
                             'Akan Habis' => 'text-yellow-600',
                             'Kadaluarsa' => 'text-red-600',
                             default => 'text-gray-600'
                         };
 
-                        return '<div class="space-y-1">' .
-                            '<div class="font-medium text-sm">' . $lines[0] . '</div>' .
-                            '<div class="text-xs ' . $color . '">' . $lines[1] . '</div>' .
+                        return '<div class="space-y-1">'.
+                            '<div class="font-medium text-sm">'.$lines[0].'</div>'.
+                            '<div class="text-xs '.$color.'">'.$lines[1].'</div>'.
                             '</div>';
                     })
                     ->searchable(['tbl_vaksinator.nomor_sertifikat_vaksinator'])
@@ -202,6 +206,7 @@ class VaksinatorResource extends Resource
                     ->visible(fn () => Auth::user()->hasRole('admin'))
                     ->options(function () {
                         $userIds = Vaksinator::distinct()->pluck('id_akun');
+
                         return User::whereIn('id', $userIds)
                             ->pluck('name', 'id');
                     }),
@@ -215,7 +220,9 @@ class VaksinatorResource extends Resource
                         'kadaluarsa' => 'Kadaluarsa',
                     ])
                     ->query(function (Builder $query, array $data) {
-                        if (!$data['value']) return $query;
+                        if (! $data['value']) {
+                            return $query;
+                        }
 
                         switch ($data['value']) {
                             case 'aktif':
@@ -236,7 +243,9 @@ class VaksinatorResource extends Resource
                         'kadaluarsa' => 'Kadaluarsa',
                     ])
                     ->query(function (Builder $query, array $data) {
-                        if (!$data['value']) return $query;
+                        if (! $data['value']) {
+                            return $query;
+                        }
 
                         switch ($data['value']) {
                             case 'aktif':
@@ -251,12 +260,12 @@ class VaksinatorResource extends Resource
                 // Alert Filter
                 Tables\Filters\Filter::make('akan_kadaluarsa')
                     ->label('Akan Kadaluarsa (30 hari)')
-                    ->query(fn (Builder $query) => $query->where(function($q) {
+                    ->query(fn (Builder $query) => $query->where(function ($q) {
                         $q->whereBetween('tbl_vaksinator.masa_aktif_izin_praktek', [now(), now()->addDays(30)])
-                          ->orWhereBetween('tbl_vaksinator.masa_aktif_sertifikat', [now(), now()->addDays(30)]);
+                            ->orWhereBetween('tbl_vaksinator.masa_aktif_sertifikat', [now(), now()->addDays(30)]);
                     }))
                     ->toggle(),
-                ], FiltersLayout::AboveContent)
+            ], FiltersLayout::AboveContent)
             ->persistFiltersInSession()
             ->defaultSort('date_updated', 'desc')
             ->actions([

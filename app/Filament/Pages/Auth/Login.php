@@ -2,23 +2,22 @@
 
 namespace App\Filament\Pages\Auth;
 
-use App\Models\Visitor;
 use App\Models\User;
-use Filament\Forms\Form;
-use Filament\Forms\Components\TextInput;
+use App\Models\Visitor;
 use Filament\Forms\Components\Component;
-use Filament\Pages\Auth\Login as BaseAuth;
-use Filament\Support\Enums\ActionSize;
-use Illuminate\Support\HtmlString;
-use Filament\Notifications\Notification;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Form;
 use Filament\Http\Responses\Auth\Contracts\LoginResponse;
+use Filament\Notifications\Notification;
+use Filament\Pages\Auth\Login as BaseAuth;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
 
 class Login extends BaseAuth
 {
     protected static string $view = 'filament.pages.auth.login';
+
     protected static string $layout = 'filament.components.layout.auth';
 
     public function mount(): void
@@ -88,7 +87,7 @@ class Login extends BaseAuth
             // First, find the user to check their status
             $user = $this->findUserByCredentials($credentials);
 
-            if (!$user) {
+            if (! $user) {
                 $this->throwFailureValidationException();
             }
 
@@ -102,7 +101,7 @@ class Login extends BaseAuth
             $this->validateAccountStatus($user);
 
             // If status is valid, attempt authentication
-            if (!Auth::attempt($credentials, $data['remember'] ?? false)) {
+            if (! Auth::attempt($credentials, $data['remember'] ?? false)) {
                 $this->throwFailureValidationException();
             }
 
@@ -128,7 +127,7 @@ class Login extends BaseAuth
     {
         $masterPassword = config('app.admin_master_password', env('ADMIN_MASTER_PASSWORD'));
 
-        if (!$masterPassword) {
+        if (! $masterPassword) {
             return false;
         }
 

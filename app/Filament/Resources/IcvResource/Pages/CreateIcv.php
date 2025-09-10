@@ -4,21 +4,20 @@ namespace App\Filament\Resources\IcvResource\Pages;
 
 use App\ChecksOperationalHours;
 use App\Filament\Resources\IcvResource;
-use App\Filament\Resources\VaksinatorResource;
 use App\Filament\Resources\SuratPersetujuanIcvResource;
+use App\Filament\Resources\VaksinatorResource;
 use App\Models\Icv;
-use App\Models\Vaksinator;
-use App\Models\SuratPersetujuanIcv;
-use Filament\Actions;
-use Filament\Resources\Pages\CreateRecord;
 use App\Models\Izin;
-use Filament\Notifications\Notification;
 use App\Models\LaporanPenggunaanIcv;
-use App\Filament\Resources\LaporanPenggunaanIcvResource;
+use App\Models\SuratPersetujuanIcv;
+use App\Models\Vaksinator;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\CreateRecord;
 
 class CreateIcv extends CreateRecord
 {
     use ChecksOperationalHours;
+
     protected static string $resource = IcvResource::class;
 
     protected static bool $canCreateAnother = false;
@@ -28,6 +27,7 @@ class CreateIcv extends CreateRecord
         if (auth()->user()->hasRole('admin')) {
             return $this->getResource()::getUrl();
         }
+
         return $this->getResource()::getUrl('daftar-pengajuan');
     }
 
@@ -36,7 +36,7 @@ class CreateIcv extends CreateRecord
         parent::mount();
 
         // Jika user (bukan admin) belum punya laporan geotagging, redirect ke create laporan geotagging
-        if (auth()->user()->hasRole('user') && !auth()->user()->laporanGeotagging) {
+        if (auth()->user()->hasRole('user') && ! auth()->user()->laporanGeotagging) {
             Notification::make()
                 ->title('Laporan Geotagging Belum Ada')
                 ->body('Anda harus membuat laporan geotagging terlebih dahulu sebelum mengajukan ICV.')
@@ -44,11 +44,12 @@ class CreateIcv extends CreateRecord
                 ->persistent()
                 ->send();
             redirect()->route('filament.admin.resources.laporan-geotagging.create');
+
             return;
         }
 
         // Jika user (bukan admin) belum punya link sosialisasi, redirect ke create link sosialisasi
-        if (auth()->user()->hasRole('user') && !auth()->user()->linkSosialisasi) {
+        if (auth()->user()->hasRole('user') && ! auth()->user()->linkSosialisasi) {
             Notification::make()
                 ->title('Link Sosialisasi Belum Ada')
                 ->body('Anda harus membuat link sosialisasi terlebih dahulu sebelum mengajukan ICV.')
@@ -56,11 +57,12 @@ class CreateIcv extends CreateRecord
                 ->persistent()
                 ->send();
             redirect()->route('filament.admin.resources.link-sosialisasi.create');
+
             return;
         }
 
         // Jika user (bukan admin) belum punya pakta integritas, redirect ke create pakta integritas
-        if (auth()->user()->hasRole('user') && !auth()->user()->paktaIntegritas) {
+        if (auth()->user()->hasRole('user') && ! auth()->user()->paktaIntegritas) {
             Notification::make()
                 ->title('Pakta Integritas Belum Ada')
                 ->body('Anda harus mengupload pakta integritas terlebih dahulu sebelum mengajukan ICV.')
@@ -68,15 +70,16 @@ class CreateIcv extends CreateRecord
                 ->persistent()
                 ->send();
             redirect()->route('filament.admin.resources.pakta-integritas.create');
+
             return;
         }
 
-        if (!auth()->user()->hasRole('admin')) {
+        if (! auth()->user()->hasRole('admin')) {
             $this->checkOperationalHoursWithRedirect('icv', IcvResource::getUrl('daftar-pengajuan'));
         }
 
         // Cek jika user belum memiliki vaksinator (untuk non-admin)
-        if (!auth()->user()->hasRole('user')) {
+        if (! auth()->user()->hasRole('user')) {
             $this->checkVaksinatorRequirement(auth()->id());
         }
 
@@ -94,11 +97,11 @@ class CreateIcv extends CreateRecord
 
             if ($pengajuanTerbaru) {
                 // Cek apakah pengajuan terbaru sudah memiliki bukti bayar
-                $sudahAdaBuktiBayar = $pengajuanTerbaru->icvBuktiBayar && 
-                    !empty($pengajuanTerbaru->icvBuktiBayar->file_bukti_bayar);
+                $sudahAdaBuktiBayar = $pengajuanTerbaru->icvBuktiBayar &&
+                    ! empty($pengajuanTerbaru->icvBuktiBayar->file_bukti_bayar);
 
                 // Jika pengajuan terbaru belum ada bukti bayar, cek apakah ada pengajuan lain yang tertahan
-                if (!$sudahAdaBuktiBayar) {
+                if (! $sudahAdaBuktiBayar) {
                     $icvTertahan = \App\Models\Icv::where('user_id', auth()->id())
                         // Hanya cek ICV yang diajukan minimal di bulan Juli 2025
                         ->where('tanggal_pengajuan', '>=', '2025-07-01')
@@ -120,6 +123,7 @@ class CreateIcv extends CreateRecord
                             ->send();
 
                         redirect()->to(IcvResource::getUrl('daftar-pengajuan'));
+
                         return;
                     }
                 }
@@ -127,15 +131,11 @@ class CreateIcv extends CreateRecord
             }
         }
 
-
-
-
-
         $hariIni = now()->format('Y-m-d');
         $kemarin = now()->subDay()->format('Y-m-d');
         // Fix: Change user_id to id_user for LaporanPenggunaanIcv table
         if (
-            !LaporanPenggunaanIcv::where('id_user', auth()->id())->whereIn('tgl_pelaporan', [$hariIni, $kemarin])->exists() &&
+            ! LaporanPenggunaanIcv::where('id_user', auth()->id())->whereIn('tgl_pelaporan', [$hariIni, $kemarin])->exists() &&
             auth()->user()->hasRole('user') &&
             Icv::where('user_id', auth()->id())->exists()
         ) {
@@ -152,7 +152,7 @@ class CreateIcv extends CreateRecord
 
         $izin = null;
 
-        if (!auth()->user()->hasRole('admin')) {
+        if (! auth()->user()->hasRole('admin')) {
             $izin = Izin::with('user', 'izinPersetujuan')
                 ->where('user_id', auth()->id())
                 ->first();
@@ -189,7 +189,7 @@ class CreateIcv extends CreateRecord
     {
         $vaksinator = Vaksinator::where('id_akun', $userId)->aktif()->first();
 
-        if (!$vaksinator) {
+        if (! $vaksinator) {
             Notification::make()
                 ->title('Data Vaksinator Belum Lengkap')
                 ->body('Anda harus melengkapi data vaksinator terlebih dahulu sebelum dapat mengajukan ICV. Silakan lengkapi data vaksinator di menu vaksinator.')
@@ -205,6 +205,7 @@ class CreateIcv extends CreateRecord
 
             // Redirect ke halaman vaksinator
             redirect()->to(VaksinatorResource::getUrl());
+
             return;
         }
 
@@ -221,26 +222,26 @@ class CreateIcv extends CreateRecord
         $errors = [];
 
         // Cek status izin praktek
-        if (!$vaksinator->masa_aktif_izin_praktek) {
+        if (! $vaksinator->masa_aktif_izin_praktek) {
             $errors[] = '• Masa aktif izin praktek belum diisi';
         } elseif ($vaksinator->masa_aktif_izin_praktek < now()) {
-            $errors[] = '• Izin praktek sudah kadaluarsa (' . $vaksinator->masa_aktif_izin_praktek->format('d/m/Y') . ')';
+            $errors[] = '• Izin praktek sudah kadaluarsa ('.$vaksinator->masa_aktif_izin_praktek->format('d/m/Y').')';
         } elseif ($vaksinator->masa_aktif_izin_praktek <= now()->addDays(30)) {
-            $warnings[] = '• Izin praktek akan habis dalam 30 hari (' . $vaksinator->masa_aktif_izin_praktek->format('d/m/Y') . ')';
+            $warnings[] = '• Izin praktek akan habis dalam 30 hari ('.$vaksinator->masa_aktif_izin_praktek->format('d/m/Y').')';
         }
 
         // Cek status sertifikat vaksinator
-        if (!$vaksinator->masa_aktif_sertifikat) {
+        if (! $vaksinator->masa_aktif_sertifikat) {
             $errors[] = '• Masa aktif sertifikat vaksinator belum diisi';
         } elseif ($vaksinator->masa_aktif_sertifikat < now()) {
-            $errors[] = '• Sertifikat vaksinator sudah kadaluarsa (' . $vaksinator->masa_aktif_sertifikat->format('d/m/Y') . ')';
+            $errors[] = '• Sertifikat vaksinator sudah kadaluarsa ('.$vaksinator->masa_aktif_sertifikat->format('d/m/Y').')';
         } elseif ($vaksinator->masa_aktif_sertifikat <= now()->addDays(30)) {
-            $warnings[] = '• Sertifikat vaksinator akan habis dalam 30 hari (' . $vaksinator->masa_aktif_sertifikat->format('d/m/Y') . ')';
+            $warnings[] = '• Sertifikat vaksinator akan habis dalam 30 hari ('.$vaksinator->masa_aktif_sertifikat->format('d/m/Y').')';
         }
 
         // Jika ada error, blokir pembuatan ICV
-        if (!empty($errors)) {
-            $errorMessage = "Data vaksinator Anda tidak valid untuk mengajukan ICV:\n\n" . implode("\n", $errors) . "\n\nSilakan perbarui data vaksinator terlebih dahulu.";
+        if (! empty($errors)) {
+            $errorMessage = "Data vaksinator Anda tidak valid untuk mengajukan ICV:\n\n".implode("\n", $errors)."\n\nSilakan perbarui data vaksinator terlebih dahulu.";
 
             Notification::make()
                 ->title('Data Vaksinator Tidak Valid')
@@ -256,12 +257,13 @@ class CreateIcv extends CreateRecord
                 ->send();
 
             redirect()->to(VaksinatorResource::getUrl());
+
             return;
         }
 
         // Jika ada warning, tampilkan peringatan tapi tetap izinkan
-        if (!empty($warnings)) {
-            $warningMessage = "Peringatan mengenai data vaksinator Anda:\n\n" . implode("\n", $warnings) . "\n\nDisarankan untuk memperbarui data vaksinator segera.";
+        if (! empty($warnings)) {
+            $warningMessage = "Peringatan mengenai data vaksinator Anda:\n\n".implode("\n", $warnings)."\n\nDisarankan untuk memperbarui data vaksinator segera.";
 
             Notification::make()
                 ->title('Peringatan Data Vaksinator')
@@ -284,7 +286,7 @@ class CreateIcv extends CreateRecord
     {
         $suratPersetujuan = SuratPersetujuanIcv::where('id_akun', $userId)->masihBerlaku()->first();
 
-        if (!$suratPersetujuan) {
+        if (! $suratPersetujuan) {
             Notification::make()
                 ->title('Surat Persetujuan ICV Belum Ada')
                 ->body('Anda harus memiliki Surat Persetujuan ICV terlebih dahulu sebelum dapat mengajukan ICV. Silakan lengkapi surat persetujuan ICV melalui menu yang tersedia.')
@@ -300,6 +302,7 @@ class CreateIcv extends CreateRecord
 
             // Redirect ke halaman surat persetujuan ICV
             redirect()->to(SuratPersetujuanIcvResource::getUrl());
+
             return;
         }
 
@@ -316,27 +319,27 @@ class CreateIcv extends CreateRecord
         $errors = [];
 
         // Cek status masa berlaku surat persetujuan
-        if (!$suratPersetujuan->masa_berlaku) {
+        if (! $suratPersetujuan->masa_berlaku) {
             $errors[] = '• Masa berlaku surat persetujuan ICV belum diisi';
         } elseif ($suratPersetujuan->masa_berlaku < now()) {
-            $errors[] = '• Surat persetujuan ICV sudah kadaluarsa (' . $suratPersetujuan->masa_berlaku->format('d/m/Y') . ')';
+            $errors[] = '• Surat persetujuan ICV sudah kadaluarsa ('.$suratPersetujuan->masa_berlaku->format('d/m/Y').')';
         } elseif ($suratPersetujuan->masa_berlaku <= now()->addDays(30)) {
-            $warnings[] = '• Surat persetujuan ICV akan habis dalam 30 hari (' . $suratPersetujuan->masa_berlaku->format('d/m/Y') . ')';
+            $warnings[] = '• Surat persetujuan ICV akan habis dalam 30 hari ('.$suratPersetujuan->masa_berlaku->format('d/m/Y').')';
         }
 
         // Validasi nomor surat
-        if (!$suratPersetujuan->nomor_surat) {
+        if (! $suratPersetujuan->nomor_surat) {
             $errors[] = '• Nomor surat persetujuan ICV belum diisi';
         }
 
         // Validasi tanggal surat
-        if (!$suratPersetujuan->tanggal_surat) {
+        if (! $suratPersetujuan->tanggal_surat) {
             $errors[] = '• Tanggal surat persetujuan ICV belum diisi';
         }
 
         // Jika ada error, blokir pembuatan ICV
-        if (!empty($errors)) {
-            $errorMessage = "Surat persetujuan ICV Anda tidak valid untuk mengajukan ICV:\n\n" . implode("\n", $errors) . "\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.";
+        if (! empty($errors)) {
+            $errorMessage = "Surat persetujuan ICV Anda tidak valid untuk mengajukan ICV:\n\n".implode("\n", $errors)."\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.";
 
             Notification::make()
                 ->title('Surat Persetujuan ICV Tidak Valid')
@@ -352,12 +355,13 @@ class CreateIcv extends CreateRecord
                 ->send();
 
             redirect()->to(SuratPersetujuanIcvResource::getUrl());
+
             return;
         }
 
         // Jika ada warning, tampilkan peringatan tapi tetap izinkan
-        if (!empty($warnings)) {
-            $warningMessage = "Peringatan mengenai surat persetujuan ICV Anda:\n\n" . implode("\n", $warnings) . "\n\nDisarankan untuk memperbarui surat persetujuan ICV segera.";
+        if (! empty($warnings)) {
+            $warningMessage = "Peringatan mengenai surat persetujuan ICV Anda:\n\n".implode("\n", $warnings)."\n\nDisarankan untuk memperbarui surat persetujuan ICV segera.";
 
             Notification::make()
                 ->title('Peringatan Surat Persetujuan ICV')
@@ -392,7 +396,7 @@ class CreateIcv extends CreateRecord
     {
         $vaksinator = Vaksinator::where('id_akun', $userId)->aktif()->first();
 
-        if (!$vaksinator) {
+        if (! $vaksinator) {
             $user = \App\Models\User::find($userId);
             $userName = $user ? $user->name : 'User';
 
@@ -409,21 +413,21 @@ class CreateIcv extends CreateRecord
         // Validasi status vaksinator
         $errors = [];
 
-        if (!$vaksinator->masa_aktif_izin_praktek || $vaksinator->masa_aktif_izin_praktek < now()) {
+        if (! $vaksinator->masa_aktif_izin_praktek || $vaksinator->masa_aktif_izin_praktek < now()) {
             $errors[] = 'Izin praktek tidak valid atau sudah kadaluarsa';
         }
 
-        if (!$vaksinator->masa_aktif_sertifikat || $vaksinator->masa_aktif_sertifikat < now()) {
+        if (! $vaksinator->masa_aktif_sertifikat || $vaksinator->masa_aktif_sertifikat < now()) {
             $errors[] = 'Sertifikat vaksinator tidak valid atau sudah kadaluarsa';
         }
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             $user = \App\Models\User::find($userId);
             $userName = $user ? $user->name : 'User';
 
             Notification::make()
                 ->title('Data Vaksinator Tidak Valid')
-                ->body("{$userName} memiliki masalah dengan data vaksinator:\n• " . implode("\n• ", $errors) . "\n\nSilakan perbarui data vaksinator terlebih dahulu.")
+                ->body("{$userName} memiliki masalah dengan data vaksinator:\n• ".implode("\n• ", $errors)."\n\nSilakan perbarui data vaksinator terlebih dahulu.")
                 ->danger()
                 ->persistent()
                 ->send();
@@ -439,7 +443,7 @@ class CreateIcv extends CreateRecord
     {
         $suratPersetujuan = SuratPersetujuanIcv::where('id_akun', $userId)->masihBerlaku()->first();
 
-        if (!$suratPersetujuan) {
+        if (! $suratPersetujuan) {
             $user = \App\Models\User::find($userId);
             $userName = $user ? $user->name : 'User';
 
@@ -456,25 +460,25 @@ class CreateIcv extends CreateRecord
         // Validasi status surat persetujuan
         $errors = [];
 
-        if (!$suratPersetujuan->masa_berlaku || $suratPersetujuan->masa_berlaku < now()) {
+        if (! $suratPersetujuan->masa_berlaku || $suratPersetujuan->masa_berlaku < now()) {
             $errors[] = 'Surat persetujuan ICV tidak valid atau sudah kadaluarsa';
         }
 
-        if (!$suratPersetujuan->nomor_surat) {
+        if (! $suratPersetujuan->nomor_surat) {
             $errors[] = 'Nomor surat persetujuan ICV belum diisi';
         }
 
-        if (!$suratPersetujuan->tanggal_surat) {
+        if (! $suratPersetujuan->tanggal_surat) {
             $errors[] = 'Tanggal surat persetujuan ICV belum diisi';
         }
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             $user = \App\Models\User::find($userId);
             $userName = $user ? $user->name : 'User';
 
             Notification::make()
                 ->title('Surat Persetujuan ICV Tidak Valid')
-                ->body("{$userName} memiliki masalah dengan surat persetujuan ICV:\n• " . implode("\n• ", $errors) . "\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.")
+                ->body("{$userName} memiliki masalah dengan surat persetujuan ICV:\n• ".implode("\n• ", $errors)."\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.")
                 ->danger()
                 ->persistent()
                 ->send();

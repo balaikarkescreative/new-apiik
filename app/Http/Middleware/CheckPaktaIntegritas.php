@@ -2,11 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\PaktaIntegritas;
 use Closure;
+use Filament\Notifications\Notification;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\PaktaIntegritas;
-use Filament\Notifications\Notification;
 
 class CheckPaktaIntegritas
 {
@@ -17,7 +17,7 @@ class CheckPaktaIntegritas
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (auth()->check()){
+        if (auth()->check()) {
             if (auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])) {
                 return $next($request);
             }
@@ -26,14 +26,13 @@ class CheckPaktaIntegritas
 
         }
 
-
         // Skip check for pakta integritas related routes to prevent redirect loop
         $exemptRoutes = [
             'filament.admin.resources.pakta-integritas.index',
             'filament.admin.resources.pakta-integritas.create',
             'filament.admin.resources.pakta-integritas.edit',
             'filament.admin.resources.pakta-integritas.view',
-            'filament.admin.auth.logout'
+            'filament.admin.auth.logout',
         ];
 
         if (in_array($request->route()->getName(), $exemptRoutes)) {
@@ -43,7 +42,7 @@ class CheckPaktaIntegritas
         // Check if user has uploaded pakta integritas
         $paktaIntegritas = PaktaIntegritas::where('user_id', auth()->id())->first();
 
-        if (!$paktaIntegritas || !$paktaIntegritas->file) {
+        if (! $paktaIntegritas || ! $paktaIntegritas->file) {
             Notification::make()
                 ->title('Pakta Integritas Belum Ada')
                 ->body('Anda harus mengupload pakta integritas terlebih dahulu sebelum dapat mengakses halaman ini.')

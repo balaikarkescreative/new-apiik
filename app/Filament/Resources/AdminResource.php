@@ -1,4 +1,5 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Resources/AdminResource.php
 
 namespace App\Filament\Resources;
@@ -10,8 +11,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
 class AdminResource extends Resource

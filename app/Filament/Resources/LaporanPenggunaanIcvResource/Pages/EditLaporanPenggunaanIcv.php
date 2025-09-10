@@ -21,7 +21,7 @@ class EditLaporanPenggunaanIcv extends EditRecord
     {
         // Use the data parameter instead of getRecord() since the record might not be initialized yet
         // The $data already contains the record data from the database
-        
+
         // Set jenis vaksin yang dipilih
         $data['jenis_vaksin'] = [$data['id_jenis_vaksin']];
 
@@ -33,7 +33,7 @@ class EditLaporanPenggunaanIcv extends EditRecord
                 'jml_guna_vaksin' => $data['jml_guna_vaksin'] ?? 0,
                 'sisa_vaksin' => $data['sisa_vaksin'] ?? 0,
                 'keterangan' => $data['keterangan'] ?? null,
-            ]
+            ],
         ];
 
         return $data;

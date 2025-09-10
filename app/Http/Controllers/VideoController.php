@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\VideoPanduan;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Storage;
 
 class VideoController extends Controller
 {
@@ -20,7 +18,7 @@ class VideoController extends Controller
             $video = VideoPanduan::findOrFail($id);
             \Log::info('Video found', ['video_id' => $video->id, 'title' => $video->title]);
 
-            if (!$video->videoFileExists()) {
+            if (! $video->videoFileExists()) {
                 \Log::error('Video file does not exist');
                 abort(404, 'Video file not found');
             }
@@ -28,7 +26,7 @@ class VideoController extends Controller
             $filePath = $video->getVideoFullPathAttribute();
             \Log::info('File path resolved', ['path' => $filePath]);
 
-            if (!file_exists($filePath)) {
+            if (! file_exists($filePath)) {
                 \Log::error('File does not exist on disk', ['path' => $filePath]);
                 abort(404, 'Video file not found on disk');
             }
@@ -52,18 +50,20 @@ class VideoController extends Controller
 
             if ($rangeHeader) {
                 \Log::info('Processing range request');
+
                 return $this->handleRangeRequest($filePath, $fileSize, $rangeHeader, $headers);
             }
 
             \Log::info('Returning full file');
+
             // Return full file if no range requested
             return response()->file($filePath, $headers);
         } catch (\Exception $e) {
             \Log::error('Unexpected error in stream method', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            abort(500, 'Internal Server Error: ' . $e->getMessage());
+            abort(500, 'Internal Server Error: '.$e->getMessage());
         }
     }
 
@@ -72,12 +72,12 @@ class VideoController extends Controller
      */
     private function handleRangeRequest(string $filePath, int $fileSize, string $rangeHeader, array $baseHeaders)
     {
-        if (!preg_match('/bytes=(\d*)-(\d*)/', $rangeHeader, $matches)) {
+        if (! preg_match('/bytes=(\d*)-(\d*)/', $rangeHeader, $matches)) {
             abort(416, 'Range Not Satisfiable');
         }
 
-        $start = $matches[1] === '' ? 0 : (int)$matches[1];
-        $end = $matches[2] === '' ? $fileSize - 1 : (int)$matches[2];
+        $start = $matches[1] === '' ? 0 : (int) $matches[1];
+        $end = $matches[2] === '' ? $fileSize - 1 : (int) $matches[2];
 
         if ($start >= $fileSize || $end >= $fileSize || $start > $end) {
             abort(416, 'Range Not Satisfiable');
@@ -100,7 +100,7 @@ class VideoController extends Controller
 
         return response()->stream(function () use ($filePath, $start, $end) {
             $file = fopen($filePath, 'rb');
-            if (!$file) {
+            if (! $file) {
                 abort(500, 'Cannot open file');
             }
 
@@ -108,7 +108,7 @@ class VideoController extends Controller
             fseek($file, $start);
 
             $remaining = $end - $start + 1;
-            while ($remaining > 0 && !feof($file)) {
+            while ($remaining > 0 && ! feof($file)) {
                 $chunkSize = min(8192, $remaining);
                 echo fread($file, $chunkSize);
                 flush(); // penting untuk streaming
@@ -126,7 +126,7 @@ class VideoController extends Controller
     {
         $video = VideoPanduan::findOrFail($id);
 
-        if (!$video->videoFileExists()) {
+        if (! $video->videoFileExists()) {
             abort(404, 'Video file not found');
         }
 
@@ -141,7 +141,7 @@ class VideoController extends Controller
             if ($output) {
                 $probe = json_decode($output, true);
                 if (isset($probe['format']['duration'])) {
-                    $duration = (float)$probe['format']['duration'];
+                    $duration = (float) $probe['format']['duration'];
                 }
             }
         }
@@ -164,7 +164,7 @@ class VideoController extends Controller
     {
         $video = VideoPanduan::findOrFail($id);
 
-        if (!$video->videoFileExists()) {
+        if (! $video->videoFileExists()) {
             return response()->json(['error' => 'Video file not found'], 404);
         }
 
@@ -172,7 +172,7 @@ class VideoController extends Controller
         $fileSize = filesize($filePath);
 
         // Test range request dengan mengambil 1KB pertama
-        $testRange = "bytes=0-1023";
+        $testRange = 'bytes=0-1023';
 
         try {
             $response = $this->handleRangeRequest($filePath, $fileSize, $testRange, [
@@ -189,7 +189,7 @@ class VideoController extends Controller
                 'test_range_response' => [
                     'status' => $response->getStatusCode(),
                     'headers' => $response->headers->all(),
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([

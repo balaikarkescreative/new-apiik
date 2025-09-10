@@ -2,12 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Icv;
 use App\Models\IcvBuktiBayar;
-use App\Models\IcvSbbk;
 use App\Models\IcvJadwal;
-use Illuminate\Support\Facades\DB;
+use App\Models\IcvSbbk;
+use Illuminate\Database\Seeder;
 
 class IcvJadwalAutoFixSeeder extends Seeder
 {
@@ -21,11 +20,13 @@ class IcvJadwalAutoFixSeeder extends Seeder
             ->where('file_bukti_bayar', '!=', '')
             ->pluck('id_icv');
 
-        $this->command->info('Memproses ' . $icvIds->count() . ' ICV dengan file_bukti_bayar...');
+        $this->command->info('Memproses '.$icvIds->count().' ICV dengan file_bukti_bayar...');
 
         foreach ($icvIds as $id_icv) {
             $icv = Icv::find($id_icv);
-            if (!$icv) continue;
+            if (! $icv) {
+                continue;
+            }
 
             $buktiBayar = IcvBuktiBayar::where('id_icv', $id_icv)
                 ->whereNotNull('file_bukti_bayar')
@@ -40,7 +41,7 @@ class IcvJadwalAutoFixSeeder extends Seeder
             $sbbk = IcvSbbk::where('id_icv', $id_icv)->first();
 
             // Jika belum ada jadwal atau jadwal_pengambilan null, buat/isi
-            if (!$jadwal || !$jadwal->jadwal_pengambilan) {
+            if (! $jadwal || ! $jadwal->jadwal_pengambilan) {
                 $jadwalDate = $buktiBayar ? $buktiBayar->date_updated->toDateString() : now()->toDateString();
                 IcvJadwal::updateOrCreate(
                     ['id_icv' => $id_icv],
@@ -53,7 +54,7 @@ class IcvJadwalAutoFixSeeder extends Seeder
             }
 
             // Jika belum ada SBBK atau sinkarkes null/belum, update/isi
-            if (!$sbbk) {
+            if (! $sbbk) {
                 IcvSbbk::create([
                     'id_icv' => $id_icv,
                     // 'file_sbbk' => null,

@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\Izin;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class IzinSeeder extends Seeder
 {
@@ -17,8 +16,9 @@ class IzinSeeder extends Seeder
     {
         $jsonPath = database_path('seeders/tbl_izin.json');
 
-        if (!file_exists($jsonPath)) {
+        if (! file_exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
+
             return;
         }
 
@@ -34,30 +34,34 @@ class IzinSeeder extends Seeder
             }
         }
 
-        if (!$izinData) {
+        if (! $izinData) {
             $this->command->error('No izin data found in JSON file');
+
             return;
         }
 
-        $this->command->info('Processing ' . count($izinData) . ' izin records...');
+        $this->command->info('Processing '.count($izinData).' izin records...');
 
         foreach ($izinData as $record) {
             // Skip if ID already exists
-            if (!empty($record['id']) && Izin::where('id', $record['id'])->exists()) {
+            if (! empty($record['id']) && Izin::where('id', $record['id'])->exists()) {
                 $this->command->warn("Izin with ID {$record['id']} already exists. Skipping...");
+
                 continue;
             }
 
             // Skip if id_klinik is 0 or empty
             if (empty($record['id_klinik']) || $record['id_klinik'] == '0') {
                 $this->command->warn("Skipping izin ID {$record['id']} - id_klinik is 0 or empty");
+
                 continue;
             }
 
             // Find user by id_klinik
             $user = User::find($record['id_klinik']);
-            if (!$user) {
+            if (! $user) {
                 $this->command->warn("User with ID {$record['id_klinik']} not found for izin ID {$record['id']}. Skipping...");
+
                 continue;
             }
 
@@ -101,7 +105,7 @@ class IzinSeeder extends Seeder
      */
     private function parseDate($dateString)
     {
-        if (!$dateString || $dateString === '0000-00-00' || $dateString === '0') {
+        if (! $dateString || $dateString === '0000-00-00' || $dateString === '0') {
             return null;
         }
 
@@ -109,6 +113,7 @@ class IzinSeeder extends Seeder
             return Carbon::parse($dateString)->format('Y-m-d');
         } catch (\Exception $e) {
             $this->command->warn("Invalid date format: {$dateString}");
+
             return null;
         }
     }
@@ -118,7 +123,7 @@ class IzinSeeder extends Seeder
      */
     private function parseDateTime($datetimeString)
     {
-        if (!$datetimeString || $datetimeString === '0000-00-00 00:00:00') {
+        if (! $datetimeString || $datetimeString === '0000-00-00 00:00:00') {
             return now();
         }
 
@@ -126,6 +131,7 @@ class IzinSeeder extends Seeder
             return Carbon::parse($datetimeString);
         } catch (\Exception $e) {
             $this->command->warn("Invalid datetime format: {$datetimeString}");
+
             return now();
         }
     }
@@ -159,7 +165,7 @@ class IzinSeeder extends Seeder
         }
 
         // Add izin-documents/ prefix to valid filenames
-        return 'izin-documents/' . $filename;
+        return 'izin-documents/'.$filename;
     }
 
     /**
@@ -168,6 +174,6 @@ class IzinSeeder extends Seeder
     private function mapStatus($status)
     {
         // Keep status as is for now, could be modified based on requirements
-        return (int)$status;
+        return (int) $status;
     }
 }

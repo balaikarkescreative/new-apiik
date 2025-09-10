@@ -2,17 +2,15 @@
 
 namespace App\Filament\Pages\Auth;
 
-use Filament\Pages\Auth\Register as BaseRegister;
-use Filament\Forms;
-use Filament\Actions\Action;
-use App\Models\User;
-use App\Models\Kotakab;
 use App\ChecksOperationalHours;
+use App\Models\Kotakab;
+use App\Models\User;
+use Filament\Actions\Action;
+use Filament\Forms;
 use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
-use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
+use Filament\Pages\Auth\Register as BaseRegister;
 use Illuminate\Auth\Events\Registered as LaravelRegistered;
+use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 
 class Register extends BaseRegister
 {
@@ -33,7 +31,7 @@ class Register extends BaseRegister
                 ->submit('register')
                 ->size('xl')
                 ->icon('heroicon-o-check-circle')
-                ->extraAttributes(['class' => 'w-full'])
+                ->extraAttributes(['class' => 'w-full']),
         ];
     }
 
@@ -45,10 +43,10 @@ class Register extends BaseRegister
         $this->checkOperationalHoursWithRedirect('register', '/login');
     }
 
-    public function register(): \Filament\Http\Responses\Auth\Contracts\RegistrationResponse|null
+    public function register(): ?\Filament\Http\Responses\Auth\Contracts\RegistrationResponse
     {
         // Double check sebelum proses registrasi menggunakan trait
-        if (!$this->checkOperationalHours('register')) {
+        if (! $this->checkOperationalHours('register')) {
             return null;
         }
 
@@ -56,7 +54,7 @@ class Register extends BaseRegister
 
         // Fix: Ambil nama kotakab berdasarkan ID yang dipilih
         $kotakabName = null;
-        if (!empty($data['kotakab'])) {
+        if (! empty($data['kotakab'])) {
             $kotakab = Kotakab::find($data['kotakab']);
             $kotakabName = $kotakab ? $kotakab->nama_kotakab : null;
         }
@@ -122,6 +120,7 @@ class Register extends BaseRegister
                                     ->label('Nama Klinik/RS')
                                     ->prefix(function (callable $get) {
                                         $kategori = $get('kategori');
+
                                         return match ($kategori) {
                                             'Klinik' => 'Klinik',
                                             'Rumah Sakit' => 'Rumah Sakit',
@@ -167,7 +166,7 @@ class Register extends BaseRegister
                                         'ya' => 'Ya, sudah memiliki cold chain yang sesuai',
                                         'tidak' => 'Tidak, belum memiliki cold chain yang sesuai',
                                     ])
-                                    ->required()
+                                    ->required(),
                             ]),
                     ])
                     ->statePath('data'),

@@ -2,12 +2,11 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\Izin;
-use App\Models\IzinPersetujuan;
 use App\Models\IzinDokumenPks;
+use App\Models\IzinPersetujuan;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class CheckAndCreateIzinDokumenPksSeeder extends Seeder
 {
@@ -22,7 +21,7 @@ class CheckAndCreateIzinDokumenPksSeeder extends Seeder
             ->where('file_persetujuan', '!=', '')
             ->get();
 
-        $this->command->info('Found ' . $izinWithPersetujuan->count() . ' izin records with persetujuan files');
+        $this->command->info('Found '.$izinWithPersetujuan->count().' izin records with persetujuan files');
 
         $createdCount = 0;
         $existingCount = 0;
@@ -30,9 +29,10 @@ class CheckAndCreateIzinDokumenPksSeeder extends Seeder
 
         foreach ($izinWithPersetujuan as $persetujuan) {
             // Skip jika izin tidak ditemukan
-            if (!$persetujuan->izin) {
+            if (! $persetujuan->izin) {
                 $this->command->warn("Izin not found for persetujuan ID: {$persetujuan->id}");
                 $skippedCount++;
+
                 continue;
             }
 
@@ -44,6 +44,7 @@ class CheckAndCreateIzinDokumenPksSeeder extends Seeder
             if ($existingDokumenPks) {
                 $this->command->info("IzinDokumenPks already exists for Izin ID: {$izin->id}");
                 $existingCount++;
+
                 continue;
             }
 
@@ -68,7 +69,7 @@ class CheckAndCreateIzinDokumenPksSeeder extends Seeder
                 $createdCount++;
 
             } catch (\Exception $e) {
-                $this->command->error("Failed to create IzinDokumenPks for Izin ID: {$izin->id}. Error: " . $e->getMessage());
+                $this->command->error("Failed to create IzinDokumenPks for Izin ID: {$izin->id}. Error: ".$e->getMessage());
                 $skippedCount++;
             }
         }
@@ -76,7 +77,7 @@ class CheckAndCreateIzinDokumenPksSeeder extends Seeder
         // Summary
         $this->command->info('');
         $this->command->info('=== SUMMARY ===');
-        $this->command->info("Total izin with persetujuan: " . $izinWithPersetujuan->count());
+        $this->command->info('Total izin with persetujuan: '.$izinWithPersetujuan->count());
         $this->command->info("Created new records: {$createdCount}");
         $this->command->info("Already existing: {$existingCount}");
         $this->command->info("Skipped/Failed: {$skippedCount}");
@@ -89,7 +90,7 @@ class CheckAndCreateIzinDokumenPksSeeder extends Seeder
      */
     private function calculateTanggalVisitasi($dateUpdated)
     {
-        if (!$dateUpdated) {
+        if (! $dateUpdated) {
             return now()->format('Y-m-d');
         }
 
@@ -97,6 +98,7 @@ class CheckAndCreateIzinDokumenPksSeeder extends Seeder
             return Carbon::parse($dateUpdated)->format('Y-m-d');
         } catch (\Exception $e) {
             $this->command->warn("Invalid date format for date_updated: {$dateUpdated}");
+
             return now()->format('Y-m-d');
         }
     }

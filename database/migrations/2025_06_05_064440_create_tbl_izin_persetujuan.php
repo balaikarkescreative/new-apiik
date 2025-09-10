@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('file_persetujuan', 128);
             $table->integer('status');
             $table->timestamp('date_updated')->useCurrent();
-            
+
             // Foreign key constraint
             $table->foreign('id_izin')->references('id')->on('tbl_izin')->onDelete('cascade');
         });

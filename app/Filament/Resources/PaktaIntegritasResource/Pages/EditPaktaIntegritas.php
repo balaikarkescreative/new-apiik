@@ -43,17 +43,17 @@ class EditPaktaIntegritas extends EditRecord
 
             // Create new filename
             $newFileName = "Pakta integritas {$cleanUserName} ({$date}).{$extension}";
-            $newFilePath = 'pakta-integritas/' . $newFileName;
+            $newFilePath = 'pakta-integritas/'.$newFileName;
 
             // Check if filename needs to be changed
             if ($currentFilePath !== $newFilePath) {
-                $oldFullPath = storage_path('app/public/' . $currentFilePath);
-                $newFullPath = storage_path('app/public/' . $newFilePath);
+                $oldFullPath = storage_path('app/public/'.$currentFilePath);
+                $newFullPath = storage_path('app/public/'.$newFilePath);
 
                 if (file_exists($oldFullPath)) {
                     // Ensure directory exists
                     $directory = dirname($newFullPath);
-                    if (!is_dir($directory)) {
+                    if (! is_dir($directory)) {
                         mkdir($directory, 0755, true);
                     }
 
@@ -67,7 +67,7 @@ class EditPaktaIntegritas extends EditRecord
         }
     }
 
-    public function getRedirectUrl(): string|null
+    public function getRedirectUrl(): ?string
     {
         return static::getResource()::getUrl('index');
     }

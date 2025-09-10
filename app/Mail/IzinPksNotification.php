@@ -2,13 +2,12 @@
 
 namespace App\Mail;
 
+use App\Models\Izin;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Izin;
 
 class IzinPksNotification extends Mailable
 {
@@ -25,7 +24,7 @@ class IzinPksNotification extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'PKS Selesai - ID: ' . $this->izin->id,
+            subject: 'PKS Selesai - ID: '.$this->izin->id,
         );
     }
 
@@ -45,8 +44,8 @@ class IzinPksNotification extends Mailable
             $attachments[] = \Illuminate\Mail\Mailables\Attachment::fromStorageDisk(
                 'public',
                 $this->izin->izinDokumenPks->dokumen_pks_bkk
-            )->as('PKS_Final_' . $this->izin->id . '.pdf')
-            ->withMime('application/pdf');
+            )->as('PKS_Final_'.$this->izin->id.'.pdf')
+                ->withMime('application/pdf');
         }
 
         return $attachments;

@@ -3,9 +3,8 @@
 namespace App\Filament\Resources\VaksinatorResource\Pages;
 
 use App\Filament\Resources\VaksinatorResource;
-use Filament\Actions;
-use Filament\Resources\Pages\CreateRecord;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\CreateRecord;
 
 class CreateVaksinator extends CreateRecord
 {
@@ -31,7 +30,7 @@ class CreateVaksinator extends CreateRecord
     {
         Notification::make()
             ->title('Data Vaksinator Berhasil Ditambahkan')
-            ->body('Data vaksinator ' . $this->record->nama_vaksinator . ' telah ditambahkan.')
+            ->body('Data vaksinator '.$this->record->nama_vaksinator.' telah ditambahkan.')
             ->success()
             ->send();
     }

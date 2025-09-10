@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\KotakabResource\Pages;
-use App\Filament\Resources\KotakabResource\RelationManagers;
 use App\Models\Kotakab;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -11,8 +10,6 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class KotakabResource extends Resource
 {
@@ -28,11 +25,11 @@ class KotakabResource extends Resource
 
     protected static ?int $navigationSort = 8;
 
-
     public static function canAccess(): bool
     {
         return auth()->user()->hasRole(['admin']);
     }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -50,7 +47,7 @@ class KotakabResource extends Resource
                         'nonaktif' => 'Nonaktif',
                     ])
                     ->default('aktif')
-                    ->required()
+                    ->required(),
             ]);
     }
 
@@ -65,13 +62,13 @@ class KotakabResource extends Resource
                 Tables\Columns\ToggleColumn::make('status')
                     ->label('Aktif')
                     // data from database is 'aktif' or 'nonaktif'
-                    ->state(fn($record) => $record->status === 'aktif')
+                    ->state(fn ($record) => $record->status === 'aktif')
                     ->updateStateUsing(function ($record, $state) {
                         $record->update([
-                            'status' => $state ? 'aktif' : 'nonaktif'
+                            'status' => $state ? 'aktif' : 'nonaktif',
                         ]);
                     })
-                    ->sortable()
+                    ->sortable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
@@ -80,7 +77,7 @@ class KotakabResource extends Resource
                         'aktif' => 'Aktif',
                         'nonaktif' => 'Nonaktif',
                     ]),
-                ], FiltersLayout::AboveContent)
+            ], FiltersLayout::AboveContent)
             ->actions([
                 Tables\Actions\EditAction::make(),
             ])

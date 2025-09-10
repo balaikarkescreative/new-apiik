@@ -4,7 +4,6 @@ namespace App\Filament\Resources\FaqResource\Pages;
 
 use App\Filament\Resources\FaqResource;
 use App\Models\Faq;
-use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateFaq extends CreateRecord
@@ -21,7 +20,7 @@ class CreateFaq extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         // Auto set order jika tidak diisi
-        if (!isset($data['order']) || $data['order'] === 0) {
+        if (! isset($data['order']) || $data['order'] === 0) {
             $maxOrder = Faq::max('order') ?? 0;
             $data['order'] = $maxOrder + 1;
         }

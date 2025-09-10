@@ -1,4 +1,5 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/lang/id/passwords.php
 
 return [
@@ -18,6 +19,6 @@ return [
     'sent' => 'Kami telah mengirim email berisi tautan reset password.',
     'throttled' => 'Silakan tunggu sebelum mencoba lagi.',
     'token' => 'Token reset password tidak valid.',
-    'user' => "Kami tidak dapat menemukan pengguna dengan alamat email tersebut.",
+    'user' => 'Kami tidak dapat menemukan pengguna dengan alamat email tersebut.',
 
 ];

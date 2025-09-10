@@ -15,7 +15,7 @@ trait ChecksOperationalHours
         $setting = OperationalSetting::getActiveSettings();
 
         // Jika tidak ada pengaturan aktif, izinkan akses (tidak ada pembatasan)
-        if (!$setting || !$setting->is_active) {
+        if (! $setting || ! $setting->is_active) {
             return true;
         }
 
@@ -28,11 +28,12 @@ trait ChecksOperationalHours
                 $message,
                 'warning'
             );
+
             return false;
         }
 
         // Jika ada pengaturan aktif, cek jam operasional
-        if (!$setting->isOpen()) {
+        if (! $setting->isOpen()) {
             $message = $this->buildOperationalMessage($setting, $serviceType);
 
             $this->sendOperationalNotification(
@@ -40,6 +41,7 @@ trait ChecksOperationalHours
                 $message,
                 'warning'
             );
+
             return false;
         }
 
@@ -54,7 +56,7 @@ trait ChecksOperationalHours
         $setting = OperationalSetting::getActiveSettings();
 
         // Jika tidak ada pengaturan aktif, izinkan akses
-        if (!$setting || !$setting->is_active) {
+        if (! $setting || ! $setting->is_active) {
             return true;
         }
 
@@ -68,11 +70,12 @@ trait ChecksOperationalHours
                 'warning'
             );
             $this->redirectToRoute($redirectTo);
+
             return false;
         }
 
         // Jika ada pengaturan aktif, cek jam operasional
-        if (!$setting->isOpen()) {
+        if (! $setting->isOpen()) {
             $message = $this->buildOperationalMessage($setting, $serviceType);
 
             $this->sendOperationalNotification(
@@ -81,6 +84,7 @@ trait ChecksOperationalHours
                 'warning'
             );
             $this->redirectToRoute($redirectTo);
+
             return false;
         }
 
@@ -95,7 +99,7 @@ trait ChecksOperationalHours
         $setting = OperationalSetting::getActiveSettings();
 
         // Jika tidak ada pengaturan aktif, izinkan akses
-        if (!$setting || !$setting->is_active) {
+        if (! $setting || ! $setting->is_active) {
             return;
         }
 
@@ -106,7 +110,7 @@ trait ChecksOperationalHours
         }
 
         // Jika ada pengaturan aktif, cek jam operasional
-        if (!$setting->isOpen()) {
+        if (! $setting->isOpen()) {
             $message = $this->buildOperationalMessage($setting, $serviceType);
             throw new \Exception($message);
         }
@@ -119,11 +123,11 @@ trait ChecksOperationalHours
     {
         $setting = OperationalSetting::getActiveSettings();
 
-        if (!$setting || !$setting->is_active) {
+        if (! $setting || ! $setting->is_active) {
             return [
                 'status' => 'no_restriction',
                 'message' => 'Tidak ada pembatasan jam operasional',
-                'color' => 'success'
+                'color' => 'success',
             ];
         }
 
@@ -132,22 +136,22 @@ trait ChecksOperationalHours
             return [
                 'status' => 'service_closed',
                 'message' => $this->buildOperationalMessage($setting, $serviceType),
-                'color' => 'danger'
+                'color' => 'danger',
             ];
         }
 
-        if (!$setting->isOpen()) {
+        if (! $setting->isOpen()) {
             return [
                 'status' => 'closed',
                 'message' => $this->buildOperationalMessage($setting, $serviceType),
-                'color' => 'warning'
+                'color' => 'warning',
             ];
         }
 
         return [
             'status' => 'open',
             'message' => 'Layanan sedang beroperasi',
-            'color' => 'success'
+            'color' => 'success',
         ];
     }
 
@@ -161,18 +165,18 @@ trait ChecksOperationalHours
             return sprintf(
                 '%s sedang ditutup sementara oleh administrator.',
                 $this->getServiceName($serviceType)
-            ) . "\n\nSilakan coba lagi nanti atau hubungi administrator untuk informasi lebih lanjut.";
+            )."\n\nSilakan coba lagi nanti atau hubungi administrator untuk informasi lebih lanjut.";
         }
 
         // Pesan normal untuk jam operasional
         $dayNames = [];
-        if (!empty($setting->operational_days)) {
+        if (! empty($setting->operational_days)) {
             foreach ($setting->operational_days as $day) {
                 $dayNames[] = OperationalSetting::dayOptions()[$day] ?? "Hari-$day";
             }
         }
 
-        $operationalDays = !empty($dayNames) ? implode(', ', $dayNames) : 'Setiap hari';
+        $operationalDays = ! empty($dayNames) ? implode(', ', $dayNames) : 'Setiap hari';
 
         return sprintf(
             '%s hanya dapat dilakukan pada %s, jam %s - %s.',
@@ -189,7 +193,7 @@ trait ChecksOperationalHours
     private function isServiceSpecificallyClosed(OperationalSetting $setting, string $serviceType): bool
     {
         // Cek penutupan layanan spesifik
-        return match($serviceType) {
+        return match ($serviceType) {
             'icv' => $setting->icv_closed ?? false,
             'izin' => $setting->izin_closed ?? false,
             'account', 'register' => $setting->account_closed ?? false,
@@ -215,7 +219,7 @@ trait ChecksOperationalHours
      */
     private function getServiceName(string $serviceType): string
     {
-        return match($serviceType) {
+        return match ($serviceType) {
             'account', 'register' => 'Pengajuan akun baru',
             'izin' => 'Pengajuan izin',
             'icv' => 'Pengajuan ICV',
@@ -240,7 +244,7 @@ trait ChecksOperationalHours
      */
     protected function canBypassOperationalHours(): bool
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return false;
         }
 

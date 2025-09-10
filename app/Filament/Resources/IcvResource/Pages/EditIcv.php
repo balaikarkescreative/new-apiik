@@ -3,9 +3,6 @@
 namespace App\Filament\Resources\IcvResource\Pages;
 
 use App\Filament\Resources\IcvResource;
-use App\Models\IcvCekDokumen;
-use Filament\Forms\Form;
-use Filament\Forms;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
@@ -21,7 +18,7 @@ class EditIcv extends EditRecord
         }
 
         // Set tanggal_perbaikan jika ada di data
-        if (!empty($this->data['tanggal_perbaikan'])) {
+        if (! empty($this->data['tanggal_perbaikan'])) {
             $this->record->tanggal_perbaikan = $this->data['tanggal_perbaikan'];
             $this->record->save();
         }
@@ -45,7 +42,6 @@ class EditIcv extends EditRecord
             return $this->getResource()::getUrl('daftar-pengajuan');
         }
     }
-
 
     protected function getHeaderActions(): array
     {

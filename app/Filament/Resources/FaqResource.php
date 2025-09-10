@@ -3,16 +3,12 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\FaqResource\Pages;
-use App\Filament\Resources\FaqResource\RelationManagers;
 use App\Models\Faq;
 use Filament\Forms;
 use Filament\Forms\Form;
-use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Database\Eloquent\Collection;
 
 class FaqResource extends Resource
@@ -94,6 +90,7 @@ class FaqResource extends Resource
                     ->limit(60)
                     ->tooltip(function ($record): ?string {
                         $question = $record->question;
+
                         return strlen($question) > 60 ? $question : null;
                     }),
 
@@ -136,15 +133,14 @@ class FaqResource extends Resource
                         $higherRecord = Faq::where('order', '<', $record->order)
                             ->orderBy('order', 'desc')
                             ->first();
-                        
+
                         if ($higherRecord) {
                             $tempOrder = $record->order;
                             $record->update(['order' => $higherRecord->order]);
                             $higherRecord->update(['order' => $tempOrder]);
                         }
                     })
-                    ->visible(fn (Faq $record): bool => 
-                        Faq::where('order', '<', $record->order)->exists()
+                    ->visible(fn (Faq $record): bool => Faq::where('order', '<', $record->order)->exists()
                     )
                     ->tooltip('Pindahkan ke atas'),
 
@@ -157,15 +153,14 @@ class FaqResource extends Resource
                         $lowerRecord = Faq::where('order', '>', $record->order)
                             ->orderBy('order', 'asc')
                             ->first();
-                        
+
                         if ($lowerRecord) {
                             $tempOrder = $record->order;
                             $record->update(['order' => $lowerRecord->order]);
                             $lowerRecord->update(['order' => $tempOrder]);
                         }
                     })
-                    ->visible(fn (Faq $record): bool => 
-                        Faq::where('order', '>', $record->order)->exists()
+                    ->visible(fn (Faq $record): bool => Faq::where('order', '>', $record->order)->exists()
                     )
                     ->tooltip('Pindahkan ke bawah'),
 

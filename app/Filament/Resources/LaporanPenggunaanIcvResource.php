@@ -10,15 +10,11 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Collection;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
-use Filament\Forms\Components\DatePicker;
-use Illuminate\Database\Eloquent\Builder;
-use Carbon\Carbon;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class LaporanPenggunaanIcvResource extends Resource
@@ -26,8 +22,11 @@ class LaporanPenggunaanIcvResource extends Resource
     protected static ?string $model = LaporanPenggunaanIcv::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+
     protected static ?string $navigationLabel = 'Laporan Harian Penggunaan ICV';
+
     protected static ?string $pluralLabel = 'Laporan Harian Penggunaan ICV';
+
     protected static ?string $slug = 'laporan-penggunaan-icv';
 
     public static function canAccess(): bool
@@ -63,7 +62,7 @@ class LaporanPenggunaanIcvResource extends Resource
                         $user = Auth::user();
 
                         // Jika bukan admin/verifikator2, set default ke user yang login
-                        if (!$user->hasRole('admin') && !$user->hasRole('verifikator2')) {
+                        if (! $user->hasRole('admin') && ! $user->hasRole('verifikator2')) {
                             return $user->id;
                         }
 
@@ -73,7 +72,7 @@ class LaporanPenggunaanIcvResource extends Resource
                         $user = Auth::user();
 
                         // Disable jika bukan admin/verifikator2
-                        return !$user->hasRole('admin') && !$user->hasRole('verifikator2');
+                        return ! $user->hasRole('admin') && ! $user->hasRole('verifikator2');
                     })
                     ->dehydrated(true) // Pastikan field ini tetap dikirim meski disabled
                     ->required(),
@@ -117,12 +116,12 @@ class LaporanPenggunaanIcvResource extends Resource
                                         ->label('Catatan')
                                         ->live()
                                         ->visible(
-                                            fn($get) =>
-                                            $get("data.{$vaksinId}.jml_terbit_icv") !== $get("data.{$vaksinId}.jml_guna_vaksin")
+                                            fn ($get) => $get("data.{$vaksinId}.jml_terbit_icv") !== $get("data.{$vaksinId}.jml_guna_vaksin")
                                         )
                                         ->placeholder('Isi jika ada perbedaan antara jumlah terbit dan jumlah guna'),
                                 ]);
                         }
+
                         return $fields;
                     }),
             ]);
@@ -132,9 +131,10 @@ class LaporanPenggunaanIcvResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function (\Illuminate\Database\Eloquent\Builder $query) {
-                if (!Auth::user()?->hasRole('admin') && !Auth::user()?->hasRole('verifikator2')) {
+                if (! Auth::user()?->hasRole('admin') && ! Auth::user()?->hasRole('verifikator2')) {
                     $query->where('id_user', Auth::id())->with(['user', 'jenisVaksin']);
                 }
+
                 return $query->orderBy('tgl_pelaporan', 'desc')->with(['user', 'jenisVaksin']);
             })
             ->headerActions([
@@ -241,6 +241,7 @@ class LaporanPenggunaanIcvResource extends Resource
                     ->searchable()
                     ->options(function () {
                         $userIds = LaporanPenggunaanIcv::distinct()->pluck('id_user');
+
                         return \App\Models\User::whereIn('id', $userIds)
                             ->pluck('name', 'id');
                     }),
@@ -285,7 +286,7 @@ class LaporanPenggunaanIcvResource extends Resource
         // Filter berdasarkan user
         if ($data['user_id'] !== 'semua') {
             $query->where('id_user', $data['user_id']); // Gunakan user_id dari form
-        } elseif (!Auth::user()?->hasRole('admin') && !Auth::user()?->hasRole('verifikator2')) {
+        } elseif (! Auth::user()?->hasRole('admin') && ! Auth::user()?->hasRole('verifikator2')) {
             // Jika bukan admin/verifikator2, hanya tampilkan data mereka sendiri
             $query->where('id_user', Auth::id());
         }
@@ -306,11 +307,11 @@ class LaporanPenggunaanIcvResource extends Resource
 
     protected static function downloadExcelIcv(Collection $data, array $params)
     {
-        $filename = 'laporan_penggunaan_icv_' . date('Y-m-d_H-i-s') . '.csv';
+        $filename = 'laporan_penggunaan_icv_'.date('Y-m-d_H-i-s').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Content-Transfer-Encoding' => 'binary',
             'Expires' => '0',
@@ -321,7 +322,7 @@ class LaporanPenggunaanIcvResource extends Resource
             $output = fopen('php://output', 'w');
 
             // BOM untuk UTF-8
-            fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
             // Header
             fputcsv($output, [
@@ -334,7 +335,7 @@ class LaporanPenggunaanIcvResource extends Resource
                 'Jumlah Guna Vaksin',
                 'Sisa ICV',
                 'Sisa Vaksin',
-                'Catatan'
+                'Catatan',
             ]);
 
             // Data

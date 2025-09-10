@@ -10,13 +10,13 @@ class ListLaporanGeotaggings extends ListRecords
 {
     protected static string $resource = LaporanGeotaggingResource::class;
 
-     protected function getHeaderActions(): array
+    protected function getHeaderActions(): array
     {
         return [
             Actions\CreateAction::make()
                 ->label('Tambah Laporan Geotagging')
                 ->icon('heroicon-o-plus')
-                ->color('primary')
+                ->color('primary'),
         ];
     }
 }

@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\Icv;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class IcvSeeder extends Seeder
 {
@@ -17,8 +16,9 @@ class IcvSeeder extends Seeder
     {
         $jsonPath = database_path('seeders/tbl_icv.json');
 
-        if (!file_exists($jsonPath)) {
+        if (! file_exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
+
             return;
         }
 
@@ -34,30 +34,34 @@ class IcvSeeder extends Seeder
             }
         }
 
-        if (!$icvData) {
+        if (! $icvData) {
             $this->command->error('No ICV data found in JSON file');
+
             return;
         }
 
-        $this->command->info('Processing ' . count($icvData) . ' ICV records...');
+        $this->command->info('Processing '.count($icvData).' ICV records...');
 
         foreach ($icvData as $record) {
             // Skip if ID already exists
-            if (!empty($record['id']) && Icv::where('id', $record['id'])->exists()) {
+            if (! empty($record['id']) && Icv::where('id', $record['id'])->exists()) {
                 $this->command->warn("ICV with ID {$record['id']} already exists. Skipping...");
+
                 continue;
             }
 
             // Skip if id_klinik is 0 or empty
             if (empty($record['id_klinik']) || $record['id_klinik'] == '0') {
                 $this->command->warn("Skipping ICV ID {$record['id']} - id_klinik is 0 or empty");
+
                 continue;
             }
 
             // Find user by id_klinik
             $user = User::find($record['id_klinik']);
-            if (!$user) {
+            if (! $user) {
                 $this->command->warn("User with ID {$record['id_klinik']} not found for ICV ID {$record['id']}. Skipping...");
+
                 continue;
             }
 
@@ -66,7 +70,7 @@ class IcvSeeder extends Seeder
                 'id' => $record['id'] ?? null,
                 'user_id' => $user->id,
                 'tanggal_pengajuan' => $this->parseDate($record['tanggal_pengajuan'] ?? null),
-                'jumlah_icv' => (int)($record['jumlah_icv'] ?? 0),
+                'jumlah_icv' => (int) ($record['jumlah_icv'] ?? 0),
                 'file1' => $this->cleanFileName($record['file_1'] ?? ''),
                 'file2' => $this->cleanFileName($record['file_2'] ?? ''),
                 'file3' => $this->cleanFileName($record['file_3'] ?? ''),
@@ -92,7 +96,7 @@ class IcvSeeder extends Seeder
      */
     private function parseDate($dateString)
     {
-        if (!$dateString || $dateString === '0000-00-00' || $dateString === '0') {
+        if (! $dateString || $dateString === '0000-00-00' || $dateString === '0') {
             return null;
         }
 
@@ -100,6 +104,7 @@ class IcvSeeder extends Seeder
             return Carbon::parse($dateString)->format('Y-m-d');
         } catch (\Exception $e) {
             $this->command->warn("Invalid date format: {$dateString}");
+
             return null;
         }
     }
@@ -109,7 +114,7 @@ class IcvSeeder extends Seeder
      */
     private function parseDateTime($datetimeString)
     {
-        if (!$datetimeString || $datetimeString === '0000-00-00 00:00:00') {
+        if (! $datetimeString || $datetimeString === '0000-00-00 00:00:00') {
             return now();
         }
 
@@ -117,6 +122,7 @@ class IcvSeeder extends Seeder
             return Carbon::parse($datetimeString);
         } catch (\Exception $e) {
             $this->command->warn("Invalid datetime format: {$datetimeString}");
+
             return now();
         }
     }
@@ -147,7 +153,7 @@ class IcvSeeder extends Seeder
         }
 
         // Add icv-documents/ prefix to valid filenames
-        return 'icv-documents/' . $filename;
+        return 'icv-documents/'.$filename;
     }
 
     /**
@@ -155,7 +161,7 @@ class IcvSeeder extends Seeder
      */
     private function mapStatus($status)
     {
-        $status = (int)$status;
+        $status = (int) $status;
 
         if ($status === 1) {
             return 0;

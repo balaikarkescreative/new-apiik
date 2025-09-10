@@ -10,7 +10,9 @@ class Vaksinator extends Model
     use HasFactory;
 
     protected $table = 'tbl_vaksinator';
+
     protected $primaryKey = 'id';
+
     public $timestamps = false; // Karena hanya ada date_updated
 
     protected $fillable = [
@@ -43,7 +45,7 @@ class Vaksinator extends Model
      */
     public function getStatusIzinPraktekAttribute()
     {
-        if (!$this->masa_aktif_izin_praktek) {
+        if (! $this->masa_aktif_izin_praktek) {
             return 'Tidak Ada Data';
         }
 
@@ -64,7 +66,7 @@ class Vaksinator extends Model
      */
     public function getStatusSertifikatAttribute()
     {
-        if (!$this->masa_aktif_sertifikat) {
+        if (! $this->masa_aktif_sertifikat) {
             return 'Tidak Ada Data';
         }
 
@@ -86,7 +88,7 @@ class Vaksinator extends Model
     public function scopeAktif($query)
     {
         return $query->where('masa_aktif_izin_praktek', '>=', now())
-                    ->where('masa_aktif_sertifikat', '>=', now());
+            ->where('masa_aktif_sertifikat', '>=', now());
     }
 
     /**
@@ -94,9 +96,9 @@ class Vaksinator extends Model
      */
     public function scopeAkanHabis($query, $days = 30)
     {
-        return $query->where(function($q) use ($days) {
+        return $query->where(function ($q) use ($days) {
             $q->whereBetween('masa_aktif_izin_praktek', [now(), now()->addDays($days)])
-              ->orWhereBetween('masa_aktif_sertifikat', [now(), now()->addDays($days)]);
+                ->orWhereBetween('masa_aktif_sertifikat', [now(), now()->addDays($days)]);
         });
     }
 }

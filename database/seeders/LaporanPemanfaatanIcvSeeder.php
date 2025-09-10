@@ -2,10 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\LaporanPemanfaatanIcv;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
-use Carbon\Carbon;
 
 class LaporanPemanfaatanIcvSeeder extends Seeder
 {
@@ -16,8 +15,9 @@ class LaporanPemanfaatanIcvSeeder extends Seeder
     {
         $jsonPath = database_path('seeders/tbl_laporan_pemanfaatan_icv.json');
 
-        if (!File::exists($jsonPath)) {
+        if (! File::exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
+
             return;
         }
 
@@ -33,23 +33,25 @@ class LaporanPemanfaatanIcvSeeder extends Seeder
             }
         }
 
-        if (!$laporanData) {
+        if (! $laporanData) {
             $this->command->error('No laporan pemanfaatan ICV data found in JSON file');
+
             return;
         }
 
-        $this->command->info('Processing ' . count($laporanData) . ' laporan pemanfaatan ICV records...');
+        $this->command->info('Processing '.count($laporanData).' laporan pemanfaatan ICV records...');
 
         foreach ($laporanData as $record) {
             // Cek apakah user dengan id_klinik ada
-            if (!\App\Models\User::where('id', $record['id_klinik'])->exists()) {
+            if (! \App\Models\User::where('id', $record['id_klinik'])->exists()) {
                 $this->command->warn("User dengan id_klinik {$record['id_klinik']} tidak ditemukan. Data id={$record['id']} dilewati.");
+
                 continue;
             }
 
             // Buat folder jika belum ada
             $folderPath = public_path('laporan-pemanfaatan-icv');
-            if (!file_exists($folderPath)) {
+            if (! file_exists($folderPath)) {
                 mkdir($folderPath, 0755, true);
             }
 
@@ -59,7 +61,7 @@ class LaporanPemanfaatanIcvSeeder extends Seeder
                 'id_klinik' => $record['id_klinik'],
                 'tanggal' => $record['tanggal'],
                 'judul_laporan' => $record['judul_laporan'],
-                'file' => 'laporan-pemanfaatan-icv/' . ltrim($record['file'], '/'),
+                'file' => 'laporan-pemanfaatan-icv/'.ltrim($record['file'], '/'),
             ]);
         }
 

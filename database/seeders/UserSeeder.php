@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\User;
-use Spatie\Permission\Models\Role;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class UserSeeder extends Seeder
 {
@@ -29,8 +28,9 @@ class UserSeeder extends Seeder
             }
         }
 
-        if (!$userData) {
+        if (! $userData) {
             $this->command->error('No user data found in JSON file');
+
             return;
         }
 
@@ -40,7 +40,7 @@ class UserSeeder extends Seeder
             'verifikator1',
             'verifikator2',
             'pos',
-            'user'
+            'user',
         ];
 
         foreach ($roles as $roleName) {
@@ -50,7 +50,7 @@ class UserSeeder extends Seeder
         // Group users by email to handle duplicates
         $groupedUsers = $this->groupUsersByEmail($userData);
 
-        $this->command->info('Processing ' . count($groupedUsers) . ' unique emails...');
+        $this->command->info('Processing '.count($groupedUsers).' unique emails...');
 
         foreach ($groupedUsers as $email => $users) {
             // Select the best user from duplicates
@@ -58,19 +58,22 @@ class UserSeeder extends Seeder
 
             // Skip if name is null or empty
             if (empty($selectedUser['nama'])) {
-                $this->command->warn("Skipping user with empty name. Email: " . ($selectedUser['email'] ?? 'N/A'));
+                $this->command->warn('Skipping user with empty name. Email: '.($selectedUser['email'] ?? 'N/A'));
+
                 continue;
             }
 
             // Check if ID already exists in database
-            if (!empty($selectedUser['id']) && User::where('id', $selectedUser['id'])->exists()) {
+            if (! empty($selectedUser['id']) && User::where('id', $selectedUser['id'])->exists()) {
                 $this->command->warn("User with ID {$selectedUser['id']} already exists. Skipping...");
+
                 continue;
             }
 
             // Check if email already exists in database
             if (User::where('email', $selectedUser['email'])->exists()) {
                 $this->command->warn("User with email {$selectedUser['email']} already exists. Skipping...");
+
                 continue;
             }
 
@@ -98,7 +101,7 @@ class UserSeeder extends Seeder
             ];
 
             // Only add verifikasi_akun if it's not null or empty
-            if (!empty($selectedUser['verifikasi_akun'])) {
+            if (! empty($selectedUser['verifikasi_akun'])) {
                 $userDataToInsert['verifikasi_akun'] = $selectedUser['verifikasi_akun'];
             }
 
@@ -111,7 +114,7 @@ class UserSeeder extends Seeder
                 $user->assignRole($roleName);
             }
 
-            $duplicateInfo = count($users) > 1 ? " (selected from " . count($users) . " duplicates)" : "";
+            $duplicateInfo = count($users) > 1 ? ' (selected from '.count($users).' duplicates)' : '';
             $this->command->info("Created user: {$user->name} ({$user->email}) with role: {$roleName}{$duplicateInfo}");
         }
 
@@ -131,7 +134,7 @@ class UserSeeder extends Seeder
                 continue; // Skip users without email
             }
 
-            if (!isset($grouped[$email])) {
+            if (! isset($grouped[$email])) {
                 $grouped[$email] = [];
             }
 
@@ -152,24 +155,27 @@ class UserSeeder extends Seeder
         }
 
         // First priority: users with verifikasi_akun = 'Diterima'
-        $acceptedUsers = array_filter($users, function($user) {
+        $acceptedUsers = array_filter($users, function ($user) {
             return isset($user['verifikasi_akun']) && $user['verifikasi_akun'] === 'Diterima';
         });
 
-        if (!empty($acceptedUsers)) {
+        if (! empty($acceptedUsers)) {
             // If multiple accepted users, get the one with latest date_updated
-            usort($acceptedUsers, function($a, $b) {
+            usort($acceptedUsers, function ($a, $b) {
                 $dateA = $a['date_updated'] ?? '1970-01-01 00:00:00';
                 $dateB = $b['date_updated'] ?? '1970-01-01 00:00:00';
+
                 return strtotime($dateB) - strtotime($dateA);
             });
+
             return $acceptedUsers[0];
         }
 
         // If no accepted users, get the one with latest date_updated
-        usort($users, function($a, $b) {
+        usort($users, function ($a, $b) {
             $dateA = $a['date_updated'] ?? '1970-01-01 00:00:00';
             $dateB = $b['date_updated'] ?? '1970-01-01 00:00:00';
+
             return strtotime($dateB) - strtotime($dateA);
         });
 
@@ -181,7 +187,7 @@ class UserSeeder extends Seeder
      */
     private function parseDate($dateString)
     {
-        if (!$dateString || $dateString === '0000-00-00') {
+        if (! $dateString || $dateString === '0000-00-00') {
             return null;
         }
 
@@ -197,7 +203,7 @@ class UserSeeder extends Seeder
      */
     private function parseDateTime($datetimeString)
     {
-        if (!$datetimeString) {
+        if (! $datetimeString) {
             return now();
         }
 
@@ -257,7 +263,7 @@ class UserSeeder extends Seeder
     private function mapKotakab($kotakab)
     {
         // If it's not numeric, return as is
-        if (!is_numeric($kotakab)) {
+        if (! is_numeric($kotakab)) {
             return $kotakab;
         }
 
@@ -265,7 +271,7 @@ class UserSeeder extends Seeder
         $kotakabMap = $this->getKotakabMapping();
 
         // Convert to integer for lookup
-        $kotakabId = (int)$kotakab;
+        $kotakabId = (int) $kotakab;
 
         // Return mapped name or original value if not found
         return $kotakabMap[$kotakabId] ?? $kotakab;
@@ -281,8 +287,9 @@ class UserSeeder extends Seeder
         if ($mapping === null) {
             $jsonPath = database_path('seeders/tbl_kotakab_jabar.json');
 
-            if (!file_exists($jsonPath)) {
+            if (! file_exists($jsonPath)) {
                 $this->command->warn("Kotakab mapping file not found: {$jsonPath}");
+
                 return [];
             }
 
@@ -301,10 +308,10 @@ class UserSeeder extends Seeder
             $mapping = [];
             if ($kotakabData) {
                 foreach ($kotakabData as $kotakab) {
-                    $id = (int)($kotakab['id'] ?? 0);
+                    $id = (int) ($kotakab['id'] ?? 0);
                     $nama = trim($kotakab['nama_kotakab'] ?? '');
 
-                    if ($id > 0 && !empty($nama)) {
+                    if ($id > 0 && ! empty($nama)) {
                         $mapping[$id] = $nama;
                     }
                 }

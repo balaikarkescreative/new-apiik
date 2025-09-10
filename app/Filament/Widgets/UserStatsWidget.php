@@ -1,13 +1,14 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Widgets/UserStatsWidget.php
 
 namespace App\Filament\Widgets;
 
+use App\Models\Icv;
+use App\Models\Izin;
+use App\Models\LaporanPenggunaanIcv;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use App\Models\Izin;
-use App\Models\Icv;
-use App\Models\LaporanPenggunaanIcv;
 
 class UserStatsWidget extends BaseWidget
 {
@@ -45,19 +46,19 @@ class UserStatsWidget extends BaseWidget
 
         return [
             Stat::make('Izin Klinik', $totalIzin)
-                ->description($izinDisetujui . ' disetujui')
+                ->description($izinDisetujui.' disetujui')
                 ->descriptionIcon('heroicon-m-document-text')
                 ->color('primary')
                 ->chart([0, 1, 2, $totalIzin]),
 
             Stat::make('ICV Diajukan', $totalIcv)
-                ->description($icvAktif . ' aktif')
+                ->description($icvAktif.' aktif')
                 ->descriptionIcon('heroicon-m-clipboard-document-check')
                 ->color('success')
                 ->chart([0, 5, 10, $totalIcv]),
 
             Stat::make('Total ICV Terbit', $icvDiterbitkan)
-                ->description($icvBulanIni . ' bulan ini')
+                ->description($icvBulanIni.' bulan ini')
                 ->descriptionIcon('heroicon-m-chart-bar')
                 ->color('info')
                 ->chart([10, 30, 50, $icvDiterbitkan]),

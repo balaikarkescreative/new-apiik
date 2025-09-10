@@ -5,8 +5,6 @@ namespace App\Observers;
 use App\Models\Izin;
 use App\Models\IzinDokumen;
 use App\Models\IzinVisitasi;
-use App\Models\IzinPersetujuan;
-use App\Models\IzinDokumenPks;
 
 class IzinObserver
 {
@@ -30,7 +28,7 @@ class IzinObserver
     public function updated(Izin $izin): void
     {
         for ($i = 1; $i <= 14; $i++) {
-            $fileField = 'file' . $i;
+            $fileField = 'file'.$i;
             if ($izin->isDirty($fileField) && $izin->$fileField) {
                 // \Storage::delete($izin->getOriginal($fileField));
                 // delete the old file if it exists
@@ -49,7 +47,7 @@ class IzinObserver
         IzinDokumen::where('izin_id', $izin->id)->delete();
 
         for ($i = 1; $i <= 14; $i++) {
-            $fileField = 'file' . $i;
+            $fileField = 'file'.$i;
             if ($izin->$fileField) {
                 \Storage::delete($izin->$fileField);
             }

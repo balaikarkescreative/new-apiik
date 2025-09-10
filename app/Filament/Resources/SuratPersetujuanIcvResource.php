@@ -5,24 +5,28 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\SuratPersetujuanIcvResource\Pages;
 use App\Models\SuratPersetujuanIcv;
 use App\Models\User;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Table;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class SuratPersetujuanIcvResource extends Resource
 {
     protected static ?string $model = SuratPersetujuanIcv::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
     protected static ?string $navigationLabel = 'Surat Persetujuan ICV';
+
     protected static ?string $navigationGroup = 'Master Data';
+
     protected static ?int $navigationSort = 6;
 
     public static function canAccess(): bool
@@ -53,7 +57,7 @@ class SuratPersetujuanIcvResource extends Resource
                         $user = Auth::user();
 
                         // Jika bukan admin, set default ke user yang login
-                        if (!$user->hasRole('admin') && !$user->hasRole('super_admin')) {
+                        if (! $user->hasRole('admin') && ! $user->hasRole('super_admin')) {
                             return $user->id;
                         }
 
@@ -63,7 +67,7 @@ class SuratPersetujuanIcvResource extends Resource
                         $user = Auth::user();
 
                         // Disable jika bukan admin
-                        return !$user->hasRole('admin') && !$user->hasRole('super_admin');
+                        return ! $user->hasRole('admin') && ! $user->hasRole('super_admin');
                     })
                     ->dehydrated(true)
                     ->required(),
@@ -119,9 +123,9 @@ class SuratPersetujuanIcvResource extends Resource
                         $klinik = $record->user?->name ?? 'N/A';
                         $lokasi = $record->user?->kotakab ?? 'N/A';
 
-                        return '<div>' .
-                            '<div class="font-medium text-sm">' . e($klinik) . '</div>' .
-                            '<div class="text-xs text-gray-500">' . e($lokasi) . '</div>' .
+                        return '<div>'.
+                            '<div class="font-medium text-sm">'.e($klinik).'</div>'.
+                            '<div class="text-xs text-gray-500">'.e($lokasi).'</div>'.
                             '</div>';
                     })
                     ->html()
@@ -160,6 +164,7 @@ class SuratPersetujuanIcvResource extends Resource
                         } elseif ($masaBerlaku->diffInDays($now) <= 30) {
                             return 'warning'; // Akan kadaluarsa dalam 30 hari
                         }
+
                         return 'success'; // Masih berlaku
                     }),
 
@@ -171,10 +176,10 @@ class SuratPersetujuanIcvResource extends Resource
                         $updatedAt = Carbon::parse($record->updated_at);
 
                         $details = [];
-                        $details[] = "Dibuat: " . $createdAt->translatedFormat('d M Y');
+                        $details[] = 'Dibuat: '.$createdAt->translatedFormat('d M Y');
 
                         if ($createdAt->ne($updatedAt)) {
-                            $details[] = "Diperbarui: " . $updatedAt->translatedFormat('d M Y');
+                            $details[] = 'Diperbarui: '.$updatedAt->translatedFormat('d M Y');
                         }
 
                         return implode("\n", $details);
@@ -183,10 +188,10 @@ class SuratPersetujuanIcvResource extends Resource
                     ->formatStateUsing(function ($state) {
                         $lines = explode("\n", $state);
                         $formatted = array_map(function ($line) {
-                            return '<div class="text-xs">' . $line . '</div>';
+                            return '<div class="text-xs">'.$line.'</div>';
                         }, $lines);
 
-                        return '<div class="space-y-1">' . implode('', $formatted) . '</div>';
+                        return '<div class="space-y-1">'.implode('', $formatted).'</div>';
                     })
                     ->toggleable()
                     ->toggledHiddenByDefault(),
@@ -209,6 +214,7 @@ class SuratPersetujuanIcvResource extends Resource
                     ->preload()
                     ->visible(function () {
                         $user = Auth::user();
+
                         return $user->hasRole('admin') || $user->hasRole('super_admin');
                     }),
 
@@ -224,8 +230,9 @@ class SuratPersetujuanIcvResource extends Resource
                             ->pluck('users.kotakab', 'users.kotakab');
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return $query->whereHas('user', function (Builder $query) use ($data) {
                             $query->where('kotakab', $data['value']);
@@ -234,6 +241,7 @@ class SuratPersetujuanIcvResource extends Resource
                     ->preload()
                     ->visible(function () {
                         $user = Auth::user();
+
                         return $user->hasRole('admin') || $user->hasRole('super_admin');
                     }),
 
@@ -247,8 +255,9 @@ class SuratPersetujuanIcvResource extends Resource
                         'kadaluarsa_recent' => 'Baru Kadaluarsa (≤30 hari)',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         $now = now();
 
@@ -270,11 +279,13 @@ class SuratPersetujuanIcvResource extends Resource
                         for ($i = $currentYear; $i >= $currentYear - 5; $i--) {
                             $years[$i] = $i;
                         }
+
                         return $years;
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return $query->whereYear('tanggal_surat', $data['value']);
                     }),
@@ -333,6 +344,7 @@ class SuratPersetujuanIcvResource extends Resource
                         })
                         ->visible(function () {
                             $user = Auth::user();
+
                             return $user->hasRole('admin') || $user->hasRole('super_admin');
                         }),
                 ]),

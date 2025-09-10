@@ -1,18 +1,19 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Widgets/UserStatusWidget.php
 
 namespace App\Filament\Widgets;
 
-use Filament\Widgets\Widget;
-use App\Models\Izin;
 use App\Models\Icv;
+use App\Models\Izin;
 use App\Models\LaporanPenggunaanIcv;
+use Filament\Widgets\Widget;
 
 class UserStatusWidget extends Widget
 {
     protected static string $view = 'filament.widgets.user-status';
 
-    protected int | string | array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 'full';
 
     public function getViewData(): array
     {

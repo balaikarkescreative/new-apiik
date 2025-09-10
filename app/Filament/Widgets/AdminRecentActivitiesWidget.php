@@ -1,19 +1,20 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Widgets/AdminRecentActivitiesWidget.php
 
 namespace App\Filament\Widgets;
 
-use Filament\Widgets\Widget;
+use App\Models\Icv;
 use App\Models\Izin;
 use App\Models\LaporanPenggunaanIcv;
-use App\Models\Icv;
 use App\Models\User;
+use Filament\Widgets\Widget;
 
 class AdminRecentActivitiesWidget extends Widget
 {
     protected static string $view = 'filament.widgets.admin-recent-activities';
 
-    protected int | string | array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 'full';
 
     public function getViewData(): array
     {
@@ -40,9 +41,9 @@ class AdminRecentActivitiesWidget extends Widget
         $recentRegistrations = User::whereHas('roles', function ($query) {
             $query->where('name', 'user');
         })
-        ->latest('created_at')
-        ->take(5)
-        ->get();
+            ->latest('created_at')
+            ->take(5)
+            ->get();
 
         return [
             'recentIzin' => $recentIzin,

@@ -3,18 +3,15 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\VideoPanduanResource\Pages;
-use App\Filament\Resources\VideoPanduanResource\RelationManagers;
 use App\Models\VideoPanduan;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Database\Eloquent\Collection;
-use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Illuminate\Support\Str;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class VideoPanduanResource extends Resource
 {
@@ -72,7 +69,7 @@ class VideoPanduanResource extends Resource
                                     $baseName = $title ? Str::slug($title) : 'video-upload';
 
                                     // Tambahkan timestamp dan kembalikan nama file baru dengan ekstensi aslinya
-                                    return $baseName . '-' . now()->timestamp . '.' . $file->extension();
+                                    return $baseName.'-'.now()->timestamp.'.'.$file->extension();
                                 }
                             )
                             ->maxSize(1024 * 200) // 200MB
@@ -103,6 +100,7 @@ class VideoPanduanResource extends Resource
                     ->limit(50)
                     ->tooltip(function ($record): ?string {
                         $title = $record->title;
+
                         return strlen($title) > 50 ? $title : null;
                     }),
 
@@ -111,6 +109,7 @@ class VideoPanduanResource extends Resource
                     ->limit(100)
                     ->tooltip(function ($record): ?string {
                         $desc = $record->description;
+
                         return strlen($desc ?? '') > 100 ? $desc : null;
                     }),
 
@@ -153,15 +152,14 @@ class VideoPanduanResource extends Resource
                         $higherRecord = VideoPanduan::where('order', '<', $record->order)
                             ->orderBy('order', 'desc')
                             ->first();
-                        
+
                         if ($higherRecord) {
                             $tempOrder = $record->order;
                             $record->update(['order' => $higherRecord->order]);
                             $higherRecord->update(['order' => $tempOrder]);
                         }
                     })
-                    ->visible(fn (VideoPanduan $record): bool => 
-                        VideoPanduan::where('order', '<', $record->order)->exists()
+                    ->visible(fn (VideoPanduan $record): bool => VideoPanduan::where('order', '<', $record->order)->exists()
                     )
                     ->tooltip('Pindahkan ke atas'),
 
@@ -174,15 +172,14 @@ class VideoPanduanResource extends Resource
                         $lowerRecord = VideoPanduan::where('order', '>', $record->order)
                             ->orderBy('order', 'asc')
                             ->first();
-                        
+
                         if ($lowerRecord) {
                             $tempOrder = $record->order;
                             $record->update(['order' => $lowerRecord->order]);
                             $lowerRecord->update(['order' => $tempOrder]);
                         }
                     })
-                    ->visible(fn (VideoPanduan $record): bool => 
-                        VideoPanduan::where('order', '>', $record->order)->exists()
+                    ->visible(fn (VideoPanduan $record): bool => VideoPanduan::where('order', '>', $record->order)->exists()
                     )
                     ->tooltip('Pindahkan ke bawah'),
 

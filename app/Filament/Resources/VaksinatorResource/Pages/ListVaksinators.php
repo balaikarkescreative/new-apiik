@@ -4,8 +4,8 @@ namespace App\Filament\Resources\VaksinatorResource\Pages;
 
 use App\Filament\Resources\VaksinatorResource;
 use Filament\Actions;
-use Filament\Resources\Pages\ListRecords;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\ListRecords;
 
 class ListVaksinators extends ListRecords
 {

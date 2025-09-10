@@ -1,4 +1,5 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/lang/id/auth.php
 
 return [

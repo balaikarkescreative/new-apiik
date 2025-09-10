@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\IzinPersetujuan;
 use App\Models\Izin;
+use App\Models\IzinPersetujuan;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class IzinPersetujuanSeeder extends Seeder
 {
@@ -17,8 +16,9 @@ class IzinPersetujuanSeeder extends Seeder
     {
         $jsonPath = database_path('seeders/tbl_izin_persetujuan.json');
 
-        if (!file_exists($jsonPath)) {
+        if (! file_exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
+
             return;
         }
 
@@ -34,21 +34,23 @@ class IzinPersetujuanSeeder extends Seeder
             }
         }
 
-        if (!$izinPersetujuanData) {
+        if (! $izinPersetujuanData) {
             $this->command->error('No izin persetujuan data found in JSON file');
+
             return;
         }
 
-        $this->command->info('Processing ' . count($izinPersetujuanData) . ' izin persetujuan records...');
+        $this->command->info('Processing '.count($izinPersetujuanData).' izin persetujuan records...');
 
         $processed = 0;
         $skipped = 0;
 
         foreach ($izinPersetujuanData as $record) {
             // Skip if ID already exists
-            if (!empty($record['id']) && IzinPersetujuan::where('id', $record['id'])->exists()) {
+            if (! empty($record['id']) && IzinPersetujuan::where('id', $record['id'])->exists()) {
                 $this->command->warn("IzinPersetujuan with ID {$record['id']} already exists. Skipping...");
                 $skipped++;
+
                 continue;
             }
 
@@ -56,14 +58,16 @@ class IzinPersetujuanSeeder extends Seeder
             if (empty($record['id_izin']) || $record['id_izin'] == '0') {
                 $this->command->warn("Skipping izin persetujuan ID {$record['id']} - id_izin is 0 or empty");
                 $skipped++;
+
                 continue;
             }
 
             // Find Izin by id_izin
             $izin = Izin::find($record['id_izin']);
-            if (!$izin) {
+            if (! $izin) {
                 $this->command->warn("Izin with ID {$record['id_izin']} not found for izin persetujuan ID {$record['id']}. Skipping...");
                 $skipped++;
+
                 continue;
             }
 
@@ -84,7 +88,7 @@ class IzinPersetujuanSeeder extends Seeder
             $processed++;
         }
 
-        $this->command->info("IzinPersetujuanSeeder completed successfully!");
+        $this->command->info('IzinPersetujuanSeeder completed successfully!');
         $this->command->info("Processed: {$processed} records");
         $this->command->info("Skipped: {$skipped} records");
     }
@@ -94,7 +98,7 @@ class IzinPersetujuanSeeder extends Seeder
      */
     private function parseDateTime($datetimeString)
     {
-        if (!$datetimeString || $datetimeString === '0000-00-00 00:00:00') {
+        if (! $datetimeString || $datetimeString === '0000-00-00 00:00:00') {
             return now();
         }
 
@@ -102,6 +106,7 @@ class IzinPersetujuanSeeder extends Seeder
             return Carbon::parse($datetimeString);
         } catch (\Exception $e) {
             $this->command->warn("Invalid datetime format: {$datetimeString}");
+
             return now();
         }
     }
@@ -137,7 +142,7 @@ class IzinPersetujuanSeeder extends Seeder
         }
 
         // Add izin-persetujuan-documents/ prefix to valid filenames
-        return 'surat-persetujuan/' . $filename;
+        return 'surat-persetujuan/'.$filename;
     }
 
     /**
@@ -145,7 +150,7 @@ class IzinPersetujuanSeeder extends Seeder
      */
     private function mapStatus($status)
     {
-        $status = (int)$status;
+        $status = (int) $status;
 
         // Based on your previous seeders pattern, change 1 to 0
         if ($status === 1) {
@@ -160,7 +165,7 @@ class IzinPersetujuanSeeder extends Seeder
      */
     private function getStatusLabel($status)
     {
-        return match($status) {
+        return match ($status) {
             0 => 'Disetujui',
             1 => 'Belum Disetujui',
             default => 'Belum Disetujui',

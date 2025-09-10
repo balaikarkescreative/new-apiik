@@ -5,24 +5,24 @@ namespace App\Filament\Resources\IcvResource\Pages;
 use App\Filament\Resources\IcvResource;
 use App\Models\Icv;
 use Filament\Forms\Components\Actions;
+use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Placeholder;
-use Filament\Resources\Pages\Page;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Actions\Action;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Notifications\Notification;
-use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Filters\SelectFilter;
-use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Get;
 use Filament\Forms\Set;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\Page;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class UploadSbbk extends Page implements HasTable
 {
@@ -43,7 +43,7 @@ class UploadSbbk extends Page implements HasTable
         parent::mountCanAuthorizeAccess();
 
         // Cek apakah user memiliki peran yang sesuai
-        if (!auth()->user()->hasRole(['verifikator1'])) {
+        if (! auth()->user()->hasRole(['verifikator1'])) {
             redirect()->to('/');
         }
     }
@@ -91,22 +91,22 @@ class UploadSbbk extends Page implements HasTable
                         $klinik = $record->user?->name ?? 'N/A';
                         $lokasi = $record->user?->kotakab ?? 'N/A';
 
-                        return '<div>' .
-                            '<div class="font-medium text-sm">' . e($klinik) . '</div>' .
-                            '<div class="text-xs text-gray-500">' . e($lokasi) . '</div>' .
+                        return '<div>'.
+                            '<div class="font-medium text-sm">'.e($klinik).'</div>'.
+                            '<div class="text-xs text-gray-500">'.e($lokasi).'</div>'.
                             '</div>';
                     })
                     ->html()
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->whereHas('user', function (Builder $query) use ($search) {
                             $query->where('name', 'like', "%{$search}%")
-                                  ->orWhere('kotakab', 'like', "%{$search}%");
+                                ->orWhere('kotakab', 'like', "%{$search}%");
                         });
                     })
                     ->sortable(query: function (Builder $query, string $direction): Builder {
                         return $query->join('users', 'tbl_icv.user_id', '=', 'users.id')
-                                    ->orderBy('users.name', $direction)
-                                    ->select('tbl_icv.*');
+                            ->orderBy('users.name', $direction)
+                            ->select('tbl_icv.*');
                     }),
 
                 TextColumn::make('icvAlokasi.icv_disetujui')
@@ -122,15 +122,17 @@ class UploadSbbk extends Page implements HasTable
                     ->label('Status Sinkarkes')
                     ->badge()
                     ->getStateUsing(function ($record) {
-                        if (!$record->icvSbbk?->sinkarkes || $record->icvSbbk->sinkarkes === 'Belum') {
+                        if (! $record->icvSbbk?->sinkarkes || $record->icvSbbk->sinkarkes === 'Belum') {
                             return 'Belum Update';
                         }
+
                         return 'Sudah Update';
                     })
                     ->color(function ($record) {
-                        if (!$record->icvSbbk?->sinkarkes || $record->icvSbbk->sinkarkes === 'Belum') {
+                        if (! $record->icvSbbk?->sinkarkes || $record->icvSbbk->sinkarkes === 'Belum') {
                             return 'warning';
                         }
+
                         return 'success';
                     })
                     ->sortable(query: function (Builder $query, string $direction): Builder {
@@ -138,7 +140,7 @@ class UploadSbbk extends Page implements HasTable
                             ->orderByRaw('CASE
                             WHEN sb.sinkarkes IS NULL OR sb.sinkarkes = "Belum" THEN 0
                             ELSE 1
-                        END ' . $direction)
+                        END '.$direction)
                             ->select('tbl_icv.*');
                     }),
             ])
@@ -147,7 +149,7 @@ class UploadSbbk extends Page implements HasTable
                     ->label('Update Sinkarkes')
                     ->icon('heroicon-o-pencil-square')
                     ->color('primary')
-                    ->modalHeading(fn($record) => 'Update Status Sinkarkes - ' . $record->user->name)
+                    ->modalHeading(fn ($record) => 'Update Status Sinkarkes - '.$record->user->name)
                     ->modalWidth('xl')
                     ->modalSubmitAction(false)
                     ->form(function ($record) {
@@ -176,7 +178,7 @@ class UploadSbbk extends Page implements HasTable
 
                                         Placeholder::make('distribusi_icv')
                                             ->label('Distribusi ICV')
-                                            ->content('Distribusi e-ICV melalui aplikasi Sinkarkes')
+                                            ->content('Distribusi e-ICV melalui aplikasi Sinkarkes'),
 
                                     ]),
                                 ])
@@ -193,7 +195,7 @@ class UploadSbbk extends Page implements HasTable
                                             'Belum' => 'Belum',
                                         ])
                                         ->default($record->icvSbbk?->sinkarkes ?? 'Belum')
-                                        ->disabled(fn() => $record->icvSbbk?->sinkarkes === 'Sudah')
+                                        ->disabled(fn () => $record->icvSbbk?->sinkarkes === 'Sudah')
                                         ->helperText('Update status input data ke sistem Sinkarkes')
                                         ->required(),
 
@@ -202,16 +204,17 @@ class UploadSbbk extends Page implements HasTable
                                             ->label('Update Sinkarkes')
                                             ->icon('heroicon-o-check')
                                             ->color('success')
-                                            ->visible(fn() => $record->icvSbbk?->sinkarkes !== 'Sudah')
+                                            ->visible(fn () => $record->icvSbbk?->sinkarkes !== 'Sudah')
                                             ->action(function (Get $get, Set $set, $record) {
                                                 $sinkarkes = $get('sinkarkes');
 
-                                                if (!$sinkarkes) {
+                                                if (! $sinkarkes) {
                                                     Notification::make()
                                                         ->title('Gagal Update Sinkarkes')
                                                         ->danger()
                                                         ->body('Status Sinkarkes harus dipilih.')
                                                         ->send();
+
                                                     return;
                                                 }
 
@@ -232,11 +235,11 @@ class UploadSbbk extends Page implements HasTable
 
                                                 // Refresh halaman
                                                 $this->redirect(UploadSbbk::getUrl());
-                                            })
+                                            }),
                                     ]),
                                 ]),
                         ];
-                    })
+                    }),
             ])
             ->striped()
             ->filters([
@@ -253,23 +256,26 @@ class UploadSbbk extends Page implements HasTable
                         return \App\Models\User::whereHas('roles', function ($query) {
                             $query->where('name', 'user');
                         })
-                        ->whereHas('icvs', function ($query) {
-                            $query->whereHas('icvJadwal', function ($q) {
-                                $q->whereNotNull('jadwal_pengambilan');
+                            ->whereHas('icvs', function ($query) {
+                                $query->whereHas('icvJadwal', function ($q) {
+                                    $q->whereNotNull('jadwal_pengambilan');
+                                })
+                                    ->whereHas('icvBuktiBayar', function ($q) {
+                                        $q->whereNotNull('file_bukti_bayar');
+                                    });
                             })
-                            ->whereHas('icvBuktiBayar', function ($q) {
-                                $q->whereNotNull('file_bukti_bayar');
+                            ->orderBy('name')
+                            ->get()
+                            ->mapWithKeys(function ($user) {
+                                $kotakab = $user->kotakab ? " ({$user->kotakab})" : '';
+
+                                return [$user->id => $user->name.$kotakab];
                             });
-                        })
-                        ->orderBy('name')
-                        ->get()
-                        ->mapWithKeys(function ($user) {
-                            $kotakab = $user->kotakab ? " ({$user->kotakab})" : '';
-                            return [$user->id => $user->name . $kotakab];
-                        });
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+                        if (! $data['value']) {
+                            return $query;
+                        }
 
                         return $query->where('user_id', $data['value']);
                     }),
@@ -283,21 +289,23 @@ class UploadSbbk extends Page implements HasTable
                         return \App\Models\User::whereHas('roles', function ($query) {
                             $query->where('name', 'user');
                         })
-                        ->whereHas('icvs', function ($query) {
-                            $query->whereHas('icvJadwal', function ($q) {
-                                $q->whereNotNull('jadwal_pengambilan');
+                            ->whereHas('icvs', function ($query) {
+                                $query->whereHas('icvJadwal', function ($q) {
+                                    $q->whereNotNull('jadwal_pengambilan');
+                                })
+                                    ->whereHas('icvBuktiBayar', function ($q) {
+                                        $q->whereNotNull('file_bukti_bayar');
+                                    });
                             })
-                            ->whereHas('icvBuktiBayar', function ($q) {
-                                $q->whereNotNull('file_bukti_bayar');
-                            });
-                        })
-                        ->whereNotNull('kotakab')
-                        ->distinct()
-                        ->orderBy('kotakab')
-                        ->pluck('kotakab', 'kotakab');
+                            ->whereNotNull('kotakab')
+                            ->distinct()
+                            ->orderBy('kotakab')
+                            ->pluck('kotakab', 'kotakab');
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+                        if (! $data['value']) {
+                            return $query;
+                        }
 
                         return $query->whereHas('user', function (Builder $query) use ($data) {
                             $query->where('kotakab', $data['value']);
@@ -314,7 +322,7 @@ class UploadSbbk extends Page implements HasTable
                     ->query(function (Builder $query, array $data): Builder {
                         return $query->when(
                             $data['value'] === 'belum',
-                            fn(Builder $query): Builder => $query->where(function ($q) {
+                            fn (Builder $query): Builder => $query->where(function ($q) {
                                 $q->whereDoesntHave('icvSbbk')
                                     ->orWhereHas('icvSbbk', function (Builder $subquery) {
                                         $subquery->where(function ($sq) {
@@ -325,7 +333,7 @@ class UploadSbbk extends Page implements HasTable
                             })
                         )->when(
                             $data['value'] === 'sudah',
-                            fn(Builder $query): Builder => $query->whereHas('icvSbbk', function (Builder $subquery) {
+                            fn (Builder $query): Builder => $query->whereHas('icvSbbk', function (Builder $subquery) {
                                 $subquery->where('sinkarkes', 'Sudah');
                             })
                         );
@@ -339,7 +347,9 @@ class UploadSbbk extends Page implements HasTable
                         'Diambil' => 'Diambil',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+                        if (! $data['value']) {
+                            return $query;
+                        }
 
                         return $query->whereHas('icvBuktiBayar', function (Builder $query) use ($data) {
                             $query->where('distribusi_icv', $data['value']);
@@ -356,7 +366,9 @@ class UploadSbbk extends Page implements HasTable
                         '201+' => '200+ ICV',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+                        if (! $data['value']) {
+                            return $query;
+                        }
 
                         return $query->whereHas('icvAlokasi', function (Builder $query) use ($data) {
                             switch ($data['value']) {

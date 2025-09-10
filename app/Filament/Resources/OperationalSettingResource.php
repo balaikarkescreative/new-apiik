@@ -12,8 +12,11 @@ use Filament\Tables;
 class OperationalSettingResource extends Resource
 {
     protected static ?string $model = OperationalSetting::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-clock';
+
     protected static ?string $navigationLabel = 'Jam Operasional Pengajuan';
+
     protected static ?string $navigationGroup = 'Pengaturan';
 
     protected static ?int $navigationSort = 900;
@@ -100,16 +103,16 @@ class OperationalSettingResource extends Resource
                             return 'Tidak ada hari';
                         }
 
-                        if (!is_array($days)) {
+                        if (! is_array($days)) {
                             if (is_string($days)) {
                                 $decoded = json_decode($days, true);
                                 if (is_array($decoded)) {
                                     $days = $decoded;
                                 } else {
-                                    return 'Data: ' . $days;
+                                    return 'Data: '.$days;
                                 }
                             } else {
-                                return 'Type: ' . gettype($days);
+                                return 'Type: '.gettype($days);
                             }
                         }
 
@@ -125,13 +128,14 @@ class OperationalSettingResource extends Resource
                 Tables\Columns\BadgeColumn::make('status')
                     ->label('Status')
                     ->getStateUsing(function ($record) {
-                        if (!$record || !$record->is_active) {
+                        if (! $record || ! $record->is_active) {
                             return 'Tidak Aktif';
                         }
+
                         return $record->isOpen() ? 'Buka' : 'Tutup';
                     })
                     ->color(function ($state) {
-                        return match($state) {
+                        return match ($state) {
                             'Buka' => 'success',
                             'Tutup' => 'warning',
                             'Tidak Aktif' => 'gray',
@@ -141,18 +145,29 @@ class OperationalSettingResource extends Resource
                 Tables\Columns\TextColumn::make('closed_services_display')
                     ->label('Layanan Ditutup')
                     ->getStateUsing(function ($record) {
-                        if (!$record) return '-';
-                        
+                        if (! $record) {
+                            return '-';
+                        }
+
                         $closedServices = [];
-                        
-                        if ($record->icv_closed) $closedServices[] = 'ICV';
-                        if ($record->izin_closed) $closedServices[] = 'Izin';
-                        if ($record->account_closed) $closedServices[] = 'Akun';
-                        
+
+                        if ($record->icv_closed) {
+                            $closedServices[] = 'ICV';
+                        }
+                        if ($record->izin_closed) {
+                            $closedServices[] = 'Izin';
+                        }
+                        if ($record->account_closed) {
+                            $closedServices[] = 'Akun';
+                        }
+
                         return empty($closedServices) ? 'Semua Buka' : implode(', ', $closedServices);
                     })
                     ->color(function ($record) {
-                        if (!$record) return 'gray';
+                        if (! $record) {
+                            return 'gray';
+                        }
+
                         return ($record->icv_closed || $record->izin_closed || $record->account_closed) ? 'danger' : 'success';
                     }),
             ])
@@ -178,10 +193,10 @@ class OperationalSettingResource extends Resource
                             ]),
                     ])
                     ->action(function ($record, $data) {
-                        if (!$record) {
+                        if (! $record) {
                             return;
                         }
-                        
+
                         $record->update([
                             'icv_closed' => $data['icv_closed'] ?? false,
                             'izin_closed' => $data['izin_closed'] ?? false,

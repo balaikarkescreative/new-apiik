@@ -4,9 +4,9 @@ namespace App\Filament\Resources\LaporanPenggunaanIcvResource\Pages;
 
 use App\Filament\Resources\LaporanPenggunaanIcvResource;
 use App\Models\LaporanPenggunaanIcv;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
-use Filament\Notifications\Notification;
 
 class CreateLaporanPenggunaanIcv extends CreateRecord
 {
@@ -25,7 +25,7 @@ class CreateLaporanPenggunaanIcv extends CreateRecord
         $user = Auth::user();
 
         // Jika user bukan admin/verifikator2 dan id_user kosong, set ke user yang login
-        if ((!$user->hasRole('admin') && !$user->hasRole('verifikator2')) || empty($data['id_user'])) {
+        if ((! $user->hasRole('admin') && ! $user->hasRole('verifikator2')) || empty($data['id_user'])) {
             $data['id_user'] = $user->id;
         }
 
@@ -49,11 +49,11 @@ class CreateLaporanPenggunaanIcv extends CreateRecord
             }
 
             // Return record pertama sebagai primary record
-            if (!empty($createdRecords)) {
+            if (! empty($createdRecords)) {
                 Notification::make()
                     ->title('Laporan Berhasil Disimpan')
                     ->success()
-                    ->body(count($createdRecords) . ' laporan penggunaan ICV berhasil dibuat.')
+                    ->body(count($createdRecords).' laporan penggunaan ICV berhasil dibuat.')
                     ->send();
 
                 return $createdRecords[0];

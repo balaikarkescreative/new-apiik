@@ -16,7 +16,7 @@ class CreateLaporanGeotagging extends CreateRecord
         parent::mount();
 
         $user = auth()->user();
-        if (!$user->hasRole(['admin', 'verifikator1', 'verifikator2']) && $user->laporanGeotagging) {
+        if (! $user->hasRole(['admin', 'verifikator1', 'verifikator2']) && $user->laporanGeotagging) {
             \Filament\Notifications\Notification::make()
                 ->title('Anda sudah memiliki laporan geotagging')
                 ->body('Anda hanya dapat membuat satu laporan geotagging. Silakan edit laporan yang sudah ada jika ingin mengubah data.')

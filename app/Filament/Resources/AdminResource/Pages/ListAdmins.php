@@ -1,4 +1,5 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Resources/AdminResource/Pages/ListAdmins.php
 
 namespace App\Filament\Resources\AdminResource\Pages;

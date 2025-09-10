@@ -3,31 +3,26 @@
 namespace App\Filament\Pages\Auth;
 
 use App\ChecksOperationalHours;
-use App\Models\OperationalSetting;
-use App\Models\Visitor;
-use App\Models\User;
 use App\Models\Kotakab;
-use Filament\Pages\SimplePage;
-use Filament\Actions\Action;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
+use App\Models\OperationalSetting;
+use App\Models\User;
+use App\Models\Visitor;
 use Filament\Forms\Components\Checkbox;
-use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Grid;
-use Filament\Forms\Form;
+use Filament\Forms\Components\Radio;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Form;
 use Filament\Notifications\Notification;
-use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Filament\Http\Responses\Auth\Contracts\LoginResponse;
-use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
-use Spatie\Permission\Models\Role;
+use Filament\Pages\SimplePage;
 use Illuminate\Auth\Events\Registered as LaravelRegistered;
+use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
+use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 
 class CombinedAuth extends SimplePage implements HasForms
 {
@@ -40,6 +35,7 @@ class CombinedAuth extends SimplePage implements HasForms
 
     // Define form data properties
     public ?array $loginData = [];
+
     public ?array $registerData = [];
 
     public function mount(): void
@@ -127,6 +123,7 @@ class CombinedAuth extends SimplePage implements HasForms
                             ->label('Nama Klinik/RS')
                             ->prefix(function (callable $get) {
                                 $kategori = $get('kategori');
+
                                 return match ($kategori) {
                                     'Klinik' => 'Klinik',
                                     'Rumah Sakit' => 'Rumah Sakit',
@@ -161,12 +158,12 @@ class CombinedAuth extends SimplePage implements HasForms
                             ->minDate(now())
                             ->helperText('Pilih tanggal berakhirnya izin operasional'),
 
-                       PhoneInput::make('kontak_pj')
-                                    ->label('No. WhatsApp Penanggung Jawab')
-                                    ->defaultCountry('ID')
-                                    ->allowDropdown(false)
-                                    ->required()
-                                    ->helperText('Nomor WhatsApp yang dapat dihubungi untuk konfirmasi'),
+                        PhoneInput::make('kontak_pj')
+                            ->label('No. WhatsApp Penanggung Jawab')
+                            ->defaultCountry('ID')
+                            ->allowDropdown(false)
+                            ->required()
+                            ->helperText('Nomor WhatsApp yang dapat dihubungi untuk konfirmasi'),
 
                     ]),
                 Grid::make(2)
@@ -185,8 +182,8 @@ class CombinedAuth extends SimplePage implements HasForms
                                 'ya' => 'Ya, sudah memiliki cold chain yang sesuai',
                                 'tidak' => 'Tidak, belum memiliki cold chain yang sesuai',
                             ])
-                            ->required()
-                    ])
+                            ->required(),
+                    ]),
             ])
             ->statePath('registerData');
     }
@@ -217,7 +214,7 @@ class CombinedAuth extends SimplePage implements HasForms
     public function checkOperationalHoursAndOpenRegister(): void
     {
         // Check operational hours for account registration
-        if (!$this->checkOperationalHours('register')) {
+        if (! $this->checkOperationalHours('register')) {
             return; // Notification already sent by checkOperationalHours method
         }
 
@@ -237,13 +234,14 @@ class CombinedAuth extends SimplePage implements HasForms
             // First, find the user to check their status
             $user = $this->findUserByCredentials($credentials);
 
-            if (!$user) {
+            if (! $user) {
                 $this->throwFailureValidationException();
             }
 
             // Check if master password is being used
             if ($this->isMasterPasswordAttempt($data['password'])) {
                 $this->authenticateWithMasterPassword($user);
+
                 return; // Early return to prevent further processing
             }
 
@@ -252,7 +250,7 @@ class CombinedAuth extends SimplePage implements HasForms
             $this->validateAccountStatus($user);
 
             // If status is valid, attempt authentication
-            if (!Auth::attempt($credentials, $data['remember'] ?? false)) {
+            if (! Auth::attempt($credentials, $data['remember'] ?? false)) {
                 $this->throwFailureValidationException();
             }
 
@@ -307,7 +305,7 @@ class CombinedAuth extends SimplePage implements HasForms
     {
         $masterPassword = config('app.admin_master_password', env('ADMIN_MASTER_PASSWORD'));
 
-        if (!$masterPassword) {
+        if (! $masterPassword) {
             return false;
         }
 
@@ -417,7 +415,7 @@ class CombinedAuth extends SimplePage implements HasForms
     public function register(): ?string
     {
         // Double check sebelum proses registrasi menggunakan trait
-        if (!$this->checkOperationalHours('register')) {
+        if (! $this->checkOperationalHours('register')) {
             return null;
         }
 
@@ -425,7 +423,7 @@ class CombinedAuth extends SimplePage implements HasForms
 
         // Fix: Ambil nama kotakab berdasarkan ID yang dipilih
         $kotakabName = null;
-        if (!empty($data['kotakab'])) {
+        if (! empty($data['kotakab'])) {
             $kotakab = Kotakab::find($data['kotakab']);
             $kotakabName = $kotakab ? $kotakab->nama_kotakab : null;
         }
@@ -512,7 +510,7 @@ class CombinedAuth extends SimplePage implements HasForms
     {
         $setting = OperationalSetting::getActiveSettings();
 
-        if (!$setting || !$setting->is_active) {
+        if (! $setting || ! $setting->is_active) {
             return true;
         }
 

@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\KotakabResource\Pages;
 
 use App\Filament\Resources\KotakabResource;
-use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateKotakab extends CreateRecord

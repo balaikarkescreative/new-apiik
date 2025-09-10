@@ -11,16 +11,16 @@ class ListIzins extends ListRecords
 {
     protected static string $resource = IzinResource::class;
 
-    protected static ?string $title = "Kelola Pengajuan Izin";
+    protected static ?string $title = 'Kelola Pengajuan Izin';
 
-    protected static ?string $slug = "izin";
+    protected static ?string $slug = 'izin';
 
     public function mountCanAuthorizeAccess(): void
     {
         parent::mountCanAuthorizeAccess();
 
         // Cek apakah user memiliki peran yang sesuai
-        if (!auth()->user()->hasRole(['admin'])){
+        if (! auth()->user()->hasRole(['admin'])) {
             abort(403, 'Akses ditolak. Hanya admin yang dapat mengelola pengajuan izin.');
         }
     }
@@ -45,8 +45,8 @@ class ListIzins extends ListRecords
     {
         parent::mount();
 
-        if (!auth()->user()->hasRole('admin')) {
-            redirect()->route('filament.admin.resources.izin.daftar-pengajuan');;
+        if (! auth()->user()->hasRole('admin')) {
+            redirect()->route('filament.admin.resources.izin.daftar-pengajuan');
         }
 
     }

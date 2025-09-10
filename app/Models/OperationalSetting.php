@@ -2,19 +2,19 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
 class OperationalSetting extends Model
 {
     protected $fillable = [
-        'is_active', 
-        'start_time', 
-        'end_time', 
-        'operational_days', 
+        'is_active',
+        'start_time',
+        'end_time',
+        'operational_days',
         'icv_closed',
-        'izin_closed', 
-        'account_closed'
+        'izin_closed',
+        'account_closed',
     ];
 
     protected $casts = [
@@ -57,6 +57,7 @@ class OperationalSetting extends Model
     {
         if (is_string($value)) {
             $decoded = json_decode($value, true);
+
             return is_array($decoded) ? $decoded : [];
         }
 
@@ -70,7 +71,7 @@ class OperationalSetting extends Model
         $currentTime = $now->format('H:i:s');
         $days = $this->operational_days ?: [1, 2, 3, 4, 5];
 
-        if (!is_array($days)) {
+        if (! is_array($days)) {
             $days = [1, 2, 3, 4, 5];
         }
 
@@ -85,13 +86,11 @@ class OperationalSetting extends Model
         return static::where('is_active', true)->first();
     }
 
-    
-
     // Method untuk cek apakah layanan tertentu ditutup
     public static function isServiceClosed($service)
     {
         $activeSettings = static::getActiveSettings();
-        if (!$activeSettings) {
+        if (! $activeSettings) {
             return false;
         }
 
@@ -112,7 +111,7 @@ class OperationalSetting extends Model
     public static function closeService($service, $reason = null)
     {
         $activeSettings = static::getActiveSettings();
-        if (!$activeSettings) {
+        if (! $activeSettings) {
             return null;
         }
 
@@ -136,7 +135,7 @@ class OperationalSetting extends Model
     public static function openService($service)
     {
         $activeSettings = static::getActiveSettings();
-        if (!$activeSettings) {
+        if (! $activeSettings) {
             return null;
         }
 

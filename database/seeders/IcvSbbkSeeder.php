@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\IcvSbbk;
 use App\Models\Icv;
+use App\Models\IcvSbbk;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class IcvSbbkSeeder extends Seeder
 {
@@ -17,8 +16,9 @@ class IcvSbbkSeeder extends Seeder
     {
         $jsonPath = database_path('seeders/tbl_icv_sbbk.json');
 
-        if (!file_exists($jsonPath)) {
+        if (! file_exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
+
             return;
         }
 
@@ -34,30 +34,34 @@ class IcvSbbkSeeder extends Seeder
             }
         }
 
-        if (!$sbbkData) {
+        if (! $sbbkData) {
             $this->command->error('No ICV SBBK data found in JSON file');
+
             return;
         }
 
-        $this->command->info('Processing ' . count($sbbkData) . ' ICV SBBK records...');
+        $this->command->info('Processing '.count($sbbkData).' ICV SBBK records...');
 
         foreach ($sbbkData as $record) {
             // Skip if ID already exists
-            if (!empty($record['id']) && IcvSbbk::where('id', $record['id'])->exists()) {
+            if (! empty($record['id']) && IcvSbbk::where('id', $record['id'])->exists()) {
                 $this->command->warn("IcvSbbk with ID {$record['id']} already exists. Skipping...");
+
                 continue;
             }
 
             // Skip if id_icv is 0 or empty
             if (empty($record['id_icv']) || $record['id_icv'] == '0') {
                 $this->command->warn("Skipping ICV SBBK ID {$record['id']} - id_icv is 0 or empty");
+
                 continue;
             }
 
             // Find ICV by id_icv
             $icv = Icv::find($record['id_icv']);
-            if (!$icv) {
+            if (! $icv) {
                 $this->command->warn("ICV with ID {$record['id_icv']} not found for SBBK ID {$record['id']}. Skipping...");
+
                 continue;
             }
 
@@ -83,7 +87,7 @@ class IcvSbbkSeeder extends Seeder
      */
     private function parseDateTime($datetimeString)
     {
-        if (!$datetimeString || $datetimeString === '0000-00-00 00:00:00') {
+        if (! $datetimeString || $datetimeString === '0000-00-00 00:00:00') {
             return now();
         }
 
@@ -91,6 +95,7 @@ class IcvSbbkSeeder extends Seeder
             return Carbon::parse($datetimeString);
         } catch (\Exception $e) {
             $this->command->warn("Invalid datetime format: {$datetimeString}");
+
             return now();
         }
     }
@@ -121,7 +126,7 @@ class IcvSbbkSeeder extends Seeder
         }
 
         // Add icv-sbbk/ prefix to valid filenames
-        return 'icv/sbbk/' . $filename;
+        return 'icv/sbbk/'.$filename;
     }
 
     /**

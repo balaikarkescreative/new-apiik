@@ -20,7 +20,7 @@ trait FileLabels
             'file11' => 'Bagan Syok Anafilaktik',
             'file12' => 'Surat Izin Operasional Klinik RS',
             'file13' => 'Surat izin Praktik Dokter',
-            'file14' => 'Sertifikat Pelatihan Vaksin / Imunologi'
+            'file14' => 'Sertifikat Pelatihan Vaksin / Imunologi',
         ];
     }
 
@@ -28,12 +28,12 @@ trait FileLabels
     {
         return [
             'file1' => 'Surat Permohonan',
-            'file2'=> 'Bukti laporan Ke Dinas Kesehatan',
-            'file3'=> 'Rekap Pemakaian ICV',
-            'file4'=> 'Faktur Pembelian Vaksin',
-            'file5'=> 'Berita Acara Kerusakan ICV',
-            'file6'=> 'Daftar Nama Penerima ICV',
-            'file7'=> 'Screenshoot sisa stok di Sinkarkes',
+            'file2' => 'Bukti laporan Ke Dinas Kesehatan',
+            'file3' => 'Rekap Pemakaian ICV',
+            'file4' => 'Faktur Pembelian Vaksin',
+            'file5' => 'Berita Acara Kerusakan ICV',
+            'file6' => 'Daftar Nama Penerima ICV',
+            'file7' => 'Screenshoot sisa stok di Sinkarkes',
         ];
     }
 

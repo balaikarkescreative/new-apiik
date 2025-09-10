@@ -1,21 +1,20 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Widgets/AdminPnbpChartWidget.php
 
 namespace App\Filament\Widgets;
 
-use Filament\Widgets\ChartWidget;
 use App\Models\Icv;
-use App\Models\IcvAlokasi;
-use App\Models\IcvSbbk;
+use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
 
 class AdminPnbpChartWidget extends ChartWidget
 {
-    protected static ?string $heading = "Tren Pendapatan PNBP ICV Per Tahun";
+    protected static ?string $heading = 'Tren Pendapatan PNBP ICV Per Tahun';
 
     protected static ?int $sort = 2;
 
-    protected int|string|array $columnSpan = "full";
+    protected int|string|array $columnSpan = 'full';
 
     // Tarif ICV berdasarkan regulasi (dalam rupiah)
     private const TARIF_ICV = 25000; // Rp 25.000 per ICV
@@ -34,23 +33,23 @@ class AdminPnbpChartWidget extends ChartWidget
             $labels[] = (string) $year;
 
             // ICV yang sudah upload bukti bayar per tahun
-            $icvSudahUpload = DB::table("tbl_icv")
+            $icvSudahUpload = DB::table('tbl_icv')
                 ->join(
-                    "tbl_icv_alokasi",
-                    "tbl_icv.id",
-                    "=",
-                    "tbl_icv_alokasi.id_icv",
+                    'tbl_icv_alokasi',
+                    'tbl_icv.id',
+                    '=',
+                    'tbl_icv_alokasi.id_icv',
                 )
                 ->join(
-                    "tbl_icv_bukti_bayar",
-                    "tbl_icv.id",
-                    "=",
-                    "tbl_icv_bukti_bayar.id_icv",
+                    'tbl_icv_bukti_bayar',
+                    'tbl_icv.id',
+                    '=',
+                    'tbl_icv_bukti_bayar.id_icv',
                 )
-                ->whereNotNull("tbl_icv_bukti_bayar.file_bukti_bayar")
-                ->where("tbl_icv_bukti_bayar.file_bukti_bayar", "!=", "")
-                ->whereYear("tbl_icv.tanggal_pengajuan", $year)
-                ->sum("tbl_icv_alokasi.icv_disetujui");
+                ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+                ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
+                ->whereYear('tbl_icv.tanggal_pengajuan', $year)
+                ->sum('tbl_icv_alokasi.icv_disetujui');
 
             // Hitung pendapatan PNBP (ICV sudah upload bukti bayar x tarif)
             $pendapatan = $icvSudahUpload * self::TARIF_ICV;
@@ -59,90 +58,90 @@ class AdminPnbpChartWidget extends ChartWidget
         }
 
         return [
-            "datasets" => [
+            'datasets' => [
                 [
-                    "label" => "Pendapatan PNBP (Rupiah)",
-                    "data" => $pendapatanData,
-                    "backgroundColor" => "rgba(59, 130, 246, 0.1)",
-                    "borderColor" => "rgb(59, 130, 246)",
-                    "borderWidth" => 3,
-                    "fill" => true,
-                    "tension" => 0.4,
-                    "pointBackgroundColor" => "rgb(59, 130, 246)",
-                    "pointBorderColor" => "rgb(255, 255, 255)",
-                    "pointBorderWidth" => 2,
-                    "pointRadius" => 6,
-                    "pointHoverRadius" => 8,
+                    'label' => 'Pendapatan PNBP (Rupiah)',
+                    'data' => $pendapatanData,
+                    'backgroundColor' => 'rgba(59, 130, 246, 0.1)',
+                    'borderColor' => 'rgb(59, 130, 246)',
+                    'borderWidth' => 3,
+                    'fill' => true,
+                    'tension' => 0.4,
+                    'pointBackgroundColor' => 'rgb(59, 130, 246)',
+                    'pointBorderColor' => 'rgb(255, 255, 255)',
+                    'pointBorderWidth' => 2,
+                    'pointRadius' => 6,
+                    'pointHoverRadius' => 8,
                 ],
             ],
-            "labels" => $labels,
+            'labels' => $labels,
         ];
     }
 
     protected function getType(): string
     {
-        return "line";
+        return 'line';
     }
 
     protected function getOptions(): array
     {
         return [
-            "responsive" => true,
-            "maintainAspectRatio" => false,
-            "plugins" => [
-                "legend" => [
-                    "display" => true,
-                    "position" => "top",
+            'responsive' => true,
+            'maintainAspectRatio' => false,
+            'plugins' => [
+                'legend' => [
+                    'display' => true,
+                    'position' => 'top',
                 ],
-                "tooltip" => [
-                    "enabled" => true,
-                    "mode" => "index",
-                    "intersect" => false,
-                    "backgroundColor" => "rgba(0, 0, 0, 0.8)",
-                    "titleColor" => "#fff",
-                    "bodyColor" => "#fff",
-                    "borderColor" => "rgb(59, 130, 246)",
-                    "borderWidth" => 1,
-                    "cornerRadius" => 6,
-                    "padding" => 12,
+                'tooltip' => [
+                    'enabled' => true,
+                    'mode' => 'index',
+                    'intersect' => false,
+                    'backgroundColor' => 'rgba(0, 0, 0, 0.8)',
+                    'titleColor' => '#fff',
+                    'bodyColor' => '#fff',
+                    'borderColor' => 'rgb(59, 130, 246)',
+                    'borderWidth' => 1,
+                    'cornerRadius' => 6,
+                    'padding' => 12,
                 ],
             ],
-            "scales" => [
-                "y" => [
-                    "beginAtZero" => true,
-                    "title" => [
-                        "display" => true,
-                        "text" => "Pendapatan (Rupiah)",
-                        "font" => [
-                            "size" => 12,
-                            "weight" => "bold",
+            'scales' => [
+                'y' => [
+                    'beginAtZero' => true,
+                    'title' => [
+                        'display' => true,
+                        'text' => 'Pendapatan (Rupiah)',
+                        'font' => [
+                            'size' => 12,
+                            'weight' => 'bold',
                         ],
                     ],
-                    "grid" => [
-                        "color" => "rgba(0, 0, 0, 0.1)",
+                    'grid' => [
+                        'color' => 'rgba(0, 0, 0, 0.1)',
                     ],
                 ],
-                "x" => [
-                    "title" => [
-                        "display" => true,
-                        "text" => "Tahun",
-                        "font" => [
-                            "size" => 12,
-                            "weight" => "bold",
+                'x' => [
+                    'title' => [
+                        'display' => true,
+                        'text' => 'Tahun',
+                        'font' => [
+                            'size' => 12,
+                            'weight' => 'bold',
                         ],
                     ],
-                    "grid" => [
-                        "display" => false,
+                    'grid' => [
+                        'display' => false,
                     ],
                 ],
             ],
-            "interaction" => [
-                "mode" => "nearest",
-                "intersect" => false,
+            'interaction' => [
+                'mode' => 'nearest',
+                'intersect' => false,
             ],
-            "hover" => [
-                "mode" => "nearest",
-                "intersect" => false,
+            'hover' => [
+                'mode' => 'nearest',
+                'intersect' => false,
             ],
         ];
     }
@@ -150,44 +149,44 @@ class AdminPnbpChartWidget extends ChartWidget
     public function getDescription(): ?string
     {
         // Total pendapatan dari ICV yang sudah upload bukti bayar (sejak 2023)
-        $totalIcvUploadBuktiBayar = DB::table("tbl_icv")
+        $totalIcvUploadBuktiBayar = DB::table('tbl_icv')
             ->join(
-                "tbl_icv_alokasi",
-                "tbl_icv.id",
-                "=",
-                "tbl_icv_alokasi.id_icv",
+                'tbl_icv_alokasi',
+                'tbl_icv.id',
+                '=',
+                'tbl_icv_alokasi.id_icv',
             )
             ->join(
-                "tbl_icv_bukti_bayar",
-                "tbl_icv.id",
-                "=",
-                "tbl_icv_bukti_bayar.id_icv",
+                'tbl_icv_bukti_bayar',
+                'tbl_icv.id',
+                '=',
+                'tbl_icv_bukti_bayar.id_icv',
             )
-            ->whereNotNull("tbl_icv_bukti_bayar.file_bukti_bayar")
-            ->where("tbl_icv_bukti_bayar.file_bukti_bayar", "!=", "")
-            ->whereYear("tbl_icv.tanggal_pengajuan", ">=", 2023)
-            ->sum("tbl_icv_alokasi.icv_disetujui");
+            ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+            ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
+            ->whereYear('tbl_icv.tanggal_pengajuan', '>=', 2023)
+            ->sum('tbl_icv_alokasi.icv_disetujui');
 
         $totalPendapatan = $totalIcvUploadBuktiBayar * self::TARIF_ICV;
 
         // Pendapatan tahun ini
-        $icvTahunIni = DB::table("tbl_icv")
+        $icvTahunIni = DB::table('tbl_icv')
             ->join(
-                "tbl_icv_alokasi",
-                "tbl_icv.id",
-                "=",
-                "tbl_icv_alokasi.id_icv",
+                'tbl_icv_alokasi',
+                'tbl_icv.id',
+                '=',
+                'tbl_icv_alokasi.id_icv',
             )
             ->join(
-                "tbl_icv_bukti_bayar",
-                "tbl_icv.id",
-                "=",
-                "tbl_icv_bukti_bayar.id_icv",
+                'tbl_icv_bukti_bayar',
+                'tbl_icv.id',
+                '=',
+                'tbl_icv_bukti_bayar.id_icv',
             )
-            ->whereNotNull("tbl_icv_bukti_bayar.file_bukti_bayar")
-            ->where("tbl_icv_bukti_bayar.file_bukti_bayar", "!=", "")
-            ->whereYear("tbl_icv.tanggal_pengajuan", now()->year)
-            ->sum("tbl_icv_alokasi.icv_disetujui");
+            ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+            ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
+            ->whereYear('tbl_icv.tanggal_pengajuan', now()->year)
+            ->sum('tbl_icv_alokasi.icv_disetujui');
 
         $pendapatanTahunIni = $icvTahunIni * self::TARIF_ICV;
 
@@ -203,6 +202,6 @@ class AdminPnbpChartWidget extends ChartWidget
      */
     private function formatCurrencyID($amount): string
     {
-        return "Rp " . number_format($amount, 0, ",", ".");
+        return 'Rp '.number_format($amount, 0, ',', '.');
     }
 }

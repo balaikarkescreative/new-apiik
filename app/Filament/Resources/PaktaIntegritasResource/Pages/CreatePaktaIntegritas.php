@@ -16,7 +16,7 @@ class CreatePaktaIntegritas extends CreateRecord
         parent::mount();
 
         $user = auth()->user();
-        if (!$user->hasRole(['admin', 'verifikator1', 'verifikator2']) && $user->paktaIntegritas) {
+        if (! $user->hasRole(['admin', 'verifikator1', 'verifikator2']) && $user->paktaIntegritas) {
             \Filament\Notifications\Notification::make()
                 ->title('Anda sudah memiliki pakta integritas')
                 ->body('Anda hanya dapat membuat satu pakta integritas. Silakan edit pakta integritas yang sudah ada jika ingin mengubah data.')
@@ -44,38 +44,38 @@ class CreatePaktaIntegritas extends CreateRecord
     private function renameUploadedFile(): void
     {
         $record = $this->record;
-        
+
         if ($record->file) {
             $user = $record->user;
             $userName = $user ? $user->name : 'Unknown';
-            
+
             // Clean user name for filename
             $cleanUserName = preg_replace('/[^a-zA-Z0-9\s]/', '', $userName);
             $cleanUserName = preg_replace('/\s+/', ' ', trim($cleanUserName));
-            
+
             // Get current date in ddmmyyyy format
             $date = now()->format('dmY');
-            
+
             // Get file extension
             $currentFilePath = $record->file;
             $extension = pathinfo($currentFilePath, PATHINFO_EXTENSION);
-            
+
             // Create new filename
             $newFileName = "Pakta integritas {$cleanUserName} ({$date}).{$extension}";
-            $newFilePath = 'pakta-integritas/' . $newFileName;
-            
+            $newFilePath = 'pakta-integritas/'.$newFileName;
+
             // Check if filename needs to be changed
             if ($currentFilePath !== $newFilePath) {
-                $oldFullPath = storage_path('app/public/' . $currentFilePath);
-                $newFullPath = storage_path('app/public/' . $newFilePath);
-                
+                $oldFullPath = storage_path('app/public/'.$currentFilePath);
+                $newFullPath = storage_path('app/public/'.$newFilePath);
+
                 if (file_exists($oldFullPath)) {
                     // Ensure directory exists
                     $directory = dirname($newFullPath);
-                    if (!is_dir($directory)) {
+                    if (! is_dir($directory)) {
                         mkdir($directory, 0755, true);
                     }
-                    
+
                     // Rename file
                     if (rename($oldFullPath, $newFullPath)) {
                         // Update database record

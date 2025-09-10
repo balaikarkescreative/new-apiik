@@ -2,10 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\IcvBuktiBayar;
 use App\Models\Icv;
+use App\Models\IcvBuktiBayar;
+use Illuminate\Database\Seeder;
 
 class StatusBuktiBayarSeeder extends Seeder
 {
@@ -36,8 +35,9 @@ class StatusBuktiBayarSeeder extends Seeder
         $this->command->info('');
 
         // Check if we should proceed
-        if (!$this->command->confirm('Do you want to proceed with status updates?')) {
+        if (! $this->command->confirm('Do you want to proceed with status updates?')) {
             $this->command->info('Operation cancelled.');
+
             return;
         }
 
@@ -80,12 +80,12 @@ class StatusBuktiBayarSeeder extends Seeder
         }
 
         $this->command->info('');
-        $this->command->info("=== Update Summary ===");
-        $this->command->info("Total records processed: " . $icvs->count());
+        $this->command->info('=== Update Summary ===');
+        $this->command->info('Total records processed: '.$icvs->count());
         $this->command->info("Updated: {$updated} records");
         $this->command->info("Skipped: {$skipped} records");
         $this->command->info('');
-        $this->command->info("=== Status Summary ===");
+        $this->command->info('=== Status Summary ===');
         $this->command->info("Valid bukti bayar (Status 2): {$validCount} records");
         $this->command->info("Invalid bukti bayar (Status 1): {$invalidCount} records");
     }
@@ -101,7 +101,7 @@ class StatusBuktiBayarSeeder extends Seeder
 
         // ICV yang memiliki jadwal
         $icvWithJadwal = Icv::whereHas('icvBuktiBayar')
-            ->whereHas('icvJadwal', function($query) {
+            ->whereHas('icvJadwal', function ($query) {
                 $query->whereNotNull('jadwal_pengambilan');
             })
             ->count();
@@ -119,7 +119,7 @@ class StatusBuktiBayarSeeder extends Seeder
 
         // ICV yang memiliki record icvJadwal tapi jadwal_pengambilan NULL
         $icvWithNullJadwal = Icv::whereHas('icvBuktiBayar')
-            ->whereHas('icvJadwal', function($query) {
+            ->whereHas('icvJadwal', function ($query) {
                 $query->whereNull('jadwal_pengambilan');
             })
             ->count();
@@ -134,15 +134,15 @@ class StatusBuktiBayarSeeder extends Seeder
 
         // Tampilkan detail ICV tanpa jadwal (maksimal 10)
         if ($icvWithoutJadwal > 0) {
-            $this->command->info("=== DETAIL ICV TANPA JADWAL PENGAMBILAN (Max 10) ===");
+            $this->command->info('=== DETAIL ICV TANPA JADWAL PENGAMBILAN (Max 10) ===');
 
             $icvsWithoutJadwal = Icv::with(['user', 'icvBuktiBayar', 'icvJadwal'])
                 ->whereHas('icvBuktiBayar')
-                ->where(function($query) {
+                ->where(function ($query) {
                     $query->whereDoesntHave('icvJadwal')
-                          ->orWhereHas('icvJadwal', function($subquery) {
-                              $subquery->whereNull('jadwal_pengambilan');
-                          });
+                        ->orWhereHas('icvJadwal', function ($subquery) {
+                            $subquery->whereNull('jadwal_pengambilan');
+                        });
                 })
                 ->limit(10)
                 ->get();
@@ -163,9 +163,9 @@ class StatusBuktiBayarSeeder extends Seeder
 
         // Kesimpulan
         if ($icvWithJadwal == $totalIcvWithBuktiBayar) {
-            $this->command->info("✅ KESIMPULAN: SEMUA bukti bayar memiliki jadwal pengambilan");
+            $this->command->info('✅ KESIMPULAN: SEMUA bukti bayar memiliki jadwal pengambilan');
         } else {
-            $this->command->info("❌ KESIMPULAN: TIDAK SEMUA bukti bayar memiliki jadwal pengambilan");
+            $this->command->info('❌ KESIMPULAN: TIDAK SEMUA bukti bayar memiliki jadwal pengambilan');
             $this->command->info("   {$icvWithoutJadwal} dari {$totalIcvWithBuktiBayar} bukti bayar belum memiliki jadwal pengambilan");
         }
     }

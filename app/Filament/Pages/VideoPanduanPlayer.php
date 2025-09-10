@@ -21,8 +21,9 @@ class VideoPanduanPlayer extends Page
     protected static ?string $title = 'Video FAQ';
 
     protected static ?int $navigationSort = 5;
+
     public ?Collection $videos = null;
-    
+
     #[Url]
     public ?string $activeVideoId = null;
 
@@ -32,12 +33,12 @@ class VideoPanduanPlayer extends Page
     {
         // Ambil semua video yang aktif dan diurutkan berdasarkan order
         $this->videos = VideoPanduan::isActive()->ordered()->get();
-        
+
         // Jika tidak ada activeVideoId yang diberikan, gunakan video pertama (jika ada)
-        if (!$this->activeVideoId && $this->videos->isNotEmpty()) {
+        if (! $this->activeVideoId && $this->videos->isNotEmpty()) {
             $this->activeVideoId = $this->videos->first()->id;
         }
-        
+
         // Set activeVideo berdasarkan activeVideoId
         if ($this->activeVideoId) {
             $this->activeVideo = $this->videos->firstWhere('id', $this->activeVideoId);
@@ -54,7 +55,7 @@ class VideoPanduanPlayer extends Page
         $this->dispatch('videoChanged', [
             'videoUrl' => $this->activeVideo?->video_url,
             'videoId' => $videoId,
-            'videoTitle' => $this->activeVideo?->title
+            'videoTitle' => $this->activeVideo?->title,
         ]);
     }
 }

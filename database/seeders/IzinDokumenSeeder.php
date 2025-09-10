@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\IzinDokumen;
 use App\Models\Izin;
+use App\Models\IzinDokumen;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class IzinDokumenSeeder extends Seeder
 {
@@ -17,8 +16,9 @@ class IzinDokumenSeeder extends Seeder
     {
         $jsonPath = database_path('seeders/tbl_izin_dokumen.json');
 
-        if (!file_exists($jsonPath)) {
+        if (! file_exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
+
             return;
         }
 
@@ -34,30 +34,34 @@ class IzinDokumenSeeder extends Seeder
             }
         }
 
-        if (!$izinDokumenData) {
+        if (! $izinDokumenData) {
             $this->command->error('No izin dokumen data found in JSON file');
+
             return;
         }
 
-        $this->command->info('Processing ' . count($izinDokumenData) . ' izin dokumen records...');
+        $this->command->info('Processing '.count($izinDokumenData).' izin dokumen records...');
 
         foreach ($izinDokumenData as $record) {
             // Skip if ID already exists
-            if (!empty($record['id']) && IzinDokumen::where('id', $record['id'])->exists()) {
+            if (! empty($record['id']) && IzinDokumen::where('id', $record['id'])->exists()) {
                 $this->command->warn("IzinDokumen with ID {$record['id']} already exists. Skipping...");
+
                 continue;
             }
 
             // Skip if id_izin is 0 or empty
             if (empty($record['id_izin']) || $record['id_izin'] == '0') {
                 $this->command->warn("Skipping izin dokumen ID {$record['id']} - id_izin is 0 or empty");
+
                 continue;
             }
 
             // Find Izin by id_izin
             $izin = Izin::find($record['id_izin']);
-            if (!$izin) {
+            if (! $izin) {
                 $this->command->warn("Izin with ID {$record['id_izin']} not found for izin dokumen ID {$record['id']}. Skipping...");
+
                 continue;
             }
 
@@ -86,7 +90,7 @@ class IzinDokumenSeeder extends Seeder
      */
     private function parseDateTime($datetimeString)
     {
-        if (!$datetimeString || $datetimeString === '0000-00-00 00:00:00') {
+        if (! $datetimeString || $datetimeString === '0000-00-00 00:00:00') {
             return now();
         }
 
@@ -94,6 +98,7 @@ class IzinDokumenSeeder extends Seeder
             return Carbon::parse($datetimeString);
         } catch (\Exception $e) {
             $this->command->warn("Invalid datetime format: {$datetimeString}");
+
             return now();
         }
     }
@@ -125,7 +130,7 @@ class IzinDokumenSeeder extends Seeder
      */
     private function mapStatus($status)
     {
-        return (int)$status;
+        return (int) $status;
     }
 
     /**
@@ -133,7 +138,7 @@ class IzinDokumenSeeder extends Seeder
      */
     private function getHasilLabel($hasil)
     {
-        return match($hasil) {
+        return match ($hasil) {
             0 => 'Belum Diverifikasi',
             1 => 'Berkas Lengkap',
             2 => 'Berkas Tidak Lengkap',

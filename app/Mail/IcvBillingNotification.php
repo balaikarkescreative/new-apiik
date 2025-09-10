@@ -1,22 +1,24 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Mail/IcvBillingNotification.php
 
 namespace App\Mail;
 
+use App\Models\Icv;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Icv;
 
 class IcvBillingNotification extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $icv;
+
     public $kodeBilling;
+
     public $nominal;
 
     public function __construct(Icv $icv, $kodeBilling, $nominal)
@@ -29,7 +31,7 @@ class IcvBillingNotification extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Kode Billing ICV Diterbitkan - ID: ' . $this->icv->id,
+            subject: 'Kode Billing ICV Diterbitkan - ID: '.$this->icv->id,
         );
     }
 

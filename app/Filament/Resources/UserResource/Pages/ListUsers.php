@@ -10,7 +10,7 @@ class ListUsers extends ListRecords
 {
     protected static string $resource = UserResource::class;
 
-    protected static ?string $title = "List RS/Klinik";
+    protected static ?string $title = 'List RS/Klinik';
 
     protected function getHeaderActions(): array
     {
@@ -18,7 +18,7 @@ class ListUsers extends ListRecords
             Actions\CreateAction::make()
                 ->label('Tambah RS/Klinik Baru')
                 ->icon('heroicon-o-plus')
-                ->color('primary')
+                ->color('primary'),
         ];
     }
 }

@@ -1,21 +1,22 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Mail/IcvJadwalNotification.php
 
 namespace App\Mail;
 
+use App\Models\Icv;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Icv;
 
 class IcvJadwalNotification extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $icv;
+
     public $jadwalPengambilan;
 
     public function __construct(Icv $icv, $jadwalPengambilan)
@@ -27,7 +28,7 @@ class IcvJadwalNotification extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Jadwal Distribusi ICV Ditetapkan - ID: ' . $this->icv->id,
+            subject: 'Jadwal Distribusi ICV Ditetapkan - ID: '.$this->icv->id,
         );
     }
 

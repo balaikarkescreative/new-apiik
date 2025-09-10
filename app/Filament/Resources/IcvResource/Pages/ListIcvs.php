@@ -10,14 +10,14 @@ class ListIcvs extends ListRecords
 {
     protected static string $resource = IcvResource::class;
 
-    protected static ?string $title = "Kelola Pengajuan ICV";
+    protected static ?string $title = 'Kelola Pengajuan ICV';
 
     public function mountCanAuthorizeAccess(): void
     {
         parent::mountCanAuthorizeAccess();
 
         // Cek apakah user memiliki peran yang sesuai
-        if (!auth()->user()->hasRole(['admin'])) {
+        if (! auth()->user()->hasRole(['admin'])) {
             // abort(403, 'Akses ditolak. Hanya admin yang dapat mengelola pengajuan ICV.');
             redirect()->to('/');
 
@@ -28,8 +28,8 @@ class ListIcvs extends ListRecords
     {
         return [
             Actions\CreateAction::make()
-            ->label('Buat Pengajuan ICV')
-            ->icon('heroicon-o-plus')
+                ->label('Buat Pengajuan ICV')
+                ->icon('heroicon-o-plus'),
         ];
     }
 }

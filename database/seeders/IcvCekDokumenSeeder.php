@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\IcvCekDokumen;
 use App\Models\Icv;
+use App\Models\IcvCekDokumen;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class IcvCekDokumenSeeder extends Seeder
 {
@@ -17,8 +16,9 @@ class IcvCekDokumenSeeder extends Seeder
     {
         $jsonPath = database_path('seeders/tbl_cek_dokumen.json');
 
-        if (!file_exists($jsonPath)) {
+        if (! file_exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
+
             return;
         }
 
@@ -34,30 +34,34 @@ class IcvCekDokumenSeeder extends Seeder
             }
         }
 
-        if (!$cekDokumenData) {
+        if (! $cekDokumenData) {
             $this->command->error('No cek dokumen data found in JSON file');
+
             return;
         }
 
-        $this->command->info('Processing ' . count($cekDokumenData) . ' cek dokumen records...');
+        $this->command->info('Processing '.count($cekDokumenData).' cek dokumen records...');
 
         foreach ($cekDokumenData as $record) {
             // Skip if ID already exists
-            if (!empty($record['id']) && IcvCekDokumen::where('id', $record['id'])->exists()) {
+            if (! empty($record['id']) && IcvCekDokumen::where('id', $record['id'])->exists()) {
                 $this->command->warn("IcvCekDokumen with ID {$record['id']} already exists. Skipping...");
+
                 continue;
             }
 
             // Skip if id_icv is 0 or empty
             if (empty($record['id_icv']) || $record['id_icv'] == '0') {
                 $this->command->warn("Skipping cek dokumen ID {$record['id']} - id_icv is 0 or empty");
+
                 continue;
             }
 
             // Find ICV by id_icv
             $icv = Icv::find($record['id_icv']);
-            if (!$icv) {
+            if (! $icv) {
                 $this->command->warn("ICV with ID {$record['id_icv']} not found for cek dokumen ID {$record['id']}. Skipping...");
+
                 continue;
             }
 
@@ -66,8 +70,8 @@ class IcvCekDokumenSeeder extends Seeder
                 'id' => $record['id'] ?? null,
                 'id_icv' => $icv->id,
                 'hasil_verif' => $this->mapHasilVerif($record['hasil_verif'] ?? ''),
-                'stok_vaksin' => (int)($record['stok_vaksin'] ?? 0),
-                'jumlah_icv' => (int)($record['jumlah_icv'] ?? 0),
+                'stok_vaksin' => (int) ($record['stok_vaksin'] ?? 0),
+                'jumlah_icv' => (int) ($record['jumlah_icv'] ?? 0),
                 'catatan' => $record['catatan'] ?? '',
                 'status' => $this->mapStatus($record['hasil_verif'] ?? ''),
                 'date_updated' => $this->parseDateTime($record['date_updated'] ?? null),
@@ -87,7 +91,7 @@ class IcvCekDokumenSeeder extends Seeder
      */
     private function parseDateTime($datetimeString)
     {
-        if (!$datetimeString || $datetimeString === '0000-00-00 00:00:00') {
+        if (! $datetimeString || $datetimeString === '0000-00-00 00:00:00') {
             return now();
         }
 
@@ -95,6 +99,7 @@ class IcvCekDokumenSeeder extends Seeder
             return Carbon::parse($datetimeString);
         } catch (\Exception $e) {
             $this->command->warn("Invalid datetime format: {$datetimeString}");
+
             return now();
         }
     }

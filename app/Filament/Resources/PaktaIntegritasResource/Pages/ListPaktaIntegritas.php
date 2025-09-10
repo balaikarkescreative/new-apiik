@@ -10,13 +10,13 @@ class ListPaktaIntegritas extends ListRecords
 {
     protected static string $resource = PaktaIntegritasResource::class;
 
-     protected function getHeaderActions(): array
+    protected function getHeaderActions(): array
     {
         return [
             Actions\CreateAction::make()
                 ->label('Tambah Pakta Integritas')
                 ->icon('heroicon-o-plus')
-                ->color('primary')
+                ->color('primary'),
         ];
     }
 }

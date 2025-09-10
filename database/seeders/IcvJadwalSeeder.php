@@ -2,11 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-use App\Models\IcvJadwal;
 use App\Models\Icv;
+use App\Models\IcvJadwal;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class IcvJadwalSeeder extends Seeder
 {
@@ -17,8 +16,9 @@ class IcvJadwalSeeder extends Seeder
     {
         $jsonPath = database_path('seeders/tbl_icv_jadwal.json');
 
-        if (!file_exists($jsonPath)) {
+        if (! file_exists($jsonPath)) {
             $this->command->error("JSON file not found: {$jsonPath}");
+
             return;
         }
 
@@ -34,30 +34,34 @@ class IcvJadwalSeeder extends Seeder
             }
         }
 
-        if (!$jadwalData) {
+        if (! $jadwalData) {
             $this->command->error('No ICV jadwal data found in JSON file');
+
             return;
         }
 
-        $this->command->info('Processing ' . count($jadwalData) . ' ICV jadwal records...');
+        $this->command->info('Processing '.count($jadwalData).' ICV jadwal records...');
 
         foreach ($jadwalData as $record) {
             // Skip if ID already exists
-            if (!empty($record['id']) && IcvJadwal::where('id', $record['id'])->exists()) {
+            if (! empty($record['id']) && IcvJadwal::where('id', $record['id'])->exists()) {
                 $this->command->warn("IcvJadwal with ID {$record['id']} already exists. Skipping...");
+
                 continue;
             }
 
             // Skip if id_icv is 0 or empty
             if (empty($record['id_icv']) || $record['id_icv'] == '0') {
                 $this->command->warn("Skipping ICV jadwal ID {$record['id']} - id_icv is 0 or empty");
+
                 continue;
             }
 
             // Find ICV by id_icv
             $icv = Icv::find($record['id_icv']);
-            if (!$icv) {
+            if (! $icv) {
                 $this->command->warn("ICV with ID {$record['id_icv']} not found for jadwal ID {$record['id']}. Skipping...");
+
                 continue;
             }
 
@@ -83,7 +87,7 @@ class IcvJadwalSeeder extends Seeder
      */
     private function parseDate($dateString)
     {
-        if (!$dateString || $dateString === '0000-00-00' || $dateString === '0') {
+        if (! $dateString || $dateString === '0000-00-00' || $dateString === '0') {
             return null;
         }
 
@@ -91,6 +95,7 @@ class IcvJadwalSeeder extends Seeder
             return Carbon::parse($dateString)->format('Y-m-d');
         } catch (\Exception $e) {
             $this->command->warn("Invalid date format: {$dateString}");
+
             return null;
         }
     }
@@ -100,7 +105,7 @@ class IcvJadwalSeeder extends Seeder
      */
     private function parseDateTime($datetimeString)
     {
-        if (!$datetimeString || $datetimeString === '0000-00-00 00:00:00') {
+        if (! $datetimeString || $datetimeString === '0000-00-00 00:00:00') {
             return now();
         }
 
@@ -108,6 +113,7 @@ class IcvJadwalSeeder extends Seeder
             return Carbon::parse($datetimeString);
         } catch (\Exception $e) {
             $this->command->warn("Invalid datetime format: {$datetimeString}");
+
             return now();
         }
     }
@@ -117,7 +123,7 @@ class IcvJadwalSeeder extends Seeder
      */
     private function mapStatus($status)
     {
-        $status = (int)$status;
+        $status = (int) $status;
 
         if ($status === 1) {
             return 0;

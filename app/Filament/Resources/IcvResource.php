@@ -6,32 +6,37 @@ use App\Filament\Resources\IcvResource\Pages;
 use App\FileLabels;
 use App\Models\Icv;
 use App\Models\User;
+use Carbon\Carbon;
 use Filament\Forms;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\Filter;
-use Filament\Forms\Components\DatePicker;
-use Carbon\Carbon;
-use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class IcvResource extends Resource
 {
     use FileLabels;
+
     protected static ?string $model = Icv::class;
 
-    protected static ?string $navigationIcon = "heroicon-o-cube";
-    protected static ?string $navigationLabel = "ICV";
-    protected static ?string $modelLabel = "ICV";
-    protected static ?string $pluralModelLabel = "ICV";
-    protected static ?string $slug = "icv";
+    protected static ?string $navigationIcon = 'heroicon-o-cube';
+
+    protected static ?string $navigationLabel = 'ICV';
+
+    protected static ?string $modelLabel = 'ICV';
+
+    protected static ?string $pluralModelLabel = 'ICV';
+
+    protected static ?string $slug = 'icv';
+
     protected static bool $shouldRegisterNavigation = false;
 
     /**
@@ -40,7 +45,7 @@ class IcvResource extends Resource
     private static function generateCustomFilename(
         string $documentType,
         string $extension,
-        int $userId = null,
+        ?int $userId = null,
     ): string {
         // Determine user name based on role and provided userId
         if (auth()->user()->hasRole('admin') && $userId) {
@@ -49,36 +54,36 @@ class IcvResource extends Resource
             $userName = auth()->user()->name ?? 'Unknown';
         }
 
-        $timestamp = date("dmyHi");
+        $timestamp = date('dmyHi');
 
         // Clean filename from special characters
         $cleanDocumentType = preg_replace(
             "/[^A-Za-z0-9\s\-_]/",
-            "",
+            '',
             $documentType
         );
-        $cleanUserName = preg_replace("/[^A-Za-z0-9\s\-_]/", "", $userName);
+        $cleanUserName = preg_replace("/[^A-Za-z0-9\s\-_]/", '', $userName);
 
-        return "ICV " .
-            $cleanDocumentType .
-            " " .
-            $cleanUserName .
-            " [" .
-            $timestamp .
-            "]." .
+        return 'ICV '.
+            $cleanDocumentType.
+            ' '.
+            $cleanUserName.
+            ' ['.
+            $timestamp.
+            '].'.
             $extension;
     }
 
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make("Informasi Pengajuan")->schema([
+            Forms\Components\Section::make('Informasi Pengajuan')->schema([
                 Forms\Components\Grid::make(1)->schema([
-                    Forms\Components\Select::make("user_id")
-                        ->label("Pemohon")
-                        ->default(fn() => auth()->user()->hasRole('admin') ? null : auth()->id())
+                    Forms\Components\Select::make('user_id')
+                        ->label('Pemohon')
+                        ->default(fn () => auth()->user()->hasRole('admin') ? null : auth()->id())
                         ->required()
-                        ->relationship("user", "name", function (Builder $query) {
+                        ->relationship('user', 'name', function (Builder $query) {
                             // Admin can see all active users, regular users only see themselves
                             if (auth()->user()->hasRole('admin')) {
                                 return $query->where('status_akun', 'Aktif')
@@ -91,7 +96,7 @@ class IcvResource extends Resource
                         ->getOptionLabelFromRecordUsing(function ($record) {
                             // Show more info for admin to distinguish users
                             if (auth()->user()->hasRole('admin')) {
-                                return $record->name . ' (' . ($record->kotakab ?? 'Lokasi tidak diset') . ')';
+                                return $record->name.' ('.($record->kotakab ?? 'Lokasi tidak diset').')';
                             }
 
                             return $record->name;
@@ -103,7 +108,7 @@ class IcvResource extends Resource
 
                             return auth()->user()->name;
                         })
-                        ->disabled(fn() => !auth()->user()->hasRole('admin'))
+                        ->disabled(fn () => ! auth()->user()->hasRole('admin'))
                         ->dehydrated(true) // Ensure value is saved even when disabled
                         ->helperText(function () {
                             if (auth()->user()->hasRole('admin')) {
@@ -113,21 +118,22 @@ class IcvResource extends Resource
                             return 'Pengajuan akan dibuat atas nama Anda';
                         }),
 
-                    Forms\Components\DatePicker::make("tanggal_pengajuan")
-                        ->label("Tanggal Pengajuan")
+                    Forms\Components\DatePicker::make('tanggal_pengajuan')
+                        ->label('Tanggal Pengajuan')
                         ->native(false)
                         ->required()
-                        ->displayFormat("d/m/Y")
+                        ->displayFormat('d/m/Y')
                         ->native(false)
                         ->default(now()),
 
-                    Forms\Components\Select::make("jumlah_icv")
-                        ->label("Jumlah ICV")
+                    Forms\Components\Select::make('jumlah_icv')
+                        ->label('Jumlah ICV')
                         ->options(function () {
                             $options = [];
                             for ($i = 25; $i <= 500; $i += 25) {
                                 $options[$i] = $i;
                             }
+
                             return $options;
                         })
                         ->searchable()
@@ -135,7 +141,7 @@ class IcvResource extends Resource
                 ]),
             ]),
 
-            Forms\Components\Section::make("Catatan Hasil Verifikasi")
+            Forms\Components\Section::make('Catatan Hasil Verifikasi')
                 ->schema([
 
                     Forms\Components\Textarea::make('catatan')
@@ -143,150 +149,149 @@ class IcvResource extends Resource
                         ->disabled()
                         ->rows(3)
                         ->formatStateUsing(function ($record) {
-                            if (!$record)
+                            if (! $record) {
                                 return '';
+                            }
 
                             $icvCekDokumen = \App\Models\IcvCekDokumen::where('id_icv', $record->id)->first();
+
                             return $icvCekDokumen ? $icvCekDokumen->catatan : '';
                         })
                         ->columnSpanFull()
                         ->visible(function ($record) {
-                            if (!$record)
+                            if (! $record) {
                                 return false;
+                            }
 
                             $icvCekDokumen = \App\Models\IcvCekDokumen::where('id_icv', $record->id)->first();
+
                             return $icvCekDokumen &&
                                 $icvCekDokumen->catatan &&
                                 $icvCekDokumen->hasil_verif === '2'; // Hanya tampil jika berkas tidak lengkap
                         }),
                 ])
                 ->visible(function ($record) {
-                    if (!$record)
+                    if (! $record) {
                         return false;
+                    }
 
                     $icvCekDokumen = \App\Models\IcvCekDokumen::where('id_icv', $record->id)->first();
+
                     return $icvCekDokumen && $icvCekDokumen->catatan;
                 })
                 ->collapsible()
                 ->collapsed(false)
                 ->icon('heroicon-o-chat-bubble-left-right'),
 
-            Forms\Components\Section::make("Upload Dokumen")->schema([
+            Forms\Components\Section::make('Upload Dokumen')->schema([
                 Forms\Components\Grid::make(2)->schema([
-                    Forms\Components\FileUpload::make("file1")
+                    Forms\Components\FileUpload::make('file1')
                         ->label(self::getIcvLabel('file1'))
                         ->required()
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->directory("icv-documents")
+                        ->directory('icv-documents')
                         ->getUploadedFileNameForStorageUsing(
-                            fn(TemporaryUploadedFile $file, callable $get): string =>
-                            self::generateCustomFilename(
-                                "Surat Permohonan",
+                            fn (TemporaryUploadedFile $file, callable $get): string => self::generateCustomFilename(
+                                'Surat Permohonan',
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->id()
+                                $get('user_id') ?? auth()->id()
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file2")
+                    Forms\Components\FileUpload::make('file2')
                         ->label(self::getIcvLabel('file2'))
                         ->required()
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->directory("icv-documents")
+                        ->directory('icv-documents')
                         ->getUploadedFileNameForStorageUsing(
-                            fn(TemporaryUploadedFile $file, callable $get): string =>
-                            self::generateCustomFilename(
-                                "Bukti Laporan",
+                            fn (TemporaryUploadedFile $file, callable $get): string => self::generateCustomFilename(
+                                'Bukti Laporan',
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->id()
+                                $get('user_id') ?? auth()->id()
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file3")
-                        ->label(self::getIcvLabel("file3"))
+                    Forms\Components\FileUpload::make('file3')
+                        ->label(self::getIcvLabel('file3'))
                         ->required()
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->directory("icv-documents")
+                        ->directory('icv-documents')
                         ->getUploadedFileNameForStorageUsing(
-                            fn(TemporaryUploadedFile $file, callable $get): string =>
-                            self::generateCustomFilename(
-                                "Rekap Pemakaian",
+                            fn (TemporaryUploadedFile $file, callable $get): string => self::generateCustomFilename(
+                                'Rekap Pemakaian',
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->id()
+                                $get('user_id') ?? auth()->id()
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file4")
-                        ->label(self::getIcvLabel("file4"))
+                    Forms\Components\FileUpload::make('file4')
+                        ->label(self::getIcvLabel('file4'))
                         ->required()
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->directory("icv-documents")
+                        ->directory('icv-documents')
                         ->getUploadedFileNameForStorageUsing(
-                            fn(TemporaryUploadedFile $file, callable $get): string =>
-                            self::generateCustomFilename(
-                                "Faktur Pembelian",
+                            fn (TemporaryUploadedFile $file, callable $get): string => self::generateCustomFilename(
+                                'Faktur Pembelian',
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->id()
+                                $get('user_id') ?? auth()->id()
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file5")
-                        ->label(self::getIcvLabel("file5"))
+                    Forms\Components\FileUpload::make('file5')
+                        ->label(self::getIcvLabel('file5'))
                         ->required()
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->directory("icv-documents")
+                        ->directory('icv-documents')
                         ->getUploadedFileNameForStorageUsing(
-                            fn(TemporaryUploadedFile $file, callable $get): string =>
-                            self::generateCustomFilename(
-                                "Berita Acara",
+                            fn (TemporaryUploadedFile $file, callable $get): string => self::generateCustomFilename(
+                                'Berita Acara',
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->id()
+                                $get('user_id') ?? auth()->id()
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file6")
-                        ->label(self::getIcvLabel("file6"))
+                    Forms\Components\FileUpload::make('file6')
+                        ->label(self::getIcvLabel('file6'))
                         ->required()
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->directory("icv-documents")
+                        ->directory('icv-documents')
                         ->getUploadedFileNameForStorageUsing(
-                            fn(TemporaryUploadedFile $file, callable $get): string =>
-                            self::generateCustomFilename(
-                                "Daftar Penerima",
+                            fn (TemporaryUploadedFile $file, callable $get): string => self::generateCustomFilename(
+                                'Daftar Penerima',
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->id()
+                                $get('user_id') ?? auth()->id()
                             )
                         ),
 
-                    Forms\Components\FileUpload::make("file7")
-                        ->label(self::getIcvLabel("file7"))
+                    Forms\Components\FileUpload::make('file7')
+                        ->label(self::getIcvLabel('file7'))
                         ->required()
-                        ->helperText("Format PDF, maksimal 3MB.")
-                        ->acceptedFileTypes(["application/pdf"])
+                        ->helperText('Format PDF, maksimal 3MB.')
+                        ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
-                        ->directory("icv-documents")
+                        ->directory('icv-documents')
                         ->getUploadedFileNameForStorageUsing(
-                            fn(TemporaryUploadedFile $file, callable $get): string =>
-                            self::generateCustomFilename(
-                                "Screenshot Sinkarkes",
+                            fn (TemporaryUploadedFile $file, callable $get): string => self::generateCustomFilename(
+                                'Screenshot Sinkarkes',
                                 $file->getClientOriginalExtension(),
-                                $get("user_id") ?? auth()->id()
+                                $get('user_id') ?? auth()->id()
                             )
                         ),
                 ]),
             ])
-                ->description("Semua dokumen wajib diupload. Format PDF, maksimal 3MB per dokumen.")
+                ->description('Semua dokumen wajib diupload. Format PDF, maksimal 3MB per dokumen.')
                 ->collapsible(),
         ]);
     }
@@ -297,16 +302,16 @@ class IcvResource extends Resource
             ->query(
                 Icv::query()
                     ->with([
-                        "user",
-                        "icvCekDokumen",
-                        "icvAlokasi",
-                        "icvBilling",
-                        "icvBuktiBayar",
-                        "icvJadwal",
-                        "icvSbbk",
+                        'user',
+                        'icvCekDokumen',
+                        'icvAlokasi',
+                        'icvBilling',
+                        'icvBuktiBayar',
+                        'icvJadwal',
+                        'icvSbbk',
                     ])
             )
-            ->defaultSort("tanggal_pengajuan", "desc")
+            ->defaultSort('tanggal_pengajuan', 'desc')
             ->searchable()
             ->headerActions([
                 Tables\Actions\Action::make('downloadLaporan')
@@ -363,9 +368,9 @@ class IcvResource extends Resource
                         $klinik = $record->user?->name ?? 'N/A';
                         $lokasi = $record->user?->kotakab ?? 'N/A';
 
-                        return '<div>' .
-                            '<div class="font-medium text-sm">' . e($klinik) . '</div>' .
-                            '<div class="text-xs text-gray-500">' . e($lokasi) . '</div>' .
+                        return '<div>'.
+                            '<div class="font-medium text-sm">'.e($klinik).'</div>'.
+                            '<div class="text-xs text-gray-500">'.e($lokasi).'</div>'.
                             '</div>';
                     })
                     ->html()
@@ -381,8 +386,8 @@ class IcvResource extends Resource
                     }),
 
                 // Jumlah ICV - Sortable
-                Tables\Columns\TextColumn::make("jumlah_icv")
-                    ->label("Jumlah ICV")
+                Tables\Columns\TextColumn::make('jumlah_icv')
+                    ->label('Jumlah ICV')
                     ->numeric()
                     ->alignCenter()
                     ->sortable()
@@ -390,21 +395,21 @@ class IcvResource extends Resource
                     ->color('info'),
 
                 // Progress Status - Filterable
-                Tables\Columns\TextColumn::make("progress_status")
-                    ->label("Status")
+                Tables\Columns\TextColumn::make('progress_status')
+                    ->label('Status')
                     ->badge()
                     ->getStateUsing(function ($record) {
                         // Cek jika ditolak
                         if ($record->status === 2) {
-                            return "Ditolak";
+                            return 'Ditolak';
                         }
 
                         // Cek apakah sudah ada SBBK
                         if (
                             $record->icvSbbk &&
-                            $record->icvSbbk->sinkarkes === "Sudah"
+                            $record->icvSbbk->sinkarkes === 'Sudah'
                         ) {
-                            return "Selesai";
+                            return 'Selesai';
                         }
 
                         // Cek apakah ICV sudah diambil
@@ -412,7 +417,7 @@ class IcvResource extends Resource
                             $record->icvJadwal &&
                             $record->icvJadwal->status === 1
                         ) {
-                            return "ICV Diambil";
+                            return 'ICV Diambil';
                         }
 
                         // Cek apakah jadwal sudah ditentukan
@@ -420,7 +425,7 @@ class IcvResource extends Resource
                             $record->icvJadwal &&
                             $record->icvJadwal->jadwal_pengambilan
                         ) {
-                            return "Jadwal Ditentukan";
+                            return 'Jadwal Ditentukan';
                         }
 
                         // Cek apakah bukti bayar sudah diverifikasi
@@ -428,7 +433,7 @@ class IcvResource extends Resource
                             $record->icvBuktiBayar &&
                             $record->icvBuktiBayar->status === 1
                         ) {
-                            return "Bayar Terverifikasi";
+                            return 'Bayar Terverifikasi';
                         }
 
                         // Cek apakah sudah upload bukti bayar
@@ -436,50 +441,50 @@ class IcvResource extends Resource
                             $record->icvBuktiBayar &&
                             $record->icvBuktiBayar->file_bukti_bayar
                         ) {
-                            return "Menunggu Verif Bayar";
+                            return 'Menunggu Verif Bayar';
                         }
 
                         // Cek apakah sudah ada billing
                         if ($record->icvBilling) {
-                            return "Menunggu Pembayaran";
+                            return 'Menunggu Pembayaran';
                         }
 
                         // Cek apakah sudah dialokasi
                         if ($record->icvAlokasi) {
-                            return "Dialokasikan";
+                            return 'Dialokasikan';
                         }
 
                         // Cek apakah dokumen sudah diverifikasi
                         if ($record->icvCekDokumen) {
                             if (
                                 $record->icvCekDokumen->hasil_verif ===
-                                "Berkas Lengkap"
+                                'Berkas Lengkap'
                             ) {
-                                return "Berkas Lengkap";
+                                return 'Berkas Lengkap';
                             } elseif (
                                 $record->icvCekDokumen->hasil_verif ===
-                                "Berkas Tidak Lengkap"
+                                'Berkas Tidak Lengkap'
                             ) {
-                                return "Berkas Tidak Lengkap";
+                                return 'Berkas Tidak Lengkap';
                             }
                         }
 
                         // Default: Menunggu Verifikasi
-                        return "Menunggu Verifikasi";
+                        return 'Menunggu Verifikasi';
                     })
                     ->color(function ($state) {
                         return match (true) {
-                            str_contains($state, "Selesai") => "success",
-                            str_contains($state, "Diambil") => "success",
-                            str_contains($state, "Terverifikasi") => "success",
-                            str_contains($state, "Berkas Lengkap") => "success",
-                            str_contains($state, "Ditentukan") => "info",
-                            str_contains($state, "Dialokasikan") => "info",
-                            str_contains($state, "Berkas Tidak Lengkap") => "danger",
-                            str_contains($state, "Ditolak") => "danger",
-                            str_contains($state, "Pembayaran") => "warning",
-                            str_contains($state, "Menunggu") => "warning",
-                            default => "gray",
+                            str_contains($state, 'Selesai') => 'success',
+                            str_contains($state, 'Diambil') => 'success',
+                            str_contains($state, 'Terverifikasi') => 'success',
+                            str_contains($state, 'Berkas Lengkap') => 'success',
+                            str_contains($state, 'Ditentukan') => 'info',
+                            str_contains($state, 'Dialokasikan') => 'info',
+                            str_contains($state, 'Berkas Tidak Lengkap') => 'danger',
+                            str_contains($state, 'Ditolak') => 'danger',
+                            str_contains($state, 'Pembayaran') => 'warning',
+                            str_contains($state, 'Menunggu') => 'warning',
+                            default => 'gray',
                         };
                     }),
 
@@ -490,15 +495,15 @@ class IcvResource extends Resource
                         $details = [];
 
                         if ($record->icvAlokasi) {
-                            $details[] = "Alokasi: " . number_format($record->icvAlokasi->icv_disetujui ?? 0);
+                            $details[] = 'Alokasi: '.number_format($record->icvAlokasi->icv_disetujui ?? 0);
                         }
 
                         if ($record->icvBilling) {
-                            $details[] = "Billing: " . ($record->icvBilling->kode_billing ?? 'N/A');
+                            $details[] = 'Billing: '.($record->icvBilling->kode_billing ?? 'N/A');
                         }
 
                         if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
-                            $details[] = "Jadwal: " . Carbon::parse($record->icvJadwal->jadwal_pengambilan)->translatedFormat('d M Y');
+                            $details[] = 'Jadwal: '.Carbon::parse($record->icvJadwal->jadwal_pengambilan)->translatedFormat('d M Y');
                         }
 
                         return implode("\n", $details) ?: 'Belum ada detail';
@@ -506,15 +511,15 @@ class IcvResource extends Resource
                     ->html()
                     ->formatStateUsing(function ($state) {
                         if ($state === 'Belum ada detail') {
-                            return '<span class="text-xs text-gray-400">' . $state . '</span>';
+                            return '<span class="text-xs text-gray-400">'.$state.'</span>';
                         }
 
                         $lines = explode("\n", $state);
                         $formatted = array_map(function ($line) {
-                            return '<div class="text-xs">' . $line . '</div>';
+                            return '<div class="text-xs">'.$line.'</div>';
                         }, $lines);
 
-                        return '<div class="space-y-1">' . implode('', $formatted) . '</div>';
+                        return '<div class="space-y-1">'.implode('', $formatted).'</div>';
                     })
                     ->toggleable()
                     ->toggledHiddenByDefault(),
@@ -562,8 +567,9 @@ class IcvResource extends Resource
                             ->pluck('kotakab', 'kotakab');
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return $query->whereHas('user', function (Builder $query) use ($data) {
                             $query->where('kotakab', $data['value']);
@@ -572,37 +578,37 @@ class IcvResource extends Resource
                     ->preload(),
 
                 // Progress Status Filter
-                SelectFilter::make("status_filter")
-                    ->label("Status")
+                SelectFilter::make('status_filter')
+                    ->label('Status')
                     ->options([
-                        "menunggu_verifikasi" => "Menunggu Verifikasi",
-                        "berkas_lengkap" => "Berkas Lengkap",
-                        "berkas_tidak_lengkap" => "Berkas Tidak Lengkap",
-                        "dialokasikan" => "Dialokasikan",
-                        "menunggu_pembayaran" => "Menunggu Pembayaran",
-                        "selesai" => "Selesai",
+                        'menunggu_verifikasi' => 'Menunggu Verifikasi',
+                        'berkas_lengkap' => 'Berkas Lengkap',
+                        'berkas_tidak_lengkap' => 'Berkas Tidak Lengkap',
+                        'dialokasikan' => 'Dialokasikan',
+                        'menunggu_pembayaran' => 'Menunggu Pembayaran',
+                        'selesai' => 'Selesai',
                     ])
                     ->query(function ($query, array $data) {
-                        if (!$data["value"]) {
+                        if (! $data['value']) {
                             return $query;
                         }
 
-                        return match ($data["value"]) {
-                            "menunggu_verifikasi" => $query->whereDoesntHave('icvCekDokumen')
-                                ->orWhereHas('icvCekDokumen', fn($q) => $q->whereNull('hasil_verif')),
-                            "berkas_lengkap" => $query->whereHas(
-                                "icvCekDokumen",
-                                fn($q) => $q->where("hasil_verif", "Berkas Lengkap")
+                        return match ($data['value']) {
+                            'menunggu_verifikasi' => $query->whereDoesntHave('icvCekDokumen')
+                                ->orWhereHas('icvCekDokumen', fn ($q) => $q->whereNull('hasil_verif')),
+                            'berkas_lengkap' => $query->whereHas(
+                                'icvCekDokumen',
+                                fn ($q) => $q->where('hasil_verif', 'Berkas Lengkap')
                             ),
-                            "berkas_tidak_lengkap" => $query->whereHas(
-                                "icvCekDokumen",
-                                fn($q) => $q->where("hasil_verif", "Berkas Tidak Lengkap")
+                            'berkas_tidak_lengkap' => $query->whereHas(
+                                'icvCekDokumen',
+                                fn ($q) => $q->where('hasil_verif', 'Berkas Tidak Lengkap')
                             ),
-                            "dialokasikan" => $query->whereHas("icvAlokasi"),
-                            "menunggu_pembayaran" => $query->whereHas("icvBilling"),
-                            "selesai" => $query->whereHas(
-                                "icvSbbk",
-                                fn($q) => $q->where("sinkarkes", "Sudah")
+                            'dialokasikan' => $query->whereHas('icvAlokasi'),
+                            'menunggu_pembayaran' => $query->whereHas('icvBilling'),
+                            'selesai' => $query->whereHas(
+                                'icvSbbk',
+                                fn ($q) => $q->where('sinkarkes', 'Sudah')
                             ),
                             default => $query,
                         };
@@ -618,8 +624,9 @@ class IcvResource extends Resource
                         '200+' => '200+',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return match ($data['value']) {
                             '1-50' => $query->whereBetween('jumlah_icv', [1, 50]),
@@ -655,11 +662,11 @@ class IcvResource extends Resource
     public static function getPages(): array
     {
         return [
-            "index" => Pages\ListIcvs::route("/"),
-            "create" => Pages\CreateIcv::route("/create"),
-            "daftar-pengajuan" => Pages\DaftarPengajuan::route("/daftar-pengajuan"),
-            "verifikasi" => Pages\VerifikasiIcv::route("/verifikasi"),
-            "edit" => Pages\EditIcv::route("/{record}/edit"),
+            'index' => Pages\ListIcvs::route('/'),
+            'create' => Pages\CreateIcv::route('/create'),
+            'daftar-pengajuan' => Pages\DaftarPengajuan::route('/daftar-pengajuan'),
+            'verifikasi' => Pages\VerifikasiIcv::route('/verifikasi'),
+            'edit' => Pages\EditIcv::route('/{record}/edit'),
             'penerbitan-billing' => Pages\PenerbitanKodeBilling::route('/penerbitan-billing'),
             'upload-sbbk' => Pages\UploadSbbk::route('/upload-sbbk'),
             'jadwal-distribusi' => Pages\JadwalDistribusiIcv::route('/jadwal-distribusi'),
@@ -685,13 +692,13 @@ class IcvResource extends Resource
             switch ($data['progress_status']) {
                 case 'menunggu_verifikasi':
                     $query->whereDoesntHave('icvCekDokumen')
-                        ->orWhereHas('icvCekDokumen', fn($q) => $q->whereNull('hasil_verif'));
+                        ->orWhereHas('icvCekDokumen', fn ($q) => $q->whereNull('hasil_verif'));
                     break;
                 case 'berkas_lengkap':
-                    $query->whereHas('icvCekDokumen', fn($q) => $q->where('hasil_verif', 'Berkas Lengkap'));
+                    $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', 'Berkas Lengkap'));
                     break;
                 case 'berkas_tidak_lengkap':
-                    $query->whereHas('icvCekDokumen', fn($q) => $q->where('hasil_verif', 'Berkas Tidak Lengkap'));
+                    $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', 'Berkas Tidak Lengkap'));
                     break;
                 case 'dialokasikan':
                     $query->whereHas('icvAlokasi');
@@ -700,7 +707,7 @@ class IcvResource extends Resource
                     $query->whereHas('icvBilling');
                     break;
                 case 'selesai':
-                    $query->whereHas('icvSbbk', fn($q) => $q->where('sinkarkes', 'Sudah'));
+                    $query->whereHas('icvSbbk', fn ($q) => $q->where('sinkarkes', 'Sudah'));
                     break;
             }
         }
@@ -719,11 +726,11 @@ class IcvResource extends Resource
 
     protected static function downloadExcelIcv(Collection $data, array $params)
     {
-        $filename = 'laporan_pengajuan_icv_' . date('Y-m-d_H-i-s') . '.csv';
+        $filename = 'laporan_pengajuan_icv_'.date('Y-m-d_H-i-s').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Content-Transfer-Encoding' => 'binary',
             'Expires' => '0',
@@ -734,7 +741,7 @@ class IcvResource extends Resource
             $output = fopen('php://output', 'w');
 
             // BOM untuk UTF-8
-            fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
             // Header
             fputcsv($output, [
@@ -744,7 +751,7 @@ class IcvResource extends Resource
                 'Kota/Kabupaten',
                 'Jumlah ICV',
                 'Progress Status',
-                'Tanggal Update'
+                'Tanggal Update',
             ]);
 
             // Data
@@ -775,42 +782,42 @@ class IcvResource extends Resource
 
     protected static function getProgressStatusIcv($record)
     {
-        if ($record->icvSbbk && $record->icvSbbk->sinkarkes === "Sudah") {
-            return "Selesai (SBBK Uploaded)";
+        if ($record->icvSbbk && $record->icvSbbk->sinkarkes === 'Sudah') {
+            return 'Selesai (SBBK Uploaded)';
         }
 
         if ($record->icvJadwal && $record->icvJadwal->status === 1) {
-            return "ICV Sudah Diambil";
+            return 'ICV Sudah Diambil';
         }
 
         if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
-            return "Jadwal Pengambilan Ditentukan";
+            return 'Jadwal Pengambilan Ditentukan';
         }
 
         if ($record->icvBuktiBayar && $record->icvBuktiBayar->status === 1) {
-            return "Pembayaran Terverifikasi";
+            return 'Pembayaran Terverifikasi';
         }
 
         if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar) {
-            return "Menunggu Verifikasi Pembayaran";
+            return 'Menunggu Verifikasi Pembayaran';
         }
 
         if ($record->icvBilling) {
-            return "Menunggu Pembayaran";
+            return 'Menunggu Pembayaran';
         }
 
         if ($record->icvAlokasi) {
-            return "ICV Dialokasikan";
+            return 'ICV Dialokasikan';
         }
 
         if ($record->icvCekDokumen) {
-            if ($record->icvCekDokumen->hasil_verif === "Berkas Lengkap") {
-                return "Berkas Lengkap - Menunggu Alokasi";
-            } elseif ($record->icvCekDokumen->hasil_verif === "Berkas Tidak Lengkap") {
-                return "Berkas Tidak Lengkap";
+            if ($record->icvCekDokumen->hasil_verif === 'Berkas Lengkap') {
+                return 'Berkas Lengkap - Menunggu Alokasi';
+            } elseif ($record->icvCekDokumen->hasil_verif === 'Berkas Tidak Lengkap') {
+                return 'Berkas Tidak Lengkap';
             }
         }
 
-        return "Menunggu Verifikasi";
+        return 'Menunggu Verifikasi';
     }
 }

@@ -1,15 +1,16 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Pages/Dashboard.php
 
 namespace App\Filament\Pages;
 
-use Filament\Notifications\Notification;
-use Filament\Pages\Dashboard as BaseDashboard;
-use App\Filament\Widgets\AdminStatsWidget;
-use App\Filament\Widgets\AdminRecentActivitiesWidget;
 use App\Filament\Widgets\AdminPnbpChartWidget;
+use App\Filament\Widgets\AdminRecentActivitiesWidget;
+use App\Filament\Widgets\AdminStatsWidget;
 use App\Filament\Widgets\UserStatsWidget;
 use App\Filament\Widgets\UserStatusWidget;
+use Filament\Notifications\Notification;
+use Filament\Pages\Dashboard as BaseDashboard;
 
 class Dashboard extends BaseDashboard
 {
@@ -31,6 +32,7 @@ class Dashboard extends BaseDashboard
 
         // Set the title of the dashboard page
     }
+
     public function getWidgets(): array
     {
         $user = auth()->user();

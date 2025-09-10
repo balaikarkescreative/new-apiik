@@ -35,6 +35,7 @@ class VideoPanduan extends Model
         if ($this->video_path) {
             return route('video.stream', $this->id);
         }
+
         return null;
     }
 
@@ -42,20 +43,22 @@ class VideoPanduan extends Model
     {
         if ($this->video_path && Storage::disk('public')->exists($this->video_path)) {
             $bytes = Storage::disk('public')->size($this->video_path);
+
             return $this->formatBytes($bytes);
         }
+
         return null;
     }
 
     private function formatBytes($bytes, $precision = 2): string
     {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        
+
         for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
             $bytes /= 1024;
         }
-        
-        return round($bytes, $precision) . ' ' . $units[$i];
+
+        return round($bytes, $precision).' '.$units[$i];
     }
 
     /**
@@ -63,10 +66,10 @@ class VideoPanduan extends Model
      */
     public function videoFileExists(): bool
     {
-        if (!$this->video_path) {
+        if (! $this->video_path) {
             return false;
         }
-        
+
         return Storage::disk('public')->exists($this->video_path);
     }
 
@@ -75,10 +78,10 @@ class VideoPanduan extends Model
      */
     public function getVideoFullPathAttribute(): ?string
     {
-        if (!$this->video_path) {
+        if (! $this->video_path) {
             return null;
         }
-        
+
         return Storage::disk('public')->path($this->video_path);
     }
 
@@ -90,7 +93,7 @@ class VideoPanduan extends Model
         $videoPaths = static::pluck('video_path')->filter()->toArray();
         $storageFiles = Storage::disk('public')->files('video-panduan');
         $orphanedFiles = array_diff($storageFiles, $videoPaths);
-        
+
         $deletedCount = 0;
         foreach ($orphanedFiles as $file) {
             try {
@@ -99,11 +102,11 @@ class VideoPanduan extends Model
             } catch (\Exception $e) {
                 \Log::error('Failed to delete orphaned video file', [
                     'file' => $file,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
-        
+
         return $deletedCount;
     }
 }
