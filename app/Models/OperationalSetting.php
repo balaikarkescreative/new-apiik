@@ -12,17 +12,11 @@ class OperationalSetting extends Model
         'start_time',
         'end_time',
         'operational_days',
-        'icv_closed',
-        'izin_closed',
-        'account_closed',
     ];
 
     protected $casts = [
         'operational_days' => 'json',
         'is_active' => 'boolean',
-        'icv_closed' => 'boolean',
-        'izin_closed' => 'boolean',
-        'account_closed' => 'boolean',
     ];
 
     public static function boot()
@@ -84,74 +78,5 @@ class OperationalSetting extends Model
     public static function getActiveSettings()
     {
         return static::where('is_active', true)->first();
-    }
-
-    // Method untuk cek apakah layanan tertentu ditutup
-    public static function isServiceClosed($service)
-    {
-        $activeSettings = static::getActiveSettings();
-        if (! $activeSettings) {
-            return false;
-        }
-
-        // Cek berdasarkan kolom spesifik saja
-        switch ($service) {
-            case 'icv':
-                return $activeSettings->icv_closed;
-            case 'izin':
-                return $activeSettings->izin_closed;
-            case 'account':
-                return $activeSettings->account_closed;
-            default:
-                return false;
-        }
-    }
-
-    // Method untuk menutup layanan tertentu
-    public static function closeService($service, $reason = null)
-    {
-        $activeSettings = static::getActiveSettings();
-        if (! $activeSettings) {
-            return null;
-        }
-
-        // Update kolom spesifik berdasarkan layanan
-        switch ($service) {
-            case 'icv':
-                $activeSettings->update(['icv_closed' => true]);
-                break;
-            case 'izin':
-                $activeSettings->update(['izin_closed' => true]);
-                break;
-            case 'account':
-                $activeSettings->update(['account_closed' => true]);
-                break;
-        }
-
-        return $activeSettings;
-    }
-
-    // Method untuk membuka layanan tertentu
-    public static function openService($service)
-    {
-        $activeSettings = static::getActiveSettings();
-        if (! $activeSettings) {
-            return null;
-        }
-
-        // Update kolom spesifik berdasarkan layanan
-        switch ($service) {
-            case 'icv':
-                $activeSettings->update(['icv_closed' => false]);
-                break;
-            case 'izin':
-                $activeSettings->update(['izin_closed' => false]);
-                break;
-            case 'account':
-                $activeSettings->update(['account_closed' => false]);
-                break;
-        }
-
-        return $activeSettings;
     }
 }

@@ -3,6 +3,7 @@
 namespace App;
 
 use App\Models\OperationalSetting;
+use App\Models\ServiceClosure;
 use Filament\Notifications\Notification;
 
 trait ChecksOperationalHours
@@ -192,13 +193,14 @@ trait ChecksOperationalHours
      */
     private function isServiceSpecificallyClosed(OperationalSetting $setting, string $serviceType): bool
     {
-        // Cek penutupan layanan spesifik
-        return match ($serviceType) {
-            'icv' => $setting->icv_closed ?? false,
-            'izin' => $setting->izin_closed ?? false,
-            'account', 'register' => $setting->account_closed ?? false,
-            default => false
+        // Map service type untuk compatibility
+        $mappedServiceType = match ($serviceType) {
+            'register' => 'account',
+            default => $serviceType
         };
+
+        // Cek penutupan layanan spesifik menggunakan ServiceClosure
+        return ServiceClosure::isServiceClosed($mappedServiceType);
     }
 
     /**
