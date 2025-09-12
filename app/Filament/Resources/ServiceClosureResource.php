@@ -17,11 +17,10 @@ use Illuminate\Database\Eloquent\Model;
 class ServiceClosureResource extends Resource
 {
     protected static ?string $model = ServiceClosure::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-lock-closed';
     protected static ?string $navigationLabel = 'Kelola Layanan';
     protected static ?string $navigationGroup = 'Pengaturan';
-    protected static ?string $title = 'Kelola Layanan';
+    protected static ?string $slug = 'layanan';
     protected static ?int $navigationSort = 901;
 
     public static function canAccess(): bool
@@ -65,10 +64,6 @@ class ServiceClosureResource extends Resource
                     ->label('Jenis Layanan')
                     ->sortable()
                     ->searchable(),
-                Tables\Columns\BadgeColumn::make('status_text')
-                    ->label('Status')
-                    ->color(fn ($record) => $record->status_color)
-                    ->sortable(['is_closed']),
                 Tables\Columns\TextColumn::make('closure_reason')
                     ->label('Alasan')
                     ->limit(50)
@@ -78,6 +73,22 @@ class ServiceClosureResource extends Resource
                     ->label('Terakhir Diubah')
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
+                Tables\Columns\ToggleColumn::make('is_closed')
+                    ->label('Status')
+                    ->getStateUsing(fn ($record) => !$record->is_closed) // Balik logic: true = buka, false = tutup
+                    ->beforeStateUpdated(function ($record, $state) {
+                        // $state true = akan buka layanan, false = akan tutup layanan
+                        return true;
+                    })
+                    ->afterStateUpdated(function ($record, $state) {
+                        if ($state) {
+                            // Toggle ON = Buka layanan
+                            ServiceClosure::openService($record->service_type);
+                        } else {
+                            // Toggle OFF = Tutup layanan
+                            ServiceClosure::closeService($record->service_type, null);
+                        }
+                    }),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('service_type')
@@ -90,25 +101,7 @@ class ServiceClosureResource extends Resource
                     ->falseLabel('Buka'),
             ])
             ->actions([
-                Tables\Actions\Action::make('toggle_status')
-                    ->label(fn ($record) => $record->is_closed ? 'Buka Layanan' : 'Tutup Layanan')
-                    ->icon(fn ($record) => $record->is_closed ? 'heroicon-o-lock-open' : 'heroicon-o-lock-closed')
-                    ->color(fn ($record) => $record->is_closed ? 'success' : 'danger')
-                    ->form([
-                        Forms\Components\Textarea::make('closure_reason')
-                            ->label('Alasan (Opsional)')
-                            ->placeholder('Masukkan alasan menutup layanan...')
-                            ->visible(fn ($record) => !$record->is_closed)
-                            ->maxLength(1000),
-                    ])
-                    ->action(function ($record, $data) {
-                        if ($record->is_closed) {
-                            ServiceClosure::openService($record->service_type);
-                        } else {
-                            ServiceClosure::closeService($record->service_type, $data['closure_reason'] ?? null);
-                        }
-                    }),
-                // Hapus EditAction dan DeleteAction
+                // Tidak perlu action lagi karena sudah menggunakan ToggleColumn
             ])
             ->bulkActions([
                 // Hapus semua bulk actions
