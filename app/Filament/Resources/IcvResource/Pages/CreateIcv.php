@@ -79,7 +79,7 @@ class CreateIcv extends CreateRecord
         }
 
         // Cek jika user belum memiliki vaksinator (untuk non-admin)
-        if (! auth()->user()->hasRole('user')) {
+        if (auth()->user()->hasRole('user')) {
             $this->checkVaksinatorRequirement(auth()->id());
         }
 
