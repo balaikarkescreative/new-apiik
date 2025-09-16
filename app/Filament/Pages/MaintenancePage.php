@@ -165,7 +165,7 @@ class MaintenancePage extends Page
     public static function canAccess(): bool
     {
         // Sementara return true untuk testing, nanti bisa disesuaikan dengan permission yang ada
-        return true;
+        return auth()->user()->hasRole(['admin']);
         // return auth()->user()->can('manage_maintenance_mode');
     }
 }
