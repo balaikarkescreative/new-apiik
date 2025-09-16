@@ -193,6 +193,9 @@ class VerifikasiIcv extends Page implements HasTable
                         if ($record->icvCekDokumen->hasil_verif == '2') {
                             return 'Perbaikan Dokumen';
                         }
+                        if ($record->icvCekDokumen->hasil_verif == '3') {
+                            return 'Pengajuan Ditolak';
+                        }
                         if (! $record->icvAlokasi || ! $record->icvAlokasi->icv_disetujui) {
                             return 'Alokasi ICV';
                         }
@@ -222,12 +225,11 @@ class VerifikasiIcv extends Page implements HasTable
                         return match ($state) {
                             'Selesai' => 'success',
                             'Perbaikan Dokumen' => 'danger',
+                            'Pengajuan Ditolak' => 'danger',
                             'Menunggu Pembayaran' => 'warning',
                             default => 'info'
                         };
-                    }),
-
-                // Detail Status (toggleable)
+                    }),                // Detail Status (toggleable)
                 TextColumn::make('detail_status')
                     ->label('Detail Status')
                     ->getStateUsing(function ($record) {
@@ -304,6 +306,7 @@ class VerifikasiIcv extends Page implements HasTable
                     ->options([
                         'verifikasi' => 'Verifikasi Dokumen',
                         'perbaikan' => 'Perbaikan', // Tambahkan opsi ini
+                        'ditolak' => 'Ditolak',
                         'alokasi' => 'Alokasi ICV',
                         'billing' => 'Penerbitan Billing',
                         'pembayaran' => 'Menunggu Pembayaran',
@@ -322,6 +325,7 @@ class VerifikasiIcv extends Page implements HasTable
                             'perbaikan' => $query
                                 ->whereNotNull('tanggal_perbaikan')
                                 ->whereDoesntHave('icvCekDokumen'), // Filter perbaikan
+                            'ditolak' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '3')),
                             'alokasi' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '1'))
                                 ->whereDoesntHave('icvAlokasi'),
                             'billing' => $query->whereHas('icvAlokasi')
@@ -366,6 +370,7 @@ class VerifikasiIcv extends Page implements HasTable
                     ->options([
                         'lengkap' => 'Berkas Lengkap',
                         'tidak_lengkap' => 'Berkas Tidak Lengkap',
+                        'ditolak' => 'Ditolak',
                         'belum_verifikasi' => 'Belum Verifikasi',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
@@ -376,6 +381,7 @@ class VerifikasiIcv extends Page implements HasTable
                         return match ($data['value']) {
                             'lengkap' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '1')),
                             'tidak_lengkap' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '2')),
+                            'ditolak' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '3')),
                             'belum_verifikasi' => $query->whereDoesntHave('icvCekDokumen')
                                 ->orWhereHas('icvCekDokumen', fn ($q) => $q->whereNull('hasil_verif')),
                             default => $query,
@@ -483,7 +489,7 @@ class VerifikasiIcv extends Page implements HasTable
                             ->body('Verifikasi dokumen berhasil disimpan dan email notifikasi telah dikirim.')
                             ->send();
 
-                        $this->redirect(VerifikasiIcv::getUrl());
+                        // $this->redirect(VerifikasiIcv::getUrl());
                     }),
             ])
             ->defaultSort('tanggal_pengajuan', 'desc')
@@ -665,7 +671,7 @@ class VerifikasiIcv extends Page implements HasTable
                     if (! $record->icvCekDokumen || ! $record->icvCekDokumen->hasil_verif) {
                         return 1;
                     }
-                    if ($record->icvCekDokumen->hasil_verif == '2') {
+                    if ($record->icvCekDokumen->hasil_verif == '2' || $record->icvCekDokumen->hasil_verif == '3') {
                         return 1;
                     }
                     if (! $record->icvAlokasi || ! $record->icvAlokasi->icv_disetujui) {
@@ -696,14 +702,24 @@ class VerifikasiIcv extends Page implements HasTable
                                 return '';
                             }
 
-                            return $record->icvCekDokumen->hasil_verif == '1' ? '✓' : '✗';
+                            return match($record->icvCekDokumen->hasil_verif) {
+                                '1' => '✓',
+                                '2' => '✗',
+                                '3' => '✖',
+                                default => '',
+                            };
                         })
                         ->badgeColor(function ($record) {
                             if (! $record->icvCekDokumen?->hasil_verif) {
                                 return 'gray';
                             }
 
-                            return $record->icvCekDokumen->hasil_verif == '1' ? 'success' : 'danger';
+                            return match($record->icvCekDokumen->hasil_verif) {
+                                '1' => 'success',
+                                '2' => 'warning',
+                                '3' => 'danger',
+                                default => 'gray',
+                            };
                         })
                         ->schema([
                             Select::make('hasil_verif')
@@ -711,10 +727,14 @@ class VerifikasiIcv extends Page implements HasTable
                                 ->options([
                                     '1' => 'Berkas Lengkap',
                                     '2' => 'Berkas Tidak Lengkap',
+                                    '3' => 'Ditolak',
                                 ])
                                 ->live()
                                 ->afterStateUpdated(function (Get $get, Set $set) {
                                     if ($get('hasil_verif') === '2') {
+                                        $set('stok_vaksin', 0);
+                                    }
+                                    if ($get('hasil_verif') === '3') {
                                         $set('stok_vaksin', 0);
                                     }
                                     if ($get('hasil_verif') === '1') {
@@ -815,7 +835,7 @@ class VerifikasiIcv extends Page implements HasTable
                                             ->body('Verifikasi dokumen berhasil disimpan dan email notifikasi telah dikirim.')
                                             ->send();
 
-                                        $this->redirect(VerifikasiIcv::getUrl());
+                                        // $this->redirect(VerifikasiIcv::getUrl());
                                     }),
 
                                 FormAction::make('hapus_verifikasi')

@@ -71,7 +71,8 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                 $query->whereDoesntHave('icvCekDokumen')
                     ->orWhereHas('icvCekDokumen', function (Builder $subquery) {
                         $subquery->whereNull('hasil_verif')
-                            ->orWhere('hasil_verif', '2');
+                            ->orWhere('hasil_verif', '2')
+                            ->orWhere('hasil_verif', '3');
                     });
             });
     }
@@ -147,6 +148,7 @@ class VerifikasiDokumenIcv extends Page implements HasTable
 
                         return match ($record->icvCekDokumen->hasil_verif) {
                             '2' => 'Berkas Tidak Lengkap',
+                            '3' => 'Ditolak',
                             default => 'Menunggu Verifikasi'
                         };
                     })
@@ -162,6 +164,7 @@ class VerifikasiDokumenIcv extends Page implements HasTable
 
                         return match ($record->icvCekDokumen->hasil_verif) {
                             '2' => 'danger',
+                            '3' => 'danger',
                             default => 'warning'
                         };
                     })
@@ -176,6 +179,7 @@ class VerifikasiDokumenIcv extends Page implements HasTable
 
                         return match ($record->icvCekDokumen->hasil_verif) {
                             '2' => 'heroicon-o-x-circle',
+                            '3' => 'heroicon-o-x-circle',
                             default => 'heroicon-o-clock'
                         };
                     })
@@ -271,6 +275,7 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                         'belum_verifikasi' => 'Belum Verifikasi',
                         'perbaikan' => 'Perbaikan',
                         'berkas_tidak_lengkap' => 'Berkas Tidak Lengkap',
+                        'ditolak' => 'Ditolak',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         if (empty($data['value'])) {
@@ -284,6 +289,7 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                             'belum_verifikasi' => $query->whereDoesntHave('icvCekDokumen')
                                 ->orWhereHas('icvCekDokumen', fn ($q) => $q->whereNull('hasil_verif')),
                             'berkas_tidak_lengkap' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '2')),
+                            'ditolak' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '3')),
                             default => $query,
                         };
                     }),

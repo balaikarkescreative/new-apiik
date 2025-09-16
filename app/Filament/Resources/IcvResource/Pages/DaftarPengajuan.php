@@ -122,27 +122,33 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                         return '';
                     })
                     ->getStateUsing(function ($record) {
-                        if ($record->icvSbbk && $record->icvSbbk->sinkarkes === 'Sudah') {
-                            return 'Selesai';
-                        }
-                        if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
-                            return 'Dijadwalkan';
-                        }
-                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar) {
-                            return 'Menunggu Verifikasi';
-                        }
-                        if ($record->icvBilling && $record->icvBilling->kode_billing) {
-                            return 'Menunggu Bayar';
-                        }
-                        if ($record->icvAlokasi && $record->icvAlokasi->icv_disetujui > 0) {
-                            return 'Dialokasikan';
-                        }
                         if ($record->icvCekDokumen) {
                             return match ($record->icvCekDokumen->hasil_verif) {
                                 '1' => 'Berkas OK',
                                 '2' => 'Berkas Kurang',
+                                '3' => 'Ditolak',
                                 default => 'Menunggu Verifikasi'
                             };
+                        }
+
+                        if ($record->icvAlokasi && $record->icvAlokasi->icv_disetujui > 0) {
+                            return 'Dialokasikan';
+                        }
+
+                        if ($record->icvBilling && $record->icvBilling->kode_billing) {
+                            return 'Menunggu Bayar';
+                        }
+
+                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar) {
+                            return 'Menunggu Verifikasi';
+                        }
+
+                        if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
+                            return 'Dijadwalkan';
+                        }
+                        
+                        if ($record->icvSbbk && $record->icvSbbk->sinkarkes === 'Sudah') {
+                            return 'Selesai';
                         }
 
                         return 'Diajukan';
@@ -156,6 +162,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             'Dialokasikan' => 'info',
                             'Berkas OK' => 'success',
                             'Berkas Kurang' => 'danger',
+                            'Ditolak' => 'danger',
                             'Perbaikan' => 'danger',
                             default => 'gray',
                         };
@@ -164,6 +171,11 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                 TextColumn::make('progress_percentage')
                     ->label('Progress')
                     ->getStateUsing(function ($record) {
+                        // Jika ditolak, tampilkan status ditolak
+                        if ($record->icvCekDokumen && $record->icvCekDokumen->hasil_verif == '3') {
+                            return 'DITOLAK';
+                        }
+
                         $steps = 0;
 
                         // Count completed steps (max 7)
@@ -193,6 +205,11 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     })
                     ->badge()
                     ->color(function ($state) {
+                        // Jika ditolak, tampilkan warna danger
+                        if ($state === 'DITOLAK') {
+                            return 'danger';
+                        }
+
                         $completed = (int) explode('/', $state)[0];
 
                         return match (true) {
@@ -211,6 +228,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                         'perbaikan' => 'Perbaikan', // Tambahkan opsi ini
                         'berkas_kurang' => 'Berkas Kurang',
                         'berkas_ok' => 'Berkas OK',
+                        'ditolak' => 'Ditolak',
                         'dialokasikan' => 'Dialokasikan',
                         'menunggu_bayar' => 'Menunggu Bayar',
                         'menunggu_verifikasi' => 'Menunggu Verifikasi',
@@ -230,6 +248,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                 ->whereDoesntHave('icvCekDokumen'), // Filter perbaikan
                             'berkas_kurang' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '2')),
                             'berkas_ok' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '1')),
+                            'ditolak' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '3')),
                             'dialokasikan' => $query->whereHas('icvAlokasi', fn ($q) => $q->where('icv_disetujui', '>', 0)),
                             'menunggu_bayar' => $query->whereHas('icvBilling', fn ($q) => $q->whereNotNull('kode_billing')),
                             'menunggu_verifikasi' => $query->whereHas('icvBuktiBayar', fn ($q) => $q->whereNotNull('file_bukti_bayar')),
@@ -262,6 +281,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                             $status = match ($record->icvCekDokumen->hasil_verif) {
                                                 '1' => '✅ Berkas Lengkap',
                                                 '2' => '❌ Berkas Tidak Lengkap',
+                                                '3' => '❌ Ditolak',
                                                 default => '⏳ Menunggu Verifikasi'
                                             };
                                             $dateText = $record->icvCekDokumen->date_updated ?
@@ -412,6 +432,8 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->size('sm')
                     ->visible(function ($record) {
                         return ! auth()->user()->hasRole('verifikator2') &&
+                            $record->icvCekDokumen &&
+                            $record->icvCekDokumen->hasil_verif == '1' &&
                             $record->icvBilling &&
                             $record->icvBilling->kode_billing &&
                             (! $record->icvBuktiBayar || ! $record->icvBuktiBayar->file_bukti_bayar);

@@ -167,7 +167,7 @@ class IcvResource extends Resource
 
                             return $icvCekDokumen &&
                                 $icvCekDokumen->catatan &&
-                                $icvCekDokumen->hasil_verif === '2'; // Hanya tampil jika berkas tidak lengkap
+                                ($icvCekDokumen->hasil_verif === '2' || $icvCekDokumen->hasil_verif === '3'); // Tampil jika berkas tidak lengkap atau ditolak
                         }),
                 ])
                 ->visible(function ($record) {
@@ -584,6 +584,7 @@ class IcvResource extends Resource
                         'menunggu_verifikasi' => 'Menunggu Verifikasi',
                         'berkas_lengkap' => 'Berkas Lengkap',
                         'berkas_tidak_lengkap' => 'Berkas Tidak Lengkap',
+                        'ditolak' => 'Ditolak',
                         'dialokasikan' => 'Dialokasikan',
                         'menunggu_pembayaran' => 'Menunggu Pembayaran',
                         'selesai' => 'Selesai',
@@ -603,6 +604,10 @@ class IcvResource extends Resource
                             'berkas_tidak_lengkap' => $query->whereHas(
                                 'icvCekDokumen',
                                 fn ($q) => $q->where('hasil_verif', 'Berkas Tidak Lengkap')
+                            ),
+                            'ditolak' => $query->whereHas(
+                                'icvCekDokumen',
+                                fn ($q) => $q->where('hasil_verif', '3')
                             ),
                             'dialokasikan' => $query->whereHas('icvAlokasi'),
                             'menunggu_pembayaran' => $query->whereHas('icvBilling'),
