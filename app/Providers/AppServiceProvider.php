@@ -9,8 +9,10 @@ use App\Models\VideoPanduan;
 use App\Observers\IzinObserver;
 use App\Observers\PersetujuanObserver;
 use App\Observers\VideoPanduanObserver;
+use Filament\Support\Facades\FilamentAsset;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Filament\Support\Assets\Js;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -36,5 +38,9 @@ class AppServiceProvider extends ServiceProvider
             return $user->hasRole('admin');
 
         });
+
+        FilamentAsset::register([
+            Js::make('sienna','https://website-widgets.pages.dev/dist/sienna.min.js')->defer(),
+        ]);
     }
 }
