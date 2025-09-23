@@ -24,3 +24,8 @@ Homestead.yaml
 npm-debug.log
 Thumbs.db
 yarn-error.log
+copy.sh
+credentials.json
+update_commit.py
+storage/framework/maintenance.json
+storage/framework/maintenance.json
