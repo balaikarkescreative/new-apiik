@@ -89,9 +89,16 @@ class CreateIcv extends CreateRecord
         // }
 
         if (auth()->user()->hasRole('user')) {
-            // Cek pengajuan terbaru untuk melihat apakah sudah ada bukti bayar
+            // Cek pengajuan terbaru untuk melihat apakah sudah ada bukti bayar (abaikan yang ditolak)
             $pengajuanTerbaru = \App\Models\Icv::where('user_id', auth()->id())
-                ->where('tanggal_pengajuan', '>=', '2025-07-01')
+                ->where('tanggal_pengajuan', '>=', '2025-04-01')
+                // Abaikan pengajuan yang ditolak (hasil_verif = 3)
+                ->where(function ($q) {
+                    $q->whereDoesntHave('icvCekDokumen')
+                        ->orWhereHas('icvCekDokumen', function ($qq) {
+                            $qq->where('hasil_verif', '!=', '3');
+                        });
+                })
                 ->orderBy('tanggal_pengajuan', 'desc')
                 ->first();
 
@@ -103,8 +110,15 @@ class CreateIcv extends CreateRecord
                 // Jika pengajuan terbaru belum ada bukti bayar, cek apakah ada pengajuan lain yang tertahan
                 if (! $sudahAdaBuktiBayar) {
                     $icvTertahan = \App\Models\Icv::where('user_id', auth()->id())
-                        // Hanya cek ICV yang diajukan minimal di bulan Juli 2025
-                        ->where('tanggal_pengajuan', '>=', '2025-07-01')
+                        // Hanya cek ICV yang diajukan minimal di bulan April 2025
+                        ->where('tanggal_pengajuan', '>=', '2025-04-01')
+                        // Abaikan pengajuan yang ditolak (hasil_verif = 3)
+                        ->where(function ($q) {
+                            $q->whereDoesntHave('icvCekDokumen')
+                                ->orWhereHas('icvCekDokumen', function ($qq) {
+                                    $qq->where('hasil_verif', '!=', '3');
+                                });
+                        })
                         // Hanya cek yang belum memiliki bukti bayar
                         ->where(function ($q) {
                             $q->whereDoesntHave('icvBuktiBayar')

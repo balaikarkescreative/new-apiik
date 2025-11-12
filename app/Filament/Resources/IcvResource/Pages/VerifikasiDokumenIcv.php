@@ -495,12 +495,13 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                                         ->options([
                                             '1' => 'Berkas Lengkap',
                                             '2' => 'Berkas Tidak Lengkap',
+                                            '3' => 'Ditolak',
                                         ])
                                         ->default($record->icvCekDokumen?->hasil_verif)
                                         ->required()
                                         ->live()
                                         ->afterStateUpdated(function (Get $get, Set $set) {
-                                            if ($get('hasil_verif') === '2') {
+                                            if ($get('hasil_verif') === '2' || $get('hasil_verif') === '3') {
                                                 $set('stok_vaksin', 0);
                                             }
                                         }),
@@ -551,8 +552,8 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                                         ->label('Catatan Verifikasi')
                                         ->default($record->icvCekDokumen?->catatan)
                                         ->rows(3)
-                                        ->visible(fn (Get $get): bool => $get('hasil_verif') === '2')
-                                        ->required(fn (Get $get): bool => $get('hasil_verif') === '2'),
+                                        ->visible(fn (Get $get): bool => in_array($get('hasil_verif'), ['2', '3']))
+                                        ->required(fn (Get $get): bool => in_array($get('hasil_verif'), ['2', '3'])),
 
                                     Actions::make([
                                         Actions\Action::make('simpan_verifikasi')
@@ -593,17 +594,18 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                                                     return;
                                                 }
 
-                                                if ($hasilVerif === '2' && ! $get('catatan')) {
+                                                if (in_array($hasilVerif, ['2', '3']) && ! $get('catatan')) {
+                                                    $statusText = $hasilVerif === '2' ? 'berkas tidak lengkap' : 'ditolak';
                                                     Notification::make()
                                                         ->title('Gagal Menyimpan Verifikasi')
                                                         ->danger()
-                                                        ->body('Catatan harus diisi untuk berkas tidak lengkap.')
+                                                        ->body("Catatan harus diisi untuk {$statusText}.")
                                                         ->send();
 
                                                     return;
                                                 }
 
-                                                if ($hasilVerif === '2' && $get('catatan')) {
+                                                if (in_array($hasilVerif, ['2', '3']) && $get('catatan')) {
                                                     $record->tambahCatatanPerbaikan($get('catatan'));
                                                 }
 
@@ -644,7 +646,12 @@ class VerifikasiDokumenIcv extends Page implements HasTable
                                                         $emailStatus = 'Email gagal dikirim.';
                                                     }
 
-                                                    $resultText = $hasilVerif == '1' ? 'Berkas Lengkap' : 'Berkas Tidak Lengkap';
+                                                    $resultText = match($hasilVerif) {
+                                                        '1' => 'Berkas Lengkap',
+                                                        '2' => 'Berkas Tidak Lengkap', 
+                                                        '3' => 'Ditolak',
+                                                        default => 'Status Tidak Dikenal'
+                                                    };
 
                                                     Notification::make()
                                                         ->title('Verifikasi Berhasil Disimpan')
