@@ -21,8 +21,10 @@ class Vaksinator extends Model
         'nama_vaksinator',
         'nomor_izin_praktek',
         'masa_aktif_izin_praktek',
+        'dokumen_izin_praktek',
         'nomor_sertifikat_vaksinator',
         'masa_aktif_sertifikat',
+        'dokumen_sertifikat_vaksinator',
         'date_updated',
     ];
 

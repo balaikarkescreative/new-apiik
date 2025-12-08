@@ -244,6 +244,11 @@ class CreateIcv extends CreateRecord
             $warnings[] = '• Izin praktek akan habis dalam 30 hari ('.$vaksinator->masa_aktif_izin_praktek->format('d/m/Y').')';
         }
 
+        // Cek dokumen izin praktek
+        if (! $vaksinator->dokumen_izin_praktek) {
+            $errors[] = '• Dokumen izin praktek belum diupload';
+        }
+
         // Cek status sertifikat vaksinator
         if (! $vaksinator->masa_aktif_sertifikat) {
             $errors[] = '• Masa aktif sertifikat vaksinator belum diisi';
@@ -251,6 +256,11 @@ class CreateIcv extends CreateRecord
             $errors[] = '• Sertifikat vaksinator sudah kadaluarsa ('.$vaksinator->masa_aktif_sertifikat->format('d/m/Y').')';
         } elseif ($vaksinator->masa_aktif_sertifikat <= now()->addDays(30)) {
             $warnings[] = '• Sertifikat vaksinator akan habis dalam 30 hari ('.$vaksinator->masa_aktif_sertifikat->format('d/m/Y').')';
+        }
+
+        // Cek dokumen sertifikat vaksinator
+        if (! $vaksinator->dokumen_sertifikat_vaksinator) {
+            $errors[] = '• Dokumen sertifikat vaksinator belum diupload';
         }
 
         // Jika ada error, blokir pembuatan ICV
@@ -431,8 +441,16 @@ class CreateIcv extends CreateRecord
             $errors[] = 'Izin praktek tidak valid atau sudah kadaluarsa';
         }
 
+        if (! $vaksinator->dokumen_izin_praktek) {
+            $errors[] = 'Dokumen izin praktek belum diupload';
+        }
+
         if (! $vaksinator->masa_aktif_sertifikat || $vaksinator->masa_aktif_sertifikat < now()) {
             $errors[] = 'Sertifikat vaksinator tidak valid atau sudah kadaluarsa';
+        }
+
+        if (! $vaksinator->dokumen_sertifikat_vaksinator) {
+            $errors[] = 'Dokumen sertifikat vaksinator belum diupload';
         }
 
         if (! empty($errors)) {

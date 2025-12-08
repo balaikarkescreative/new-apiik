@@ -74,6 +74,18 @@ class VaksinatorResource extends Resource
                             ->displayFormat('d/m/Y')
                             ->minDate(now())
                             ->helperText('Pilih tanggal berakhirnya izin praktek'),
+
+                        Forms\Components\FileUpload::make('dokumen_izin_praktek')
+                            ->label('Dokumen Izin Praktek')
+                            ->required()
+                            ->disk('public')
+                            ->directory('vaksinator/izin-praktek')
+                            ->acceptedFileTypes(['application/pdf'])
+                            ->maxSize(3072)
+                            ->downloadable()
+                            ->openable()
+                            ->helperText('Upload dokumen izin praktek dalam format PDF (maksimal 3MB)')
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 
@@ -92,6 +104,18 @@ class VaksinatorResource extends Resource
                             ->displayFormat('d/m/Y')
                             ->minDate(now())
                             ->helperText('Pilih tanggal berakhirnya sertifikat'),
+
+                        Forms\Components\FileUpload::make('dokumen_sertifikat_vaksinator')
+                            ->label('Dokumen Sertifikat Vaksinator')
+                            ->required()
+                            ->disk('public')
+                            ->directory('vaksinator/sertifikat')
+                            ->acceptedFileTypes(['application/pdf'])
+                            ->maxSize(3072)
+                            ->downloadable()
+                            ->openable()
+                            ->helperText('Upload dokumen sertifikat vaksinator dalam format PDF (maksimal 3MB)')
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
             ]);
