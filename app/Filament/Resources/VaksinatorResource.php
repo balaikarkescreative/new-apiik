@@ -175,6 +175,8 @@ class VaksinatorResource extends Resource
                     ->formatStateUsing(function ($state, $record) {
                         $lines = explode("\n", $state);
                         $status = $record->status_izin_praktek;
+                        $nomor = $lines[0];
+                        $nomorTruncated = strlen($nomor) > 20 ? substr($nomor, 0, 20).'...' : $nomor;
 
                         $color = match ($status) {
                             'Aktif' => 'text-green-600',
@@ -184,7 +186,7 @@ class VaksinatorResource extends Resource
                         };
 
                         return '<div class="space-y-1">'.
-                            '<div class="font-medium text-sm">'.$lines[0].'</div>'.
+                            '<div class="font-medium text-sm" title="'.$nomor.'">'.$nomorTruncated.'</div>'.
                             '<div class="text-xs '.$color.'">'.$lines[1].'</div>'.
                             '</div>';
                     })
@@ -205,6 +207,8 @@ class VaksinatorResource extends Resource
                     ->formatStateUsing(function ($state, $record) {
                         $lines = explode("\n", $state);
                         $status = $record->status_sertifikat;
+                        $nomor = $lines[0];
+                        $nomorTruncated = strlen($nomor) > 20 ? substr($nomor, 0, 20).'...' : $nomor;
 
                         $color = match ($status) {
                             'Aktif' => 'text-green-600',
@@ -214,7 +218,7 @@ class VaksinatorResource extends Resource
                         };
 
                         return '<div class="space-y-1">'.
-                            '<div class="font-medium text-sm">'.$lines[0].'</div>'.
+                            '<div class="font-medium text-sm" title="'.$nomor.'">'.$nomorTruncated.'</div>'.
                             '<div class="text-xs '.$color.'">'.$lines[1].'</div>'.
                             '</div>';
                     })
