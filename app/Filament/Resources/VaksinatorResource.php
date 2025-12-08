@@ -221,6 +221,24 @@ class VaksinatorResource extends Resource
                     ->searchable(['tbl_vaksinator.nomor_sertifikat_vaksinator'])
                     ->sortable(['masa_aktif_sertifikat']),
 
+                // Dokumen Izin Praktek
+                Tables\Columns\TextColumn::make('dokumen_izin_praktek')
+                    ->label('Dok. Izin')
+                    ->badge()
+                    ->getStateUsing(fn ($record) => $record->dokumen_izin_praktek ? 'Ada' : 'Belum')
+                    ->color(fn ($record) => $record->dokumen_izin_praktek ? 'success' : 'danger')
+                    ->url(fn ($record) => $record->dokumen_izin_praktek ? asset('storage/'.$record->dokumen_izin_praktek) : null)
+                    ->openUrlInNewTab(),
+
+                // Dokumen Sertifikat Vaksinator
+                Tables\Columns\TextColumn::make('dokumen_sertifikat_vaksinator')
+                    ->label('Dok. Sertifikat')
+                    ->badge()
+                    ->getStateUsing(fn ($record) => $record->dokumen_sertifikat_vaksinator ? 'Ada' : 'Belum')
+                    ->color(fn ($record) => $record->dokumen_sertifikat_vaksinator ? 'success' : 'danger')
+                    ->url(fn ($record) => $record->dokumen_sertifikat_vaksinator ? asset('storage/'.$record->dokumen_sertifikat_vaksinator) : null)
+                    ->openUrlInNewTab(),
+
             ])
             ->filters([
                 // Klinik/RS Filter
