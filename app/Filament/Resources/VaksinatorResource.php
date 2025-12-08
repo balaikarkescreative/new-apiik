@@ -15,6 +15,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 
 class VaksinatorResource extends Resource
 {
@@ -84,6 +85,15 @@ class VaksinatorResource extends Resource
                             ->maxSize(3072)
                             ->downloadable()
                             ->openable()
+                            ->getUploadedFileNameForStorageUsing(function (TemporaryUploadedFile $file, Forms\Get $get): string {
+                                $namaVaksinator = $get('nama_vaksinator') ?: 'Vaksinator';
+                                $idAkun = $get('id_akun');
+                                $klinik = $idAkun ? User::find($idAkun) : null;
+                                $namaKlinik = $klinik?->name ?: 'Klinik';
+                                $extension = $file->getClientOriginalExtension();
+
+                                return "Izin Vaksinator - {$namaVaksinator} - {$namaKlinik}.{$extension}";
+                            })
                             ->helperText('Upload dokumen izin praktek dalam format PDF (maksimal 3MB)')
                             ->columnSpanFull(),
                     ])
@@ -114,6 +124,15 @@ class VaksinatorResource extends Resource
                             ->maxSize(3072)
                             ->downloadable()
                             ->openable()
+                            ->getUploadedFileNameForStorageUsing(function (TemporaryUploadedFile $file, Forms\Get $get): string {
+                                $namaVaksinator = $get('nama_vaksinator') ?: 'Vaksinator';
+                                $idAkun = $get('id_akun');
+                                $klinik = $idAkun ? User::find($idAkun) : null;
+                                $namaKlinik = $klinik?->name ?: 'Klinik';
+                                $extension = $file->getClientOriginalExtension();
+
+                                return "Sertifikat Vaksinator - {$namaVaksinator} - {$namaKlinik}.{$extension}";
+                            })
                             ->helperText('Upload dokumen sertifikat vaksinator dalam format PDF (maksimal 3MB)')
                             ->columnSpanFull(),
                     ])
