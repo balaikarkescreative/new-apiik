@@ -1091,6 +1091,9 @@ class VerifikasiIzin extends Page implements HasTable
                                                 'nomor_surat' => $nomorSurat,
                                                 'tanggal_surat' => $tanggalPersetujuan,
                                                 'masa_berlaku' => $masaBerlaku,
+                                                'status_approval' => SuratPersetujuanIcv::STATUS_APPROVED,
+                                                'approved_by' => auth()->id(),
+                                                'approved_at' => now(),
                                             ]
                                         );
 
@@ -1138,6 +1141,11 @@ class VerifikasiIzin extends Page implements HasTable
                                                 'status' => 1,
                                             ]
                                         );
+
+                                        // Update file_persetujuan di SuratPersetujuanIcv
+                                        SuratPersetujuanIcv::where('id_akun', $userId)->update([
+                                            'file_persetujuan' => $filePath,
+                                        ]);
 
                                         // Refresh the record to get the updated relationships
                                         $record->refresh();

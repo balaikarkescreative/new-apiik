@@ -38,6 +38,12 @@ class SuratPersetujuanIcvResource extends Resource
         return Auth::check() && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('user') || Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('verifikator2'));
     }
 
+    public static function canCreate(): bool
+    {
+        // Hanya admin yang bisa create, user mendapat surat dari flow pengajuan izin
+        return Auth::check() && Auth::user()->hasRole('admin');
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -480,19 +486,6 @@ class SuratPersetujuanIcvResource extends Resource
                         }
 
                         return ($user->hasRole('admin') || $user->hasRole('verifikator1') || $user->hasRole('verifikator2')) && $record->isPending();
-                    }),
-
-                Tables\Actions\Action::make('perpanjangan')
-                    ->label('Ajukan Perpanjangan')
-                    ->icon('heroicon-o-arrow-path')
-                    ->color('info')
-                    ->size('sm')
-                    ->url(fn ($record) => SuratPersetujuanIcvResource::getUrl('create', ['id_akun' => $record->id_akun]))
-                    ->visible(function ($record) {
-                        $user = Auth::user();
-
-                        // Tampilkan hanya untuk user dan jika kedaluarsa
-                        return $user->hasRole('user') && $record->masa_berlaku && $record->masa_berlaku < now();
                     }),
 
                 Tables\Actions\DeleteAction::make()

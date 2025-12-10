@@ -345,6 +345,47 @@ class ApprovalSuratPersetujuanIcv extends Page implements HasTable
                         ];
                     })
                     ->visible(fn ($record) => ! $record->isPending()),
+
+                Action::make('ubah_status')
+                    ->label('Ubah Status')
+                    ->icon('heroicon-o-pencil')
+                    ->color('warning')
+                    ->modalHeading(fn ($record) => 'Ubah Status Approval - '.$record->user?->name)
+                    ->modalWidth('lg')
+                    ->form(function ($record) {
+                        return [
+                            \Filament\Forms\Components\Select::make('status_approval')
+                                ->label('Status Approval')
+                                ->options([
+                                    SuratPersetujuanIcv::STATUS_PENDING => 'Menunggu Approval',
+                                    SuratPersetujuanIcv::STATUS_APPROVED => 'Disetujui',
+                                    SuratPersetujuanIcv::STATUS_REJECTED => 'Ditolak',
+                                ])
+                                ->default($record->status_approval)
+                                ->required(),
+
+                            Textarea::make('catatan_approval')
+                                ->label('Catatan')
+                                ->default($record->catatan_approval)
+                                ->rows(3),
+                        ];
+                    })
+                    ->action(function ($record, array $data) {
+                        $record->update([
+                            'status_approval' => $data['status_approval'],
+                            'catatan_approval' => $data['catatan_approval'],
+                            'approved_by' => Auth::id(),
+                            'approved_at' => now(),
+                        ]);
+
+                        Notification::make()
+                            ->title('Status Approval Berhasil Diubah')
+                            ->success()
+                            ->send();
+
+                        $this->redirect(ApprovalSuratPersetujuanIcv::getUrl());
+                    })
+                    ->visible(fn ($record) => Auth::user()->hasRole('admin') && ! $record->isPending()),
             ])
             ->striped()
             ->paginated([15, 30, 50])
