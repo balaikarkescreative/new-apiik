@@ -5,132 +5,85 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\SuratPersetujuanIcvResource\Pages;
 use App\Models\SuratPersetujuanIcv;
 use App\Models\User;
-use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class SuratPersetujuanIcvResource extends Resource
 {
     protected static ?string $model = SuratPersetujuanIcv::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
-
-    protected static ?string $navigationLabel = 'Surat Persetujuan Pelaksanaan Vaksinasi Internasional';
-
-    protected static ?string $modelLabel = 'Surat Persetujuan Pelaksanaan Vaksinasi Internasional';
-
-    protected static ?string $pluralModelLabel = 'Surat Persetujuan Pelaksanaan Vaksinasi Internasional';
-
+    protected static ?string $navigationLabel = 'Surat Persetujuan ICV';
     protected static ?string $navigationGroup = 'Master Data';
-
     protected static ?int $navigationSort = 6;
 
     public static function canAccess(): bool
     {
-        return Auth::check() && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('user') || Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('verifikator2'));
-    }
-
-    public static function canCreate(): bool
-    {
-        // Hanya admin yang bisa create, user mendapat surat dari flow pengajuan izin
-        return Auth::check() && Auth::user()->hasRole('admin');
+        // Hanya admin dan super admin yang bisa mengakses resource ini
+        return Auth::check() && (Auth::user()->hasRole('admin') || Auth::user()->hasRole('user'));
     }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Informasi Surat')
-                    ->schema([
-                        Forms\Components\Select::make('id_akun')
-                            ->label('User/Akun')
-                            ->searchable()
-                            ->options(function () {
-                                $user = Auth::user();
+                Forms\Components\Select::make('id_akun')
+                    ->label('User/Akun')
+                    ->searchable()
+                    ->options(function () {
+                        $user = Auth::user();
 
-                                if ($user->hasRole('admin') || $user->hasRole('super_admin')) {
-                                    return User::pluck('name', 'id');
-                                }
+                        // Jika admin, tampilkan semua user
+                        if ($user->hasRole('admin') || $user->hasRole('super_admin')) {
+                            return User::pluck('name', 'id');
+                        }
 
-                                return [$user->id => $user->name];
-                            })
-                            ->default(function () {
-                                $user = Auth::user();
+                        // Jika user biasa, hanya tampilkan dirinya sendiri
+                        return [$user->id => $user->name];
+                    })
+                    ->default(function () {
+                        $user = Auth::user();
 
-                                if (! $user->hasRole('admin') && ! $user->hasRole('super_admin')) {
-                                    return $user->id;
-                                }
+                        // Jika bukan admin, set default ke user yang login
+                        if (!$user->hasRole('admin') && !$user->hasRole('super_admin')) {
+                            return $user->id;
+                        }
 
-                                return null;
-                            })
-                            ->disabled(function () {
-                                $user = Auth::user();
+                        return null;
+                    })
+                    ->disabled(function () {
+                        $user = Auth::user();
 
-                                return ! $user->hasRole('admin') && ! $user->hasRole('super_admin');
-                            })
-                            ->dehydrated(true)
-                            ->required(),
+                        // Disable jika bukan admin
+                        return !$user->hasRole('admin') && !$user->hasRole('super_admin');
+                    })
+                    ->dehydrated(true)
+                    ->required(),
 
-                        Forms\Components\TextInput::make('nomor_surat')
-                            ->label('Nomor Surat')
-                            ->required()
-                            ->maxLength(255),
+                Forms\Components\TextInput::make('nomor_surat')
+                    ->label('Nomor Surat')
+                    ->required()
+                    ->maxLength(255),
 
-                        Forms\Components\DatePicker::make('tanggal_surat')
-                            ->label('Tanggal Surat')
-                            ->required(),
+                Forms\Components\DatePicker::make('tanggal_surat')
+                    ->label('Tanggal Surat')
+                    // ->native(false)
 
-                        Forms\Components\DatePicker::make('masa_berlaku')
-                            ->label('Masa Berlaku')
-                            ->required(),
+                    ->required(),
 
-                        Forms\Components\FileUpload::make('file_persetujuan')
-                            ->label('Upload Surat Persetujuan')
-                            ->acceptedFileTypes(['application/pdf'])
-                            ->maxSize(5 * 1024)
-                            ->directory('surat-persetujuan-icv')
-                            ->getUploadedFileNameForStorageUsing(function ($file, $get) {
-                                $extension = $file->getClientOriginalExtension();
-                                $idAkun = $get('id_akun');
-                                $klinikName = $idAkun ? (User::find($idAkun)?->name ?? 'Unknown') : 'Unknown';
+                Forms\Components\DatePicker::make('masa_berlaku')
+                    ->label('Masa Berlaku')
+                    // ->native(false)
 
-                                return 'Surat Persetujuan Vaksinasi Internasional - '.$klinikName.' ['.date('dmyHis').'].'.$extension;
-                            })
-                            ->openable()
-                            ->downloadable()
-                            ->helperText('Upload file surat persetujuan dalam format PDF (Maksimal 5MB)'),
-                    ])
-                    ->columns(2),
-
-                Forms\Components\Section::make('Status Approval')
-                    ->schema([
-                        Forms\Components\Placeholder::make('status_approval_info')
-                            ->label('Status')
-                            ->content(fn ($record) => $record?->status_approval_label ?? 'Menunggu Approval'),
-
-                        Forms\Components\Placeholder::make('approved_by_info')
-                            ->label('Disetujui/Ditolak Oleh')
-                            ->content(fn ($record) => $record?->approver?->name ?? '-'),
-
-                        Forms\Components\Placeholder::make('approved_at_info')
-                            ->label('Tanggal Approval')
-                            ->content(fn ($record) => $record?->approved_at?->translatedFormat('d F Y H:i') ?? '-'),
-
-                        Forms\Components\Placeholder::make('catatan_info')
-                            ->label('Catatan')
-                            ->content(fn ($record) => $record?->catatan_approval ?? '-'),
-                    ])
-                    ->visible(fn ($record) => $record !== null)
-                    ->columns(2)
-                    ->collapsed(),
+                    ->required(),
             ]);
     }
 
@@ -138,48 +91,37 @@ class SuratPersetujuanIcvResource extends Resource
     {
         return $table
             ->query(
+                // SuratPersetujuanIcv::query()->with(['user'])
                 function () {
-                    $user = Auth::user();
-                    $query = SuratPersetujuanIcv::query()->with(['user', 'approver']);
-
-                    if (! ($user->hasRole('admin') || $user->hasRole('verifikator1') || $user->hasRole('verifikator2'))) {
-                        $query->where('id_akun', $user->id);
+                    if (Auth::user()->hasRole('admin')) {
+                        return SuratPersetujuanIcv::query()->with(['user']);
+                    } else {
+                        return SuratPersetujuanIcv::query()
+                            ->where('id_akun', Auth::user()->id)
+                            ->with(['user']);
                     }
-
-                    // Hide surat yang kadaluarsa jika klinik memiliki surat lain yang masih berlaku
-                    $query->where(function ($q) {
-                        $q->where('masa_berlaku', '>=', now())
-                            ->orWhereNotExists(function ($subQuery) {
-                                $subQuery->selectRaw(1)
-                                    ->from('tbl_surat_persetujuan_icv as other')
-                                    ->whereColumn('other.id_akun', 'tbl_surat_persetujuan_icv.id_akun')
-                                    ->where('other.masa_berlaku', '>=', now())
-                                    ->whereColumn('other.id', '!=', 'tbl_surat_persetujuan_icv.id');
-                            });
-                    });
-
-                    return $query;
                 }
             )
             ->defaultSort('tanggal_surat', 'desc')
             ->searchable()
             ->columns([
+                // Tanggal Surat - Sortable & Searchable
                 Tables\Columns\TextColumn::make('tanggal_surat')
                     ->label('Tanggal Surat')
                     ->date('d M Y')
                     ->sortable()
                     ->searchable(),
 
+                // Klinik/RS + Kota/Kab (Combined) - Same as other resources
                 Tables\Columns\TextColumn::make('klinik_info')
                     ->label('Klinik/RS & Lokasi')
                     ->getStateUsing(function ($record) {
                         $klinik = $record->user?->name ?? 'N/A';
                         $lokasi = $record->user?->kotakab ?? 'N/A';
-                        $klinikTruncated = mb_strlen($klinik) > 25 ? mb_substr($klinik, 0, 25).'...' : $klinik;
 
-                        return '<div title="'.e($klinik).'">'.
-                            '<div class="font-medium text-sm">'.e($klinikTruncated).'</div>'.
-                            '<div class="text-xs text-gray-500">'.e($lokasi).'</div>'.
+                        return '<div>' .
+                            '<div class="font-medium text-sm">' . e($klinik) . '</div>' .
+                            '<div class="text-xs text-gray-500">' . e($lokasi) . '</div>' .
                             '</div>';
                     })
                     ->html()
@@ -194,13 +136,17 @@ class SuratPersetujuanIcvResource extends Resource
                             ->orderBy('users.name', $direction);
                     }),
 
+                // Nomor Surat - Sortable & Searchable
                 Tables\Columns\TextColumn::make('nomor_surat')
                     ->label('Nomor Surat')
                     ->searchable()
                     ->sortable()
                     ->limit(20)
-                    ->tooltip(fn ($state) => $state),
+                    ->tooltip(function ($state) {
+                        return $state;
+                    }),
 
+                // Masa Berlaku - Enhanced with status color
                 Tables\Columns\TextColumn::make('masa_berlaku')
                     ->label('Masa Berlaku')
                     ->date('d M Y')
@@ -210,53 +156,14 @@ class SuratPersetujuanIcvResource extends Resource
                         $now = now();
 
                         if ($masaBerlaku < $now) {
-                            return 'danger';
+                            return 'danger'; // Kadaluarsa
                         } elseif ($masaBerlaku->diffInDays($now) <= 30) {
-                            return 'warning';
+                            return 'warning'; // Akan kadaluarsa dalam 30 hari
                         }
-
-                        return 'success';
+                        return 'success'; // Masih berlaku
                     }),
 
-                Tables\Columns\TextColumn::make('status_approval')
-                    ->label('Status')
-                    ->getStateUsing(function ($record) {
-                        // Cek kedaluarsa
-                        if ($record->masa_berlaku && $record->masa_berlaku < now()) {
-                            return 'Kedaluarsa';
-                        }
-
-                        if (! $record->file_persetujuan) {
-                            return 'Belum Upload';
-                        }
-
-                        return $record->status_approval_label;
-                    })
-                    ->badge()
-                    ->color(function ($record) {
-                        // Cek kedaluarsa
-                        if ($record->masa_berlaku && $record->masa_berlaku < now()) {
-                            return 'danger';
-                        }
-
-                        if (! $record->file_persetujuan) {
-                            return 'gray';
-                        }
-                        if ($record->isRejected()) {
-                            return 'danger';
-                        }
-                        if ($record->isApproved()) {
-                            return 'success';
-                        }
-
-                        return 'warning';
-                    }),
-
-                Tables\Columns\TextColumn::make('approver.name')
-                    ->label('Disetujui Oleh')
-                    ->toggleable()
-                    ->toggledHiddenByDefault(),
-
+                // Detail Info (toggleable)
                 Tables\Columns\TextColumn::make('detail_info')
                     ->label('Detail')
                     ->getStateUsing(function ($record) {
@@ -264,10 +171,10 @@ class SuratPersetujuanIcvResource extends Resource
                         $updatedAt = Carbon::parse($record->updated_at);
 
                         $details = [];
-                        $details[] = 'Dibuat: '.$createdAt->translatedFormat('d M Y');
+                        $details[] = "Dibuat: " . $createdAt->translatedFormat('d M Y');
 
                         if ($createdAt->ne($updatedAt)) {
-                            $details[] = 'Diperbarui: '.$updatedAt->translatedFormat('d M Y');
+                            $details[] = "Diperbarui: " . $updatedAt->translatedFormat('d M Y');
                         }
 
                         return implode("\n", $details);
@@ -276,28 +183,36 @@ class SuratPersetujuanIcvResource extends Resource
                     ->formatStateUsing(function ($state) {
                         $lines = explode("\n", $state);
                         $formatted = array_map(function ($line) {
-                            return '<div class="text-xs">'.$line.'</div>';
+                            return '<div class="text-xs">' . $line . '</div>';
                         }, $lines);
 
-                        return '<div class="space-y-1">'.implode('', $formatted).'</div>';
+                        return '<div class="space-y-1">' . implode('', $formatted) . '</div>';
                     })
                     ->toggleable()
                     ->toggledHiddenByDefault(),
             ])
             ->filters([
+                // Date Range Filter for Tanggal Surat
                 DateRangeFilter::make('tanggal_surat')
                     ->label('Tanggal Surat'),
 
+                // Date Range Filter for Masa Berlaku
                 DateRangeFilter::make('masa_berlaku')
                     ->label('Masa Berlaku'),
 
+                // User/Akun Filter
                 SelectFilter::make('id_akun')
                     ->label('Klinik/RS')
+                    ->visible(fn () => Auth::user()->hasRole('admin'))
                     ->searchable()
                     ->relationship('user', 'name')
                     ->preload()
-                    ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('verifikator2')),
+                    ->visible(function () {
+                        $user = Auth::user();
+                        return $user->hasRole('admin') || $user->hasRole('super_admin');
+                    }),
 
+                // Kota/Kabupaten Filter - Fixed query
                 SelectFilter::make('kotakab')
                     ->label('Kota/Kabupaten')
                     ->searchable()
@@ -309,17 +224,20 @@ class SuratPersetujuanIcvResource extends Resource
                             ->pluck('users.kotakab', 'users.kotakab');
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (! $data['value']) {
+                        if (!$data['value'])
                             return $query;
-                        }
 
                         return $query->whereHas('user', function (Builder $query) use ($data) {
                             $query->where('kotakab', $data['value']);
                         });
                     })
                     ->preload()
-                    ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('verifikator2')),
+                    ->visible(function () {
+                        $user = Auth::user();
+                        return $user->hasRole('admin') || $user->hasRole('super_admin');
+                    }),
 
+                // Status Filter - Enhanced with more options
                 SelectFilter::make('status_berlaku')
                     ->label('Status Berlaku')
                     ->options([
@@ -329,9 +247,8 @@ class SuratPersetujuanIcvResource extends Resource
                         'kadaluarsa_recent' => 'Baru Kadaluarsa (≤30 hari)',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
-                        if (! $data['value']) {
+                        if (!$data['value'])
                             return $query;
-                        }
 
                         $now = now();
 
@@ -344,6 +261,7 @@ class SuratPersetujuanIcvResource extends Resource
                         };
                     }),
 
+                // Year Filter
                 SelectFilter::make('tahun')
                     ->label('Tahun Surat')
                     ->options(function () {
@@ -352,37 +270,14 @@ class SuratPersetujuanIcvResource extends Resource
                         for ($i = $currentYear; $i >= $currentYear - 5; $i--) {
                             $years[$i] = $i;
                         }
-
                         return $years;
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (! $data['value']) {
+                        if (!$data['value'])
                             return $query;
-                        }
 
                         return $query->whereYear('tanggal_surat', $data['value']);
                     }),
-
-                SelectFilter::make('status_approval')
-                    ->label('Status Approval')
-                    ->options([
-                        'pending' => 'Menunggu Approval',
-                        'approved' => 'Disetujui',
-                        'rejected' => 'Ditolak',
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        if (! $data['value']) {
-                            return $query;
-                        }
-
-                        return match ($data['value']) {
-                            'pending' => $query->where('status_approval', SuratPersetujuanIcv::STATUS_PENDING),
-                            'approved' => $query->where('status_approval', SuratPersetujuanIcv::STATUS_APPROVED),
-                            'rejected' => $query->where('status_approval', SuratPersetujuanIcv::STATUS_REJECTED),
-                            default => $query,
-                        };
-                    })
-                    ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('verifikator2')),
             ], FiltersLayout::AboveContent)
             ->persistFiltersInSession()
             ->actions([
@@ -398,94 +293,8 @@ class SuratPersetujuanIcvResource extends Resource
                     ->visible(function ($record) {
                         $user = Auth::user();
 
-                        // Admin selalu bisa edit
-                        if ($user->hasRole('admin') || $user->hasRole('super_admin')) {
-                            return true;
-                        }
-
-                        // User biasa tidak bisa edit jika sudah disetujui atau ditolak
-                        if ((int) $record->status_approval === 1 || (int) $record->status_approval === 2) {
-                            return false;
-                        }
-
-                        return $record->id_akun == $user->id;
-                    }),
-
-                Tables\Actions\Action::make('approve')
-                    ->label('Setujui')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->size('sm')
-                    ->requiresConfirmation()
-                    ->modalHeading('Setujui Surat Persetujuan')
-                    ->modalDescription('Apakah Anda yakin ingin menyetujui surat persetujuan ini?')
-                    ->form([
-                        Forms\Components\Textarea::make('catatan')
-                            ->label('Catatan (Opsional)')
-                            ->rows(3),
-                    ])
-                    ->action(function ($record, array $data) {
-                        $user = Auth::user();
-
-                        $record->update([
-                            'status_approval' => SuratPersetujuanIcv::STATUS_APPROVED,
-                            'catatan_approval' => $data['catatan'] ?? null,
-                            'approved_by' => $user->id,
-                            'approved_at' => now(),
-                        ]);
-
-                        \Filament\Notifications\Notification::make()
-                            ->title('Berhasil Disetujui')
-                            ->success()
-                            ->send();
-                    })
-                    ->visible(function ($record) {
-                        $user = Auth::user();
-
-                        if (! $record->file_persetujuan) {
-                            return false;
-                        }
-
-                        return ($user->hasRole('admin') || $user->hasRole('verifikator1') || $user->hasRole('verifikator2')) && $record->isPending();
-                    }),
-
-                Tables\Actions\Action::make('reject')
-                    ->label('Tolak')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->size('sm')
-                    ->requiresConfirmation()
-                    ->modalHeading('Tolak Surat Persetujuan')
-                    ->modalDescription('Apakah Anda yakin ingin menolak surat persetujuan ini?')
-                    ->form([
-                        Forms\Components\Textarea::make('catatan')
-                            ->label('Alasan Penolakan')
-                            ->required()
-                            ->rows(3),
-                    ])
-                    ->action(function ($record, array $data) {
-                        $user = Auth::user();
-
-                        $record->update([
-                            'status_approval' => SuratPersetujuanIcv::STATUS_REJECTED,
-                            'catatan_approval' => $data['catatan'],
-                            'approved_by' => $user->id,
-                            'approved_at' => now(),
-                        ]);
-
-                        \Filament\Notifications\Notification::make()
-                            ->title('Surat Persetujuan Ditolak')
-                            ->warning()
-                            ->send();
-                    })
-                    ->visible(function ($record) {
-                        $user = Auth::user();
-
-                        if (! $record->file_persetujuan) {
-                            return false;
-                        }
-
-                        return ($user->hasRole('admin') || $user->hasRole('verifikator1') || $user->hasRole('verifikator2')) && $record->isPending();
+                        // Admin bisa edit semua, user hanya bisa edit miliknya sendiri
+                        return $user->hasRole('admin') || $user->hasRole('super_admin') || $record->id_akun == $user->id;
                     }),
 
                 Tables\Actions\DeleteAction::make()
@@ -495,6 +304,7 @@ class SuratPersetujuanIcvResource extends Resource
                     ->visible(function ($record) {
                         $user = Auth::user();
 
+                        // Admin bisa delete semua, user hanya bisa delete miliknya sendiri
                         return $user->hasRole('admin') || $user->hasRole('super_admin') || $record->id_akun == $user->id;
                     }),
             ])
@@ -502,20 +312,29 @@ class SuratPersetujuanIcvResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
                         ->label('Hapus Terpilih')
-                        ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('super_admin')),
+                        ->visible(function () {
+                            $user = Auth::user();
+
+                            // Hanya admin yang bisa bulk delete
+                            return $user->hasRole('admin') || $user->hasRole('super_admin');
+                        }),
 
                     Tables\Actions\BulkAction::make('export_selected')
                         ->label('Export Data Terpilih')
                         ->icon('heroicon-o-document-arrow-down')
                         ->color('info')
                         ->action(function ($records) {
+                            // Implementation for export functionality
                             \Filament\Notifications\Notification::make()
                                 ->title('Export Berhasil')
                                 ->body('Data yang dipilih berhasil diekspor.')
                                 ->success()
                                 ->send();
                         })
-                        ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('super_admin')),
+                        ->visible(function () {
+                            $user = Auth::user();
+                            return $user->hasRole('admin') || $user->hasRole('super_admin');
+                        }),
                 ]),
             ])
             ->emptyStateHeading('Belum Ada Surat Persetujuan ICV')
@@ -523,17 +342,19 @@ class SuratPersetujuanIcvResource extends Resource
             ->emptyStateIcon('heroicon-o-document-text')
             ->striped()
             ->paginated([15, 30, 50])
-            ->recordUrl(null);
+            ->recordUrl(null); // Disable click row to edit
     }
 
     public static function getEloquentQuery(): Builder
     {
         $user = Auth::user();
 
-        if ($user->hasRole('admin') || $user->hasRole('super_admin') || $user->hasRole('verifikator1') || $user->hasRole('verifikator2')) {
+        // Jika admin, tampilkan semua surat
+        if ($user->hasRole('admin') || $user->hasRole('super_admin')) {
             return parent::getEloquentQuery();
         }
 
+        // Jika user biasa, hanya tampilkan surat miliknya sendiri
         return parent::getEloquentQuery()->where('id_akun', $user->id);
     }
 

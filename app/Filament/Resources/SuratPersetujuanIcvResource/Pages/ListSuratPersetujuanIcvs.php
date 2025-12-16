@@ -10,14 +10,12 @@ class ListSuratPersetujuanIcvs extends ListRecords
 {
     protected static string $resource = SuratPersetujuanIcvResource::class;
 
-    protected static ?string $title = 'Surat Persetujuan Pelaksanaan Vaksinasi Internasional';
+    protected static ?string $title = "Surat Persetujuan ICV";
 
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make()
-                ->label('Buat Baru')
-                ->icon('heroicon-o-plus'),
+            Actions\CreateAction::make(),
         ];
     }
 }

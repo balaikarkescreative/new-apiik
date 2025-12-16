@@ -83,10 +83,10 @@ class CreateIcv extends CreateRecord
             $this->checkVaksinatorRequirement(auth()->id());
         }
 
-        // Cek jika user belum memiliki surat persetujuan ICV yang disetujui dan masih berlaku (untuk non-admin)
-        if (auth()->user()->hasRole('user')) {
-            $this->checkSuratPersetujuanIcvRequirement(auth()->id());
-        }
+        // Cek jika user belum memiliki surat persetujuan ICV (untuk non-admin)
+        // if (!auth()->user()->hasRole('admin')) {
+        //     $this->checkSuratPersetujuanIcvRequirement(auth()->id());
+        // }
 
         if (auth()->user()->hasRole('user')) {
             // Cek pengajuan terbaru untuk melihat apakah sudah ada bukti bayar (abaikan yang ditolak)
@@ -304,86 +304,33 @@ class CreateIcv extends CreateRecord
     }
 
     /**
-     * Check if user has surat persetujuan ICV data yang disetujui dan masih berlaku
+     * Check if user has surat persetujuan ICV data
      */
     private function checkSuratPersetujuanIcvRequirement(int $userId): void
     {
-        // Cek surat persetujuan yang disetujui dan masih berlaku
-        $suratPersetujuan = SuratPersetujuanIcv::where('id_akun', $userId)
-            ->where('status_approval', SuratPersetujuanIcv::STATUS_APPROVED)
-            ->where('masa_berlaku', '>=', now())
-            ->first();
+        $suratPersetujuan = SuratPersetujuanIcv::where('id_akun', $userId)->masihBerlaku()->first();
 
         if (! $suratPersetujuan) {
-            // Cek apakah ada surat yang belum disetujui
-            $suratPending = SuratPersetujuanIcv::where('id_akun', $userId)
-                ->where('status_approval', SuratPersetujuanIcv::STATUS_PENDING)
-                ->first();
-
-            if ($suratPending) {
-                Notification::make()
-                    ->title('Surat Persetujuan Belum Disetujui')
-                    ->body('Surat Persetujuan Pelaksanaan Vaksinasi Internasional Anda masih menunggu approval. Silakan tunggu hingga surat disetujui sebelum mengajukan ICV.')
-                    ->danger()
-                    ->persistent()
-                    ->actions([
-                        \Filament\Notifications\Actions\Action::make('lihat_surat_persetujuan')
-                            ->label('Lihat Surat Persetujuan')
-                            ->url(SuratPersetujuanIcvResource::getUrl())
-                            ->button(),
-                    ])
-                    ->send();
-
-                redirect()->to(SuratPersetujuanIcvResource::getUrl());
-
-                return;
-            }
-
-            // Cek apakah ada surat yang kedaluarsa
-            $suratKedaluarsa = SuratPersetujuanIcv::where('id_akun', $userId)
-                ->where('status_approval', SuratPersetujuanIcv::STATUS_APPROVED)
-                ->where('masa_berlaku', '<', now())
-                ->first();
-
-            if ($suratKedaluarsa) {
-                Notification::make()
-                    ->title('Surat Persetujuan Kedaluarsa')
-                    ->body('Surat Persetujuan Pelaksanaan Vaksinasi Internasional Anda sudah kedaluarsa. Silakan ajukan perpanjangan terlebih dahulu sebelum mengajukan ICV.')
-                    ->danger()
-                    ->persistent()
-                    ->actions([
-                        \Filament\Notifications\Actions\Action::make('lihat_surat_persetujuan')
-                            ->label('Ajukan Perpanjangan')
-                            ->url(SuratPersetujuanIcvResource::getUrl())
-                            ->button(),
-                    ])
-                    ->send();
-
-                redirect()->to(SuratPersetujuanIcvResource::getUrl());
-
-                return;
-            }
-
-            // Tidak ada surat sama sekali
             Notification::make()
-                ->title('Surat Persetujuan Belum Ada')
-                ->body('Anda harus memiliki Surat Persetujuan Pelaksanaan Vaksinasi Internasional yang disetujui dan masih berlaku sebelum dapat mengajukan ICV. Silakan buat surat persetujuan terlebih dahulu.')
+                ->title('Surat Persetujuan ICV Belum Ada')
+                ->body('Anda harus memiliki Surat Persetujuan ICV terlebih dahulu sebelum dapat mengajukan ICV. Silakan lengkapi surat persetujuan ICV melalui menu yang tersedia.')
                 ->danger()
                 ->persistent()
                 ->actions([
                     \Filament\Notifications\Actions\Action::make('lihat_surat_persetujuan')
-                        ->label('Buat Surat Persetujuan')
+                        ->label('Lihat Surat Persetujuan ICV')
                         ->url(SuratPersetujuanIcvResource::getUrl())
                         ->button(),
                 ])
                 ->send();
 
+            // Redirect ke halaman surat persetujuan ICV
             redirect()->to(SuratPersetujuanIcvResource::getUrl());
 
             return;
         }
 
-        // Cek juga apakah surat persetujuan masih berlaku (warning jika akan habis)
+        // Cek juga apakah surat persetujuan masih berlaku
         $this->validateSuratPersetujuanIcvStatus($suratPersetujuan);
     }
 
