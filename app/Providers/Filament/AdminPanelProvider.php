@@ -180,8 +180,8 @@ class AdminPanelProvider extends PanelProvider
                 NavigationItem::make('Unduh Draft PKS')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->sort(100)
-                    ->url(fn () => Storage::url('izin-documents/Draft Perjanjian Kerjasama (PKS).doc'), true)
-                    ->visible(fn () => Auth::user()->hasRole('user')),
+                    ->url(fn () => Storage::url('izin-documents/Draft Perjanjian Kerjasama (PKS).doc'), true),
+                    // ->visible(fn () => Auth::user()->hasRole('user')),
                 NavigationItem::make('File Surat Persetujuan ICV')
                     ->icon('heroicon-o-document-check')
                     ->sort(101)
