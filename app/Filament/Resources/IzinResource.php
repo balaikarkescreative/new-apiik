@@ -942,6 +942,9 @@ class IzinResource extends Resource
             'surat-persetujuan' => Pages\SuratPersetujuan::route(
                 '/surat-persetujuan'
             ),
+            'izin-persetujuan' => Pages\DaftarIzinPersetujuan::route(
+                '/izin-persetujuan'
+            ),
         ];
     }
 

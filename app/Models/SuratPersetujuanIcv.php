@@ -19,6 +19,7 @@ class SuratPersetujuanIcv extends Model
         'nomor_surat',
         'tanggal_surat',
         'masa_berlaku',
+        'file_persetujuan',
     ];
 
     protected $casts = [

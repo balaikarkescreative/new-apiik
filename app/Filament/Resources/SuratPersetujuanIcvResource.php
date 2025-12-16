@@ -146,6 +146,14 @@ class SuratPersetujuanIcvResource extends Resource
                         return $state;
                     }),
 
+                Tables\Columns\TextColumn::make('file_persetujuan')
+                    ->label('File Persetujuan')
+                    ->formatStateUsing(fn ($state) => $state ? 'Download' : '-')
+                    ->url(fn ($record) => $record->file_persetujuan ? \Storage::disk('public')->url($record->file_persetujuan) : null)
+                    ->openUrlInNewTab()
+                    ->icon(fn ($record) => $record->file_persetujuan ? 'heroicon-o-arrow-down-tray' : null)
+                    ->sortable(),
+
                 // Masa Berlaku - Enhanced with status color
                 Tables\Columns\TextColumn::make('masa_berlaku')
                     ->label('Masa Berlaku')

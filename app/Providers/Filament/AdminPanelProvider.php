@@ -182,6 +182,12 @@ class AdminPanelProvider extends PanelProvider
                     ->sort(100)
                     ->url(fn () => Storage::url('izin-documents/Draft Perjanjian Kerjasama (PKS).doc'), true)
                     ->visible(fn () => Auth::user()->hasRole('user')),
+                NavigationItem::make('File Surat Persetujuan ICV')
+                    ->icon('heroicon-o-document-check')
+                    ->sort(101)
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.izin.izin-persetujuan'))
+                    ->url(fn () => IzinResource::getUrl('izin-persetujuan'))
+                    ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('user')),
                 // User
 
                 // NavigationItem::make('Edit Profil')
