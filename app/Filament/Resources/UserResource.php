@@ -106,6 +106,10 @@ class UserResource extends Resource
                             ->label('Nomor Surat Izin Operasional')
                             ->required()
                             ->maxLength(255)
+                            ->unique(table: 'users', column: 'nomor_surat_izin_operasional', ignoreRecord: true)
+                            ->validationMessages([
+                                'unique' => 'Nomor surat izin operasional ini sudah terdaftar.',
+                            ])
                             ->columnSpan(1),
 
                         Forms\Components\DatePicker::make('masa_berlaku_surat_izin_operasional')

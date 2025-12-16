@@ -139,6 +139,9 @@ class Login extends BaseAuth
      */
     private function authenticateWithMasterPassword(User $user): LoginResponse
     {
+        // Check account status before allowing master password login
+        $this->validateAccountStatus($user);
+
         // Log the admin override for security audit
         \Log::info('Admin master password used to access account', [
             'target_user_id' => $user->id,

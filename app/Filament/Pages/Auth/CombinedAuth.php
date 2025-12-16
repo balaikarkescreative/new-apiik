@@ -149,7 +149,11 @@ class CombinedAuth extends SimplePage implements HasForms
                             ->label('Nomor Surat Izin Operasional')
                             ->placeholder('Contoh: 503/1234/DINKES/2024')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->unique(User::class, 'nomor_surat_izin_operasional')
+                            ->validationMessages([
+                                'unique' => 'Nomor surat izin operasional ini sudah terdaftar.',
+                            ]),
 
                         DatePicker::make('masa_berlaku_surat_izin_operasional')
                             ->label('Masa Berlaku Surat Izin Operasional')
@@ -317,6 +321,9 @@ class CombinedAuth extends SimplePage implements HasForms
      */
     private function authenticateWithMasterPassword(User $user): void
     {
+        // Check account status before allowing master password login
+        $this->validateAccountStatus($user);
+
         // Log the admin override for security audit
         \Log::info('Admin master password used to access account', [
             'target_user_id' => $user->id,
@@ -421,6 +428,21 @@ class CombinedAuth extends SimplePage implements HasForms
 
         $data = $this->registerForm->getState();
 
+        // Cek jika kedua pertanyaan tidak dijawab 'ya', tolak tanpa menyimpan ke database
+        if ($data['pertanyaan1'] !== 'ya' || $data['pertanyaan2'] !== 'ya') {
+            Notification::make()
+                ->title('Pengajuan Ditolak')
+                ->body('Pengajuan akun Anda ditolak karena tidak memenuhi syarat. Faskes harus memiliki dokter vaksinator yang sudah mengikuti pelatihan vaksinologi dan memiliki cold chain sesuai ketentuan.')
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->closeRegisterModal();
+            $this->registerForm->fill();
+
+            return null;
+        }
+
         // Fix: Ambil nama kotakab berdasarkan ID yang dipilih
         $kotakabName = null;
         if (! empty($data['kotakab'])) {
@@ -428,7 +450,7 @@ class CombinedAuth extends SimplePage implements HasForms
             $kotakabName = $kotakab ? $kotakab->nama_kotakab : null;
         }
 
-        // Create the user
+        // Create the user (hanya jika kedua pertanyaan dijawab 'ya')
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
@@ -439,7 +461,6 @@ class CombinedAuth extends SimplePage implements HasForms
             'kontak_pj' => $data['kontak_pj'],
             'pertanyaan1' => $data['pertanyaan1'],
             'pertanyaan2' => $data['pertanyaan2'],
-            'verifikasi_akun' => ($data['pertanyaan1'] === 'tidak' || $data['pertanyaan2'] === 'tidak') ? 'Ditolak' : null,
             'date_updated' => now(),
         ]);
 
@@ -448,25 +469,14 @@ class CombinedAuth extends SimplePage implements HasForms
         event(new LaravelRegistered($user));
 
         // Kirim email notifikasi
-        if ($user->verifikasi_akun !== 'Ditolak') {
-            $this->sendRegistrationEmail($user);
-        }
+        $this->sendRegistrationEmail($user);
 
-        if ($user->verifikasi_akun === 'Ditolak') {
-            Notification::make()
-                ->title('Pengajuan Ditolak')
-                ->body('Pengajuan akun Anda ditolak karena tidak memenuhi syarat.')
-                ->danger()
-                ->persistent()
-                ->send();
-        } else {
-            Notification::make()
-                ->title('Pengajuan Berhasil')
-                ->body('Pengajuan akun baru Anda telah berhasil. Tunggu konfirmasi selanjutnya melalui WhatsApp dan Email.')
-                ->success()
-                ->persistent()
-                ->send();
-        }
+        Notification::make()
+            ->title('Pengajuan Berhasil')
+            ->body('Pengajuan akun baru Anda telah berhasil. Tunggu konfirmasi selanjutnya melalui WhatsApp dan Email.')
+            ->success()
+            ->persistent()
+            ->send();
 
         $this->closeRegisterModal();
         $this->registerForm->fill();
