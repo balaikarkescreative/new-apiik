@@ -177,6 +177,11 @@ class AdminPanelProvider extends PanelProvider
                     ->group('ICV')
                     ->url(fn () => IcvResource::getUrl('verifikasi-dokumen'))
                     ->visible(fn () => Auth::user()->hasRole('verifikator2')),
+                NavigationItem::make('Unduh Draft PKS')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->sort(100)
+                    ->url(fn () => Storage::url('izin-documents/Draft Perjanjian Kerjasama (PKS).doc'), true)
+                    ->visible(fn () => Auth::user()->hasRole('user')),
                 // User
 
                 // NavigationItem::make('Edit Profil')
