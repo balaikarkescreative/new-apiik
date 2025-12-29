@@ -1381,7 +1381,7 @@ class VerifikasiIzin extends Page implements HasTable
 
     private function getRiwayatPerbaikanSchema(array $riwayat): array
     {
-        error_log('Riwayat Perbaikan: ' . json_encode($riwayat));
+        // error_log('Riwayat Perbaikan: ' . json_encode($riwayat));
         $schema = [];
         foreach ($riwayat as $index => $item) {
             $schema[] = Placeholder::make("riwayat_{$index}")
