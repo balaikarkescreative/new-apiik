@@ -521,65 +521,51 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             // Tambahkan status aktif saat ini sebagai entry terbaru
                             if ($record->izinVisitasi->status) {
                                 $totalEntries = count($riwayatVisitasi) + 1;
-                                $visitasiEntries[] = \Filament\Infolists\Components\Section::make('Status Terkini (Perubahan #' . $totalEntries . ')')
-                                    ->schema([
-                                        \Filament\Infolists\Components\TextEntry::make('status_current')
-                                            ->label('Status')
-                                            ->state($record->izinVisitasi->status)
-                                            ->badge()
-                                            ->color(function ($state) {
-                                                return match ($state) {
-                                                    'Memenuhi syarat' => 'success',
-                                                    'Tidak memenuhi syarat sementara' => 'warning',
-                                                    'Tidak memenuhi syarat' => 'danger',
-                                                    default => 'gray',
-                                                };
-                                            }),
-                                        \Filament\Infolists\Components\TextEntry::make('catatan_current')
-                                            ->label('Catatan')
-                                            ->state($record->izinVisitasi->catatan ?? '-')
-                                            ->columnSpanFull(),
-                                        \Filament\Infolists\Components\TextEntry::make('tanggal_current')
-                                            ->label('Tanggal')
-                                            ->state($record->izinVisitasi->date_updated?->translatedFormat('d F Y H:i') ?? '-'),
-                                        \Filament\Infolists\Components\TextEntry::make('admin_current')
-                                            ->label('Diinput oleh')
-                                            ->state('Admin'),
-                                    ])
-                                    ->columns(2);
+                                $currentStatus = $record->izinVisitasi->status;
+                                $currentCatatan = $record->izinVisitasi->catatan ?? 'Tidak ada catatan';
+                                $currentTanggal = $record->izinVisitasi->date_updated?->translatedFormat('d/m/Y H:i') ?? '-';
+                                
+                                $visitasiEntries[] = \Filament\Infolists\Components\TextEntry::make('current_status')
+                                    ->label('Status Terkini (#' . $totalEntries . ')')
+                                    ->state($currentStatus . ' • ' . $currentTanggal)
+                                    ->badge()
+                                    ->color(match ($currentStatus) {
+                                        'Memenuhi syarat' => 'success',
+                                        'Tidak memenuhi syarat sementara' => 'warning',
+                                        'Tidak memenuhi syarat' => 'danger',
+                                        default => 'gray',
+                                    });
+                                
+                                $visitasiEntries[] = \Filament\Infolists\Components\TextEntry::make('current_catatan')
+                                    ->label('Catatan')
+                                    ->state($currentCatatan)
+                                    ->color('gray');
                             }
                             
                             // Tambahkan riwayat perubahan sebelumnya
                             // Tambahkan riwayat perubahan sebelumnya
                             foreach (array_reverse($riwayatVisitasi) as $index => $item) {
                                 $entryNumber = count($riwayatVisitasi) - $index;
-                                $visitasiEntries[] = \Filament\Infolists\Components\Section::make('Perubahan #' . $entryNumber)
-                                    ->schema([
-                                        \Filament\Infolists\Components\TextEntry::make('status_' . $index)
-                                            ->label('Status')
-                                            ->state($item['status'])
-                                            ->badge()
-                                            ->color(function ($state) {
-                                                return match ($state) {
-                                                    'Memenuhi syarat' => 'success',
-                                                    'Tidak memenuhi syarat sementara' => 'warning',
-                                                    'Tidak memenuhi syarat' => 'danger',
-                                                    default => 'gray',
-                                                };
-                                            }),
-                                        \Filament\Infolists\Components\TextEntry::make('catatan_' . $index)
-                                            ->label('Catatan')
-                                            ->state($item['catatan'] ?? '-')
-                                            ->columnSpanFull(),
-                                        \Filament\Infolists\Components\TextEntry::make('tanggal_' . $index)
-                                            ->label('Tanggal')
-                                            ->state(\Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d F Y H:i')),
-                                        \Filament\Infolists\Components\TextEntry::make('admin_' . $index)
-                                            ->label('Diinput oleh')
-                                            ->state($item['admin']),
-                                    ])
-                                    ->columns(2)
-                                    ->collapsible();
+                                $status = $item['status'];
+                                $catatan = $item['catatan'] ?? 'Tidak ada catatan';
+                                $tanggal = \Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d/m/Y H:i');
+                                $admin = $item['admin'];
+                                
+                                $visitasiEntries[] = \Filament\Infolists\Components\TextEntry::make('status_' . $index)
+                                    ->label('Perubahan #' . $entryNumber)
+                                    ->state($status . ' • ' . $tanggal . ' • ' . $admin)
+                                    ->badge()
+                                    ->color(match ($status) {
+                                        'Memenuhi syarat' => 'success',
+                                        'Tidak memenuhi syarat sementara' => 'warning',
+                                        'Tidak memenuhi syarat' => 'danger',
+                                        default => 'gray',
+                                    });
+                                
+                                $visitasiEntries[] = \Filament\Infolists\Components\TextEntry::make('catatan_' . $index)
+                                    ->label('Catatan')
+                                    ->state($catatan)
+                                    ->color('gray');
                             }
                             
                             // Tampilkan section riwayat visitasi jika ada data
