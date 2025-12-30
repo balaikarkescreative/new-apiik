@@ -134,7 +134,8 @@ class VerifikasiIzin extends Page implements HasTable
                     ->getStateUsing(function ($record) {
                         $steps = [
                             'Verif' => $record->izinDokumen?->hasil == 1 ? 1 : 0,
-                            'Visitasi' => $record->izinDokumenPks?->tanggal_visitasi ? 1 : 0,
+                            'Jadwal Visitasi' => $record->izinDokumenPks?->tanggal_visitasi ? 1 : 0,
+                            'Hasil Visitasi' => $record->izinVisitasi?->status === 'Memenuhi syarat' ? 1 : 0,
                             'Persetujuan' => $record->izinPersetujuan?->file_persetujuan ? 1 : 0,
                             'PKS' => $record->izinDokumenPks?->dokumen_pks_bkk ? 1 : 0,
                         ];
@@ -160,11 +161,13 @@ class VerifikasiIzin extends Page implements HasTable
                         return $query
                             ->leftJoin('tbl_izin_dokumen', 'tbl_izin.id', '=', 'tbl_izin_dokumen.izin_id')
                             ->leftJoin('tbl_izin_dokumen_pks', 'tbl_izin.id', '=', 'tbl_izin_dokumen_pks.id_izin')
+                            ->leftJoin('tbl_izin_visitasi', 'tbl_izin.id', '=', 'tbl_izin_visitasi.id_izin')
                             ->leftJoin('tbl_izin_persetujuan', 'tbl_izin.id', '=', 'tbl_izin_persetujuan.id_izin')
                             ->select('tbl_izin.*')
                             ->selectRaw('
                                 (CASE WHEN tbl_izin_dokumen.hasil = 1 THEN 1 ELSE 0 END) +
                                 (CASE WHEN tbl_izin_dokumen_pks.tanggal_visitasi IS NOT NULL THEN 1 ELSE 0 END) +
+                                (CASE WHEN tbl_izin_visitasi.status = "Memenuhi syarat" THEN 1 ELSE 0 END) +
                                 (CASE WHEN tbl_izin_persetujuan.file_persetujuan IS NOT NULL THEN 1 ELSE 0 END) +
                                 (CASE WHEN tbl_izin_dokumen_pks.dokumen_pks_bkk IS NOT NULL THEN 1 ELSE 0 END) as progress_score
                             ')
@@ -197,6 +200,7 @@ class VerifikasiIzin extends Page implements HasTable
                         return $query
                             ->leftJoin('tbl_izin_dokumen', 'tbl_izin.id', '=', 'tbl_izin_dokumen.izin_id')
                             ->leftJoin('tbl_izin_dokumen_pks', 'tbl_izin.id', '=', 'tbl_izin_dokumen_pks.id_izin')
+                            ->leftJoin('tbl_izin_visitasi', 'tbl_izin.id', '=', 'tbl_izin_visitasi.id_izin')
                             ->leftJoin('tbl_izin_persetujuan', 'tbl_izin.id', '=', 'tbl_izin_persetujuan.id_izin')
                             ->select('tbl_izin.*')
                             ->selectRaw('
@@ -204,9 +208,12 @@ class VerifikasiIzin extends Page implements HasTable
                                     WHEN tbl_izin_dokumen.hasil IS NULL OR tbl_izin_dokumen.hasil = 0 THEN 1
                                     WHEN tbl_izin_dokumen.hasil = 2 THEN 2
                                     WHEN tbl_izin_dokumen_pks.tanggal_visitasi IS NULL THEN 3
-                                    WHEN tbl_izin_persetujuan.id_izin IS NULL THEN 4
-                                    WHEN tbl_izin_dokumen_pks.dokumen_pks_bkk IS NULL THEN 5
-                                    ELSE 6
+                                    WHEN tbl_izin_visitasi.status IS NULL THEN 4
+                                    WHEN tbl_izin_visitasi.status = "Tidak memenuhi syarat sementara" THEN 5
+                                    WHEN tbl_izin_visitasi.status = "Tidak memenuhi syarat" THEN 6
+                                    WHEN tbl_izin_persetujuan.id_izin IS NULL THEN 7
+                                    WHEN tbl_izin_dokumen_pks.dokumen_pks_bkk IS NULL THEN 8
+                                    ELSE 9
                                 END as step_order
                             ')
                             ->orderBy('step_order', $direction);
@@ -228,7 +235,17 @@ class VerifikasiIzin extends Page implements HasTable
                         }
 
                         if ($record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi) {
-                            $details[] = "Visitasi: " . Carbon::parse($record->izinDokumenPks->tanggal_visitasi)->translatedFormat('d M');
+                            $details[] = "Jadwal Visitasi: " . Carbon::parse($record->izinDokumenPks->tanggal_visitasi)->translatedFormat('d M');
+                        }
+
+                        if ($record->izinVisitasi && $record->izinVisitasi->status) {
+                            $statusBadge = match($record->izinVisitasi->status) {
+                                'Memenuhi syarat' => '✓',
+                                'Tidak memenuhi syarat sementara' => '⚠',
+                                'Tidak memenuhi syarat' => '✗',
+                                default => ''
+                            };
+                            $details[] = "Hasil Visitasi: {$statusBadge} " . $record->izinVisitasi->status;
                         }
 
                         if ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) {
@@ -300,9 +317,13 @@ class VerifikasiIzin extends Page implements HasTable
                     ->label('Status Progress')
                     ->options([
                         'verifikasi_dokumen' => 'Verifikasi Dokumen',
-                        'perbaikan' => 'Perbaikan', // Tambahkan opsi ini
+                        'perbaikan' => 'Perbaikan',
                         'perbaikan_dokumen' => 'Perbaikan Dokumen',
                         'jadwal_visitasi' => 'Jadwal Visitasi',
+                        'hasil_visitasi' => 'Hasil Visitasi',
+                        'visitasi_memenuhi_syarat' => 'Visitasi - Memenuhi Syarat',
+                        'visitasi_revisi' => 'Visitasi - Revisi (Sementara)',
+                        'visitasi_ditolak' => 'Visitasi - Ditolak',
                         'proses_persetujuan' => 'Proses Persetujuan',
                         'upload_pks' => 'Upload PKS',
                         'selesai' => 'Selesai',
@@ -346,9 +367,34 @@ class VerifikasiIzin extends Page implements HasTable
                                         });
                                 });
 
-                            case 'proses_persetujuan':
+                            case 'hasil_visitasi':
                                 return $query->whereHas('izinDokumenPks', function ($q) {
                                     $q->whereNotNull('tanggal_visitasi');
+                                })->where(function ($q) {
+                                    $q->whereDoesntHave('izinVisitasi')
+                                        ->orWhereHas('izinVisitasi', function ($subQ) {
+                                            $subQ->whereNull('status');
+                                        });
+                                });
+
+                            case 'visitasi_memenuhi_syarat':
+                                return $query->whereHas('izinVisitasi', function ($q) {
+                                    $q->where('status', 'Memenuhi syarat');
+                                });
+
+                            case 'visitasi_revisi':
+                                return $query->whereHas('izinVisitasi', function ($q) {
+                                    $q->where('status', 'Tidak memenuhi syarat sementara');
+                                });
+
+                            case 'visitasi_ditolak':
+                                return $query->whereHas('izinVisitasi', function ($q) {
+                                    $q->where('status', 'Tidak memenuhi syarat');
+                                });
+
+                            case 'proses_persetujuan':
+                                return $query->whereHas('izinVisitasi', function ($q) {
+                                    $q->where('status', 'Memenuhi syarat');
                                 })->whereDoesntHave('izinPersetujuan');
 
                             case 'upload_pks':
@@ -421,11 +467,15 @@ class VerifikasiIzin extends Page implements HasTable
                             // Step 2: Visitasi
                             'tanggal_visitasi' => $record->izinDokumenPks?->tanggal_visitasi,
 
-                            // Step 3: Persetujuan
+                            // Step 3: Hasil Visitasi
+                            'status_visitasi' => $record->izinVisitasi?->status ?? null,
+                            'catatan_visitasi' => $record->izinVisitasi?->catatan ?? null,
+
+                            // Step 4: Persetujuan
                             'tanggal_persetujuan' => $record->izinPersetujuan?->date_updated ?? now(),
                             'file_persetujuan' => $record->izinPersetujuan?->file_persetujuan ?? null,
 
-                            // Step 4: PKS
+                            // Step 5: PKS
                             'dokumen_pks_bkk' => $record->izinDokumenPks?->dokumen_pks_bkk ?? null,
                         ];
                     })
@@ -440,41 +490,80 @@ class VerifikasiIzin extends Page implements HasTable
 
     private function getActiveTab($record): int
     {
+        // Tab 1: Verifikasi Dokumen
         if (!$record->izinDokumen || !$record->izinDokumen->hasil) {
             return 1;
         }
         if ($record->izinDokumen->hasil == 2) {
             return 1;
         }
+        
+        // Tab 2: Jadwal Visitasi
         if (!$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi) {
             return 2;
         }
-        if (!$record->izinPersetujuan) {
+        
+        // Tab 3: Hasil Visitasi
+        if (!$record->izinVisitasi || !$record->izinVisitasi->status) {
             return 3;
         }
-        if (!$record->izinDokumenPks || !$record->izinDokumenPks->dokumen_pks_bkk) {
+        
+        // Jika hasil visitasi tidak memenuhi syarat, tetap di tab 3
+        if ($record->izinVisitasi->status !== 'Memenuhi syarat') {
+            return 3;
+        }
+        
+        // Tab 4: Persetujuan
+        if (!$record->izinPersetujuan) {
             return 4;
         }
+        
+        // Tab 5: PKS
+        if (!$record->izinDokumenPks || !$record->izinDokumenPks->dokumen_pks_bkk) {
+            return 5;
+        }
+        
         return 1;
     }
 
     private function getCurrentStep($record): string
     {
+        // Tab 1: Verifikasi Dokumen
         if (!$record->izinDokumen || !$record->izinDokumen->hasil) {
             return 'Verifikasi Dokumen';
         }
         if ($record->izinDokumen->hasil == 2) {
             return 'Perbaikan Dokumen';
         }
+        
+        // Tab 2: Jadwal Visitasi
         if (!$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi) {
             return 'Jadwal Visitasi';
         }
+        
+        // Tab 3: Hasil Visitasi
+        if (!$record->izinVisitasi || !$record->izinVisitasi->status) {
+            return 'Hasil Visitasi';
+        }
+        
+        // Handle status visitasi
+        if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara') {
+            return 'Revisi Visitasi';
+        }
+        if ($record->izinVisitasi->status === 'Tidak memenuhi syarat') {
+            return 'Ditolak';
+        }
+        
+        // Tab 4: Persetujuan (hanya jika memenuhi syarat)
         if (!$record->izinPersetujuan) {
             return 'Proses Persetujuan';
         }
+        
+        // Tab 5: PKS
         if (!$record->izinDokumenPks || !$record->izinDokumenPks->dokumen_pks_bkk) {
             return 'Upload PKS';
         }
+        
         return 'Selesai';
     }
 
@@ -485,7 +574,10 @@ class VerifikasiIzin extends Page implements HasTable
         return match ($state) {
             'Selesai' => 'success',
             'Perbaikan Dokumen' => 'danger',
+            'Ditolak' => 'danger',
+            'Revisi Visitasi' => 'warning',
             'Jadwal Visitasi' => 'warning',
+            'Hasil Visitasi' => 'info',
             default => 'info'
         };
     }
@@ -955,12 +1047,274 @@ class VerifikasiIzin extends Page implements HasTable
                             ])
                         ]),
 
-                    // Tab 3: Persetujuan
-                    Tabs\Tab::make('3_persetujuan')
-                        ->label('3. Proses Persetujuan')
-                        ->icon('heroicon-o-check-circle')
+                    // Tab 3: Hasil Visitasi (NEW)
+                    Tabs\Tab::make('3_hasil_visitasi')
+                        ->label('3. Hasil Visitasi')
+                        ->icon('heroicon-o-clipboard-document-check')
                         ->disabled(function ($record) {
                             return !$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi;
+                        })
+                        ->badge(function ($record) {
+                            return $record->izinVisitasi && $record->izinVisitasi->status ? '✓' : '';
+                        })
+                        ->badgeColor(function ($record) {
+                            if (!$record->izinVisitasi || !$record->izinVisitasi->status) return 'gray';
+                            return match($record->izinVisitasi->status) {
+                                'Memenuhi syarat' => 'success',
+                                'Tidak memenuhi syarat sementara' => 'warning',
+                                'Tidak memenuhi syarat' => 'danger',
+                                default => 'gray'
+                            };
+                        })
+                        ->schema([
+                            \Filament\Forms\Components\Placeholder::make('hasil_visitasi_disabled_notice')
+                                ->content('⚠️ Tab ini akan aktif setelah jadwal visitasi ditetapkan.')
+                                ->visible(function ($record) {
+                                    return !$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi;
+                                }),
+
+                            Grid::make(2)->schema([
+                                TextInput::make('jadwal_visitasi_info')
+                                    ->label('Tanggal Visitasi')
+                                    ->disabled()
+                                    ->formatStateUsing(fn($record) => $record->izinDokumenPks?->tanggal_visitasi?->translatedFormat('d F Y') ?? '-')
+                                    ->dehydrated(false),
+
+                                TextInput::make('status_verifikasi_info')
+                                    ->label('Status Verifikasi')
+                                    ->disabled()
+                                    ->formatStateUsing(function ($record) {
+                                        return match ($record->izinDokumen->hasil ?? 0) {
+                                            1 => 'Berkas Lengkap',
+                                            2 => 'Berkas Tidak Lengkap',
+                                            default => 'Belum Diverifikasi'
+                                        };
+                                    })
+                                    ->dehydrated(false),
+                            ]),
+
+                            Select::make('status_visitasi')
+                                ->label('Hasil Visitasi')
+                                ->options([
+                                    'Memenuhi syarat' => 'Memenuhi syarat',
+                                    'Tidak memenuhi syarat sementara' => 'Tidak memenuhi syarat sementara',
+                                    'Tidak memenuhi syarat' => 'Tidak memenuhi syarat',
+                                ])
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated(function (Get $get, Set $set) {
+                                    if ($get('status_visitasi') === 'Memenuhi syarat') {
+                                        $set('catatan_visitasi', '');
+                                    }
+                                })
+                                ->helperText('Pilih hasil visitasi setelah pelaksanaan visitasi.'),
+
+                            Textarea::make('catatan_visitasi')
+                                ->label('Catatan')
+                                ->rows(4)
+                                ->visible(fn(Get $get): bool => in_array($get('status_visitasi'), ['Tidak memenuhi syarat sementara', 'Tidak memenuhi syarat']))
+                                ->required(fn(Get $get): bool => in_array($get('status_visitasi'), ['Tidak memenuhi syarat sementara', 'Tidak memenuhi syarat']))
+                                ->helperText('Jelaskan alasan dan detail yang perlu diperbaiki.'),
+
+                            TextInput::make('bukti_perbaikan_display')
+                                ->label('Bukti Perbaikan')
+                                ->formatStateUsing(fn($record) => $record->izinVisitasi?->bukti_perbaikan ? basename($record->izinVisitasi->bukti_perbaikan) : 'Belum ada bukti perbaikan')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->visible(fn($record) => $record->izinVisitasi?->status === 'Tidak memenuhi syarat sementara')
+                                ->suffixAction(
+                                    \Filament\Forms\Components\Actions\Action::make('download_bukti')
+                                        ->icon('heroicon-o-arrow-down-tray')
+                                        ->label('Download')
+                                        ->url(fn($record) => $record->izinVisitasi?->bukti_perbaikan ? \Storage::url($record->izinVisitasi->bukti_perbaikan) : null)
+                                        ->openUrlInNewTab()
+                                        ->visible(fn($record) => $record->izinVisitasi?->bukti_perbaikan)
+                                )
+                                ->helperText('Bukti perbaikan yang diupload oleh klinik.'),
+
+                            TextInput::make('tanggal_perbaikan_display')
+                                ->label('Tanggal Upload Bukti Perbaikan')
+                                ->disabled()
+                                ->formatStateUsing(fn($record) => $record->izinVisitasi?->tanggal_perbaikan_visitasi?->translatedFormat('d F Y H:i') ?? '-')
+                                ->dehydrated(false)
+                                ->visible(fn($record) => $record->izinVisitasi?->status === 'Tidak memenuhi syarat sementara' && $record->izinVisitasi?->bukti_perbaikan),
+
+                            TextInput::make('hasil_visitasi_date')
+                                ->label('Tanggal Input Hasil')
+                                ->disabled()
+                                ->formatStateUsing(fn($record) => $record->izinVisitasi?->date_updated?->translatedFormat('d F Y H:i') ?? now()->translatedFormat('d F Y H:i'))
+                                ->dehydrated(false)
+                                ->suffixAction(
+                                    \Filament\Forms\Components\Actions\Action::make('lihat_riwayat')
+                                        ->icon('heroicon-o-clock')
+                                        ->label('Riwayat')
+                                        ->modalHeading('Riwayat Hasil Visitasi')
+                                        ->modalWidth('2xl')
+                                        ->infolist(function ($record) {
+                                            $riwayat = $record->izinVisitasi?->riwayat_visitasi ?? [];
+                                            
+                                            if (empty($riwayat)) {
+                                                return [
+                                                    \Filament\Infolists\Components\TextEntry::make('no_history')
+                                                        ->label('')
+                                                        ->state('Belum ada riwayat perubahan')
+                                                        ->color('gray'),
+                                                ];
+                                            }
+                                            
+                                            $entries = [];
+                                            foreach (array_reverse($riwayat) as $index => $item) {
+                                                $entries[] = \Filament\Infolists\Components\Section::make('Perubahan #' . (count($riwayat) - $index))
+                                                    ->schema([
+                                                        \Filament\Infolists\Components\TextEntry::make('status_' . $index)
+                                                            ->label('Status')
+                                                            ->state($item['status'])
+                                                            ->badge()
+                                                            ->color(function ($state) {
+                                                                return match ($state) {
+                                                                    'Memenuhi syarat' => 'success',
+                                                                    'Tidak memenuhi syarat sementara' => 'warning',
+                                                                    'Tidak memenuhi syarat' => 'danger',
+                                                                    default => 'gray',
+                                                                };
+                                                            }),
+                                                        \Filament\Infolists\Components\TextEntry::make('catatan_' . $index)
+                                                            ->label('Catatan')
+                                                            ->state($item['catatan'] ?? '-')
+                                                            ->columnSpanFull(),
+                                                        \Filament\Infolists\Components\TextEntry::make('tanggal_' . $index)
+                                                            ->label('Tanggal')
+                                                            ->state(\Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d F Y H:i')),
+                                                        \Filament\Infolists\Components\TextEntry::make('admin_' . $index)
+                                                            ->label('Diinput oleh')
+                                                            ->state($item['admin']),
+                                                    ])
+                                                    ->columns(2)
+                                                    ->collapsible();
+                                            }
+                                            
+                                            return $entries;
+                                        })
+                                        ->modalSubmitAction(false)
+                                        ->modalCancelActionLabel('Tutup')
+                                        ->visible(fn($record) => $record->izinVisitasi && !empty($record->izinVisitasi->riwayat_visitasi))
+                                ),
+
+                            Actions::make([
+                                Actions\Action::make('simpan_hasil_visitasi')
+                                    ->label('Simpan Hasil Visitasi')
+                                    ->icon('heroicon-o-check')
+                                    ->color('success')
+                                    ->action(function (Get $get, Set $set, $record) {
+                                        $statusVisitasi = $get('status_visitasi');
+                                        if (!$statusVisitasi) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan')
+                                                ->danger()
+                                                ->body('Hasil visitasi harus dipilih.')
+                                                ->send();
+                                            return;
+                                        }
+
+                                        $catatanVisitasi = $get('catatan_visitasi');
+                                        if (in_array($statusVisitasi, ['Tidak memenuhi syarat sementara', 'Tidak memenuhi syarat']) && !$catatanVisitasi) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan')
+                                                ->danger()
+                                                ->body('Catatan wajib diisi jika hasil visitasi tidak memenuhi syarat.')
+                                                ->send();
+                                            return;
+                                        }
+
+                                        // Ambil tanggal visitasi dari IzinDokumenPks
+                                        $tanggalVisitasi = $record->izinDokumenPks?->tanggal_visitasi;
+
+                                        // Simpan riwayat jika sudah ada visitasi sebelumnya
+                                        $existingVisitasi = $record->izinVisitasi;
+                                        $riwayat = $existingVisitasi?->riwayat_visitasi ?? [];
+                                        
+                                        if ($existingVisitasi && $existingVisitasi->status) {
+                                            $riwayat[] = [
+                                                'status' => $existingVisitasi->status,
+                                                'catatan' => $existingVisitasi->catatan,
+                                                'tanggal' => $existingVisitasi->date_updated?->toDateTimeString() ?? now()->toDateTimeString(),
+                                                'admin' => auth()->user()->name,
+                                            ];
+                                        }
+
+                                        $dataToUpdate = [
+                                            'tanggal_visitasi' => $tanggalVisitasi,
+                                            'status' => $statusVisitasi,
+                                            'catatan' => $catatanVisitasi ?? null,
+                                            'riwayat_visitasi' => $riwayat,
+                                            'date_updated' => now(),
+                                        ];
+
+                                        // Reset bukti perbaikan jika status "Tidak memenuhi syarat sementara" 
+                                        // agar klinik bisa upload ulang
+                                        if ($statusVisitasi === 'Tidak memenuhi syarat sementara') {
+                                            $dataToUpdate['bukti_perbaikan'] = null;
+                                            $dataToUpdate['tanggal_perbaikan_visitasi'] = null;
+                                        }
+
+                                        $record->izinVisitasi()->updateOrCreate(
+                                            ['id_izin' => $record->id],
+                                            $dataToUpdate
+                                        );
+
+                                        $record->refresh();
+                                        $record->load('izinVisitasi');
+
+                                        $statusText = match($statusVisitasi) {
+                                            'Memenuhi syarat' => 'memenuhi syarat dan dapat melanjutkan ke tahap persetujuan',
+                                            'Tidak memenuhi syarat sementara' => 'tidak memenuhi syarat sementara. Klinik dapat melakukan perbaikan dan visitasi ulang',
+                                            'Tidak memenuhi syarat' => 'tidak memenuhi syarat. Klinik harus mengajukan izin baru',
+                                            default => $statusVisitasi
+                                        };
+
+                                        Notification::make()
+                                            ->title('Hasil Visitasi Berhasil Disimpan')
+                                            ->success()
+                                            ->body("Hasil visitasi: {$statusText}.")
+                                            ->send();
+
+                                        $this->redirect(VerifikasiIzin::getUrl());
+                                    }),
+                                    
+                                Actions\Action::make('hapus_hasil_visitasi')
+                                    ->label('Hapus Hasil Visitasi')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->visible(fn($record) => $record->izinVisitasi && $record->izinVisitasi->status)
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Hasil Visitasi')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus hasil visitasi ini? Tindakan ini tidak dapat dibatalkan.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record) {
+                                        if ($record->izinVisitasi) {
+                                            $record->izinVisitasi->delete();
+                                        }
+
+                                        $record->refresh();
+
+                                        Notification::make()
+                                            ->title('Hasil Visitasi Berhasil Dihapus')
+                                            ->success()
+                                            ->body('Hasil visitasi telah dihapus.')
+                                            ->send();
+
+                                        $this->redirect(VerifikasiIzin::getUrl());
+                                    })
+                            ])
+                        ]),
+
+                    // Tab 4: Persetujuan
+                    Tabs\Tab::make('4_persetujuan')
+                        ->label('4. Proses Persetujuan')
+                        ->icon('heroicon-o-check-circle')
+                        ->disabled(function ($record) {
+                            // Hanya aktif jika hasil visitasi = Memenuhi syarat
+                            return !$record->izinVisitasi || $record->izinVisitasi->status !== 'Memenuhi syarat';
                         })
                         ->badge(function ($record) {
                             return $record->izinPersetujuan ? '✓' : '';
@@ -970,9 +1324,9 @@ class VerifikasiIzin extends Page implements HasTable
                         })
                         ->schema([
                             \Filament\Forms\Components\Placeholder::make('persetujuan_disabled_notice')
-                                ->content('⚠️ Tab ini akan aktif setelah jadwal visitasi ditetapkan.')
+                                ->content('⚠️ Tab ini akan aktif setelah hasil visitasi memenuhi syarat.')
                                 ->visible(function ($record) {
-                                    return !$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi;
+                                    return !$record->izinVisitasi || $record->izinVisitasi->status !== 'Memenuhi syarat';
                                 }),
 
                             Grid::make(2)->schema([
@@ -1197,9 +1551,9 @@ class VerifikasiIzin extends Page implements HasTable
                             ])
                         ]),
 
-                    // Tab 4: PKS
-                    Tabs\Tab::make('4_pks')
-                        ->label('4. Upload PKS')
+                    // Tab 5: PKS
+                    Tabs\Tab::make('5_pks')
+                        ->label('5. Upload PKS')
                         ->icon('heroicon-o-document-arrow-up')
                         ->disabled(function ($record) {
                             return !$record->izinPersetujuan;

@@ -111,6 +111,19 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             return 'Disetujui - Menunggu PKS';
                         }
 
+                        // Cek hasil visitasi
+                        if ($record->izinVisitasi && $record->izinVisitasi->status) {
+                            if ($record->izinVisitasi->status === 'Tidak memenuhi syarat') {
+                                return 'Visitasi Ditolak';
+                            }
+                            if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara') {
+                                return 'Perlu Perbaikan Visitasi';
+                            }
+                            if ($record->izinVisitasi->status === 'Memenuhi syarat') {
+                                return 'Visitasi Memenuhi Syarat';
+                            }
+                        }
+
                         // Cek apakah sudah dijadwalkan visitasi (dari izinDokumenPks)
                         if ($record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi) {
                             return 'Visitasi Dijadwalkan';
@@ -134,7 +147,10 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                         return match ($state) {
                             'Selesai' => 'success',
                             'Disetujui - Menunggu PKS' => 'info',
+                            'Visitasi Memenuhi Syarat' => 'success',
                             'Visitasi Dijadwalkan' => 'warning',
+                            'Perlu Perbaikan Visitasi' => 'warning',
+                            'Visitasi Ditolak' => 'danger',
                             'Berkas Lengkap' => 'success',
                             'Berkas Tidak Lengkap' => 'danger',
                             'Menunggu Verifikasi' => 'gray',
@@ -161,17 +177,22 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             $progress += 20;
                         }
 
-                        // Step 4: Visitasi dijadwalkan (20%)
+                        // Step 4: Visitasi dijadwalkan (10%)
                         if ($record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi) {
-                            $progress += 20;
+                            $progress += 10;
                         }
 
-                        // Step 5: Disetujui (10%)
+                        // Step 5: Hasil visitasi memenuhi syarat (10%)
+                        if ($record->izinVisitasi && $record->izinVisitasi->status === 'Memenuhi syarat') {
+                            $progress += 10;
+                        }
+
+                        // Step 6: Disetujui (10%)
                         if ($record->izinPersetujuan && $record->izinPersetujuan->status == 1) {
                             $progress += 10;
                         }
 
-                        // Step 6: PKS selesai (10%)
+                        // Step 7: PKS selesai (10%)
                         if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
                             $progress += 10;
                         }
@@ -196,10 +217,13 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->label('Filter Status')
                     ->options([
                         'menunggu_verifikasi' => 'Menunggu Verifikasi',
-                        'perbaikan' => 'Perbaikan', // Tambahkan opsi ini
+                        'perbaikan' => 'Perbaikan',
                         'berkas_lengkap' => 'Berkas Lengkap',
                         'berkas_tidak_lengkap' => 'Berkas Tidak Lengkap',
                         'visitasi_dijadwalkan' => 'Visitasi Dijadwalkan',
+                        'visitasi_memenuhi' => 'Visitasi Memenuhi Syarat',
+                        'visitasi_revisi' => 'Perlu Perbaikan Visitasi',
+                        'visitasi_ditolak' => 'Visitasi Ditolak',
                         'disetujui' => 'Disetujui',
                         'selesai' => 'Selesai',
                     ])
@@ -218,7 +242,14 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                 }),
                             'berkas_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 1)),
                             'berkas_tidak_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 2)),
-                            'visitasi_dijadwalkan' => $query->whereHas('izinVisitasi', fn ($q) => $q->whereNotNull('tanggal_visitasi')),
+                            'visitasi_dijadwalkan' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('tanggal_visitasi'))
+                                ->where(function($q) {
+                                    $q->whereDoesntHave('izinVisitasi')
+                                      ->orWhereHas('izinVisitasi', fn($subq) => $subq->whereNull('status'));
+                                }),
+                            'visitasi_memenuhi' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Memenuhi syarat')),
+                            'visitasi_revisi' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Tidak memenuhi syarat sementara')),
+                            'visitasi_ditolak' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Tidak memenuhi syarat')),
                             'disetujui' => $query->whereHas('izinPersetujuan', fn ($q) => $q->where('status', 1)),
                             'selesai' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('dokumen_pks_bkk')),
                             default => $query,
@@ -285,7 +316,60 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     }),
 
                                 TextEntry::make('step4')
-                                    ->label('4. Persetujuan')
+                                    ->label('4. Hasil Visitasi')
+                                    ->getStateUsing(function ($record) {
+                                        if ($record->izinVisitasi && $record->izinVisitasi->status) {
+                                            $status = match ($record->izinVisitasi->status) {
+                                                'Memenuhi syarat' => '✅ Memenuhi Syarat',
+                                                'Tidak memenuhi syarat sementara' => '⚠️ Perlu Perbaikan',
+                                                'Tidak memenuhi syarat' => '❌ Tidak Memenuhi Syarat',
+                                                default => '⏳ Belum Dinilai'
+                                            };
+                                            $dateText = $record->izinVisitasi->date_updated ?
+                                                ' - '.$record->izinVisitasi->date_updated->translatedFormat('d F Y') : '';
+
+                                            return $status.$dateText;
+                                        }
+
+                                        return '⏳ Belum Dinilai';
+                                    }),
+
+                                TextEntry::make('catatan_visitasi')
+                                    ->label('Catatan Visitasi')
+                                    ->getStateUsing(function ($record) {
+                                        if ($record->izinVisitasi && $record->izinVisitasi->catatan) {
+                                            return $record->izinVisitasi->catatan;
+                                        }
+
+                                        return 'Tidak ada catatan';
+                                    })
+                                    ->visible(fn ($record) => $record->izinVisitasi && $record->izinVisitasi->catatan),
+
+                                TextEntry::make('bukti_perbaikan_visitasi')
+                                    ->label('Bukti Perbaikan Visitasi')
+                                    ->getStateUsing(function ($record) {
+                                        if ($record->izinVisitasi && $record->izinVisitasi->bukti_perbaikan) {
+                                            return basename($record->izinVisitasi->bukti_perbaikan);
+                                        }
+
+                                        return 'Belum upload bukti';
+                                    })
+                                    ->url(function ($record) {
+                                        if ($record->izinVisitasi && $record->izinVisitasi->bukti_perbaikan) {
+                                            return asset('storage/'.$record->izinVisitasi->bukti_perbaikan);
+                                        }
+
+                                        return null;
+                                    })
+                                    ->badge()
+                                    ->openUrlInNewTab()
+                                    ->color(function ($record) {
+                                        return ($record->izinVisitasi && $record->izinVisitasi->bukti_perbaikan) ? 'success' : 'gray';
+                                    })
+                                    ->visible(fn ($record) => $record->izinVisitasi && $record->izinVisitasi->status === 'Tidak memenuhi syarat sementara'),
+
+                                TextEntry::make('step5')
+                                    ->label('5. Persetujuan')
                                     ->getStateUsing(function ($record) {
                                         if ($record->izinPersetujuan && $record->izinPersetujuan->status == 1) {
                                             $dateText = $record->izinPersetujuan->date_updated ?
@@ -320,8 +404,8 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     })
                                     ->visible(fn ($record) => $record->izinPersetujuan && $record->izinPersetujuan->status == 1),
 
-                                TextEntry::make('step5')
-                                    ->label('5. Perjanjian Kerjasama')
+                                TextEntry::make('step6')
+                                    ->label('6. Perjanjian Kerjasama')
                                     ->getStateUsing(function ($record) {
                                         if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
                                             return '✅ PKS Selesai';
@@ -367,6 +451,101 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     })
                     ->action(function ($record) {
                         return redirect()->to(IzinResource::getUrl('edit', ['record' => $record->id, 'type' => 'perbaikan']));
+                    }),
+
+                Action::make('lihat_riwayat_visitasi')
+                    ->label('Riwayat Visitasi')
+                    ->icon('heroicon-o-clock')
+                    ->color('info')
+                    ->visible(function ($record) {
+                        return $record->izinVisitasi && !empty($record->izinVisitasi->riwayat_visitasi);
+                    })
+                    ->modalHeading('Riwayat Hasil Visitasi')
+                    ->modalWidth('2xl')
+                    ->infolist(function ($record) {
+                        $riwayat = $record->izinVisitasi?->riwayat_visitasi ?? [];
+                        
+                        if (empty($riwayat)) {
+                            return [
+                                \Filament\Infolists\Components\TextEntry::make('no_history')
+                                    ->label('')
+                                    ->state('Belum ada riwayat perubahan')
+                                    ->color('gray'),
+                            ];
+                        }
+                        
+                        $entries = [];
+                        foreach (array_reverse($riwayat) as $index => $item) {
+                            $entries[] = \Filament\Infolists\Components\Section::make('Perubahan #' . (count($riwayat) - $index))
+                                ->schema([
+                                    \Filament\Infolists\Components\TextEntry::make('status_' . $index)
+                                        ->label('Status')
+                                        ->state($item['status'])
+                                        ->badge()
+                                        ->color(function ($state) {
+                                            return match ($state) {
+                                                'Memenuhi syarat' => 'success',
+                                                'Tidak memenuhi syarat sementara' => 'warning',
+                                                'Tidak memenuhi syarat' => 'danger',
+                                                default => 'gray',
+                                            };
+                                        }),
+                                    \Filament\Infolists\Components\TextEntry::make('catatan_' . $index)
+                                        ->label('Catatan')
+                                        ->state($item['catatan'] ?? '-')
+                                        ->columnSpanFull(),
+                                    \Filament\Infolists\Components\TextEntry::make('tanggal_' . $index)
+                                        ->label('Tanggal')
+                                        ->state(\Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d F Y H:i')),
+                                    \Filament\Infolists\Components\TextEntry::make('admin_' . $index)
+                                        ->label('Diinput oleh')
+                                        ->state($item['admin']),
+                                ])
+                                ->columns(2)
+                                ->collapsible();
+                        }
+                        
+                        return $entries;
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup'),
+
+                Action::make('upload_bukti_perbaikan_visitasi')
+                    ->label('Upload Bukti Perbaikan')
+                    ->icon('heroicon-o-arrow-up-tray')
+                    ->color('warning')
+                    ->visible(function ($record) {
+                        // Tampilkan jika hasil visitasi tidak memenuhi syarat sementara DAN belum upload bukti
+                        return $record->izinVisitasi && 
+                               $record->izinVisitasi->status === 'Tidak memenuhi syarat sementara' &&
+                               empty($record->izinVisitasi->bukti_perbaikan);
+                    })
+                    ->form([
+                        \Filament\Forms\Components\FileUpload::make('bukti_perbaikan')
+                            ->label('Bukti Perbaikan')
+                            ->acceptedFileTypes(['application/pdf', 'image/*'])
+                            ->maxSize(5 * 1024) // 5MB
+                            ->directory('bukti-perbaikan-visitasi')
+                            ->getUploadedFileNameForStorageUsing(function ($file, $record) {
+                                $extension = $file->getClientOriginalExtension();
+                                return "Bukti Perbaikan Visitasi - " . $record->user->name . " [" . date("dmyHis") . "]." . $extension;
+                            })
+                            ->openable()
+                            ->downloadable()
+                            ->helperText('Upload bukti perbaikan dalam format PDF atau gambar (maksimal 5MB)')
+                            ->required(),
+                    ])
+                    ->action(function (array $data, $record) {
+                        $record->izinVisitasi->update([
+                            'bukti_perbaikan' => $data['bukti_perbaikan'],
+                            'tanggal_perbaikan_visitasi' => now(),
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Bukti Perbaikan Berhasil Diupload')
+                            ->success()
+                            ->body('Bukti perbaikan visitasi telah berhasil diupload. Admin akan segera mereview.')
+                            ->send();
                     }),
 
                 Action::make('riwayat_perbaikan')
