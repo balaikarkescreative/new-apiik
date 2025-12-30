@@ -37,19 +37,6 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
 
     protected static ?int $navigationSort = 3;
 
-    protected function getHeaderActions(): array
-    {
-        return [
-            PageAction::make('unduh_draft_pks')
-                ->label('Unduh Draft PKS')
-                ->icon('heroicon-o-arrow-down-tray')
-                ->color('primary')
-                ->link()
-                ->url(Storage::url('izin-documents/Draft Perjanjian Kerjasama (PKS).doc'))
-                ->openUrlInNewTab(),
-        ];
-    }
-
     public function mountCanAuthorizeAccess(): void
     {
         parent::mountCanAuthorizeAccess();

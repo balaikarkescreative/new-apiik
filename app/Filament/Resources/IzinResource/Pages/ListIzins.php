@@ -28,13 +28,6 @@ class ListIzins extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\Action::make('unduh-draft-pks')
-                ->label('Unduh Draft PKS')
-                ->url(Storage::url('izin-documents/Draft Perjanjian Kerjasama (PKS).doc'))
-                ->icon('heroicon-o-arrow-down-tray')
-                ->link()
-                ->color('primary'),
-
             Actions\CreateAction::make('Buat Pengajuan Izin')
                 ->icon('heroicon-o-plus')
                 ->label('Buat Pengajuan Izin'),
