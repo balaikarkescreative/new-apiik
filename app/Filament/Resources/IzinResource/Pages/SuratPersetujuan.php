@@ -636,7 +636,46 @@ class SuratPersetujuan extends Page implements HasTable
                                         ->infolist(function ($record) {
                                             $riwayat = $record->izinVisitasi?->riwayat_visitasi ?? [];
                                             
+                                            $entries = [];
+                                            
+                                            // Tambahkan status aktif saat ini sebagai entry terbaru
+                                            if ($record->izinVisitasi && $record->izinVisitasi->status) {
+                                                $totalEntries = count($riwayat) + 1;
+                                                $entries[] = \Filament\Infolists\Components\Section::make('Status Terkini (Perubahan #' . $totalEntries . ')')
+                                                    ->schema([
+                                                        \Filament\Infolists\Components\TextEntry::make('status_current')
+                                                            ->label('Status')
+                                                            ->state($record->izinVisitasi->status)
+                                                            ->badge()
+                                                            ->color(function ($state) {
+                                                                return match ($state) {
+                                                                    'Memenuhi syarat' => 'success',
+                                                                    'Tidak memenuhi syarat sementara' => 'warning',
+                                                                    'Tidak memenuhi syarat' => 'danger',
+                                                                    default => 'gray',
+                                                                };
+                                                            }),
+                                                        \Filament\Infolists\Components\TextEntry::make('catatan_current')
+                                                            ->label('Catatan')
+                                                            ->state($record->izinVisitasi->catatan ?? '-')
+                                                            ->columnSpanFull(),
+                                                        \Filament\Infolists\Components\TextEntry::make('tanggal_current')
+                                                            ->label('Tanggal')
+                                                            ->state($record->izinVisitasi->date_updated?->translatedFormat('d F Y H:i') ?? '-'),
+                                                        \Filament\Infolists\Components\TextEntry::make('admin_current')
+                                                            ->label('Diinput oleh')
+                                                            ->state('Admin'),
+                                                    ])
+                                                    ->columns(2);
+                                            }
+                                            
+                                            // Tambahkan riwayat perubahan sebelumnya
                                             if (empty($riwayat)) {
+                                                // Jika tidak ada riwayat tapi ada status current, kembalikan entries
+                                                if (!empty($entries)) {
+                                                    return $entries;
+                                                }
+                                                
                                                 return [
                                                     \Filament\Infolists\Components\TextEntry::make('no_history')
                                                         ->label('')
@@ -645,9 +684,9 @@ class SuratPersetujuan extends Page implements HasTable
                                                 ];
                                             }
                                             
-                                            $entries = [];
                                             foreach (array_reverse($riwayat) as $index => $item) {
-                                                $entries[] = \Filament\Infolists\Components\Section::make('Perubahan #' . (count($riwayat) - $index))
+                                                $entryNumber = count($riwayat) - $index;
+                                                $entries[] = \Filament\Infolists\Components\Section::make('Perubahan #' . $entryNumber)
                                                     ->schema([
                                                         \Filament\Infolists\Components\TextEntry::make('status_' . $index)
                                                             ->label('Status')
@@ -680,7 +719,7 @@ class SuratPersetujuan extends Page implements HasTable
                                         })
                                         ->modalSubmitAction(false)
                                         ->modalCancelActionLabel('Tutup')
-                                        ->visible(fn($record) => $record->izinVisitasi && !empty($record->izinVisitasi->riwayat_visitasi))
+                                        ->visible(fn($record) => $record->izinVisitasi && $record->izinVisitasi->status)
                                 ),
 
                             FormActions::make([

@@ -453,63 +453,6 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                         return redirect()->to(IzinResource::getUrl('edit', ['record' => $record->id, 'type' => 'perbaikan']));
                     }),
 
-                Action::make('lihat_riwayat_visitasi')
-                    ->label('Riwayat Visitasi')
-                    ->icon('heroicon-o-clock')
-                    ->color('info')
-                    ->visible(function ($record) {
-                        return $record->izinVisitasi && !empty($record->izinVisitasi->riwayat_visitasi);
-                    })
-                    ->modalHeading('Riwayat Hasil Visitasi')
-                    ->modalWidth('2xl')
-                    ->infolist(function ($record) {
-                        $riwayat = $record->izinVisitasi?->riwayat_visitasi ?? [];
-                        
-                        if (empty($riwayat)) {
-                            return [
-                                \Filament\Infolists\Components\TextEntry::make('no_history')
-                                    ->label('')
-                                    ->state('Belum ada riwayat perubahan')
-                                    ->color('gray'),
-                            ];
-                        }
-                        
-                        $entries = [];
-                        foreach (array_reverse($riwayat) as $index => $item) {
-                            $entries[] = \Filament\Infolists\Components\Section::make('Perubahan #' . (count($riwayat) - $index))
-                                ->schema([
-                                    \Filament\Infolists\Components\TextEntry::make('status_' . $index)
-                                        ->label('Status')
-                                        ->state($item['status'])
-                                        ->badge()
-                                        ->color(function ($state) {
-                                            return match ($state) {
-                                                'Memenuhi syarat' => 'success',
-                                                'Tidak memenuhi syarat sementara' => 'warning',
-                                                'Tidak memenuhi syarat' => 'danger',
-                                                default => 'gray',
-                                            };
-                                        }),
-                                    \Filament\Infolists\Components\TextEntry::make('catatan_' . $index)
-                                        ->label('Catatan')
-                                        ->state($item['catatan'] ?? '-')
-                                        ->columnSpanFull(),
-                                    \Filament\Infolists\Components\TextEntry::make('tanggal_' . $index)
-                                        ->label('Tanggal')
-                                        ->state(\Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d F Y H:i')),
-                                    \Filament\Infolists\Components\TextEntry::make('admin_' . $index)
-                                        ->label('Diinput oleh')
-                                        ->state($item['admin']),
-                                ])
-                                ->columns(2)
-                                ->collapsible();
-                        }
-                        
-                        return $entries;
-                    })
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Tutup'),
-
                 Action::make('upload_bukti_perbaikan_visitasi')
                     ->label('Upload Bukti Perbaikan')
                     ->icon('heroicon-o-arrow-up-tray')
@@ -553,16 +496,114 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->icon('heroicon-o-clock')
                     ->color('secondary')
                     ->visible(function ($record) {
-                        // Tampilkan jika ada riwayat perbaikan
-                        return ! empty($record->riwayat_perbaikan);
+                        // Tampilkan jika ada riwayat perbaikan atau riwayat visitasi
+                        return ! empty($record->riwayat_perbaikan) || ($record->izinVisitasi && !empty($record->izinVisitasi->riwayat_visitasi));
                     })
-                    ->infolist([
-                        InfoSection::make('')
-                            ->schema(function ($record) {
-                                return $this->getRiwayatPerbaikanSchema($record->riwayat_perbaikan ?? []);
-                            })
-                            ->columns(1),
-                    ])
+                    ->modalHeading('Riwayat Perbaikan & Visitasi')
+                    ->modalWidth('3xl')
+                    ->infolist(function ($record) {
+                        $sections = [];
+                        
+                        // Section untuk riwayat perbaikan dokumen
+                        if (!empty($record->riwayat_perbaikan)) {
+                            $sections[] = InfoSection::make('Riwayat Perbaikan Dokumen')
+                                ->description('Riwayat perbaikan berkas yang diajukan')
+                                ->schema($this->getRiwayatPerbaikanSchema($record->riwayat_perbaikan ?? []))
+                                ->columns(1)
+                                ->collapsible();
+                        }
+                        
+                        // Section untuk riwayat visitasi
+                        if ($record->izinVisitasi) {
+                            $riwayatVisitasi = $record->izinVisitasi->riwayat_visitasi ?? [];
+                            $visitasiEntries = [];
+                            
+                            // Tambahkan status aktif saat ini sebagai entry terbaru
+                            if ($record->izinVisitasi->status) {
+                                $totalEntries = count($riwayatVisitasi) + 1;
+                                $visitasiEntries[] = \Filament\Infolists\Components\Section::make('Status Terkini (Perubahan #' . $totalEntries . ')')
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('status_current')
+                                            ->label('Status')
+                                            ->state($record->izinVisitasi->status)
+                                            ->badge()
+                                            ->color(function ($state) {
+                                                return match ($state) {
+                                                    'Memenuhi syarat' => 'success',
+                                                    'Tidak memenuhi syarat sementara' => 'warning',
+                                                    'Tidak memenuhi syarat' => 'danger',
+                                                    default => 'gray',
+                                                };
+                                            }),
+                                        \Filament\Infolists\Components\TextEntry::make('catatan_current')
+                                            ->label('Catatan')
+                                            ->state($record->izinVisitasi->catatan ?? '-')
+                                            ->columnSpanFull(),
+                                        \Filament\Infolists\Components\TextEntry::make('tanggal_current')
+                                            ->label('Tanggal')
+                                            ->state($record->izinVisitasi->date_updated?->translatedFormat('d F Y H:i') ?? '-'),
+                                        \Filament\Infolists\Components\TextEntry::make('admin_current')
+                                            ->label('Diinput oleh')
+                                            ->state('Admin'),
+                                    ])
+                                    ->columns(2);
+                            }
+                            
+                            // Tambahkan riwayat perubahan sebelumnya
+                            // Tambahkan riwayat perubahan sebelumnya
+                            foreach (array_reverse($riwayatVisitasi) as $index => $item) {
+                                $entryNumber = count($riwayatVisitasi) - $index;
+                                $visitasiEntries[] = \Filament\Infolists\Components\Section::make('Perubahan #' . $entryNumber)
+                                    ->schema([
+                                        \Filament\Infolists\Components\TextEntry::make('status_' . $index)
+                                            ->label('Status')
+                                            ->state($item['status'])
+                                            ->badge()
+                                            ->color(function ($state) {
+                                                return match ($state) {
+                                                    'Memenuhi syarat' => 'success',
+                                                    'Tidak memenuhi syarat sementara' => 'warning',
+                                                    'Tidak memenuhi syarat' => 'danger',
+                                                    default => 'gray',
+                                                };
+                                            }),
+                                        \Filament\Infolists\Components\TextEntry::make('catatan_' . $index)
+                                            ->label('Catatan')
+                                            ->state($item['catatan'] ?? '-')
+                                            ->columnSpanFull(),
+                                        \Filament\Infolists\Components\TextEntry::make('tanggal_' . $index)
+                                            ->label('Tanggal')
+                                            ->state(\Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d F Y H:i')),
+                                        \Filament\Infolists\Components\TextEntry::make('admin_' . $index)
+                                            ->label('Diinput oleh')
+                                            ->state($item['admin']),
+                                    ])
+                                    ->columns(2)
+                                    ->collapsible();
+                            }
+                            
+                            // Tampilkan section riwayat visitasi jika ada data
+                            if (!empty($visitasiEntries)) {
+                                $sections[] = InfoSection::make('Riwayat Hasil Visitasi')
+                                    ->description('Riwayat perubahan hasil visitasi')
+                                    ->schema($visitasiEntries)
+                                    ->columns(1)
+                                    ->collapsible();
+                            }
+                        }
+                        
+                        // Jika tidak ada riwayat sama sekali
+                        if (empty($sections)) {
+                            return [
+                                \Filament\Infolists\Components\TextEntry::make('no_history')
+                                    ->label('')
+                                    ->state('Belum ada riwayat perbaikan atau visitasi')
+                                    ->color('gray'),
+                            ];
+                        }
+                        
+                        return $sections;
+                    })
                     ->modalSubmitAction(false),
 
                 Action::make('lihat_dokumen')
