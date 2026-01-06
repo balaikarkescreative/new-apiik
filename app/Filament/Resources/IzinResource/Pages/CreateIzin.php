@@ -25,8 +25,18 @@ class CreateIzin extends CreateRecord
     {
         parent::mount();
 
+        // Set form data awal berdasarkan parameter URL
+        $type = request()->get('type');
+
+        // Tentukan permit_type berdasarkan parameter
+        $permitType = match ($type) {
+            'baru' => 'izin_baru',
+            'perpanjang' => 'izin_perpanjangan',
+            default => 'izin_baru',
+        };
+
         if (! auth()->user()->hasRole('admin')) {
-            $this->checkOperationalHoursWithRedirect('izin', IzinResource::getUrl('daftar-pengajuan'));
+            $this->checkOperationalHoursWithRedirect('izin', IzinResource::getUrl('daftar-pengajuan'), $permitType);
         }
 
         if (! auth()->user()->hasRole('admin') && empty(auth()->user()->email)) {
@@ -68,9 +78,6 @@ class CreateIzin extends CreateRecord
         // if (!auth()->user()->hasRole('admin')) {
         //     $this->checkExistingActivePermits(auth()->id());
         // }
-
-        // Set form data awal berdasarkan parameter URL
-        $type = request()->get('type');
 
         $formData = [
             'tanggal_pengajuan' => now()->format('Y-m-d'),

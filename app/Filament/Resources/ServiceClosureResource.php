@@ -64,6 +64,10 @@ class ServiceClosureResource extends Resource
                     ->label('Jenis Layanan')
                     ->sortable()
                     ->searchable(),
+                Tables\Columns\TextColumn::make('permit_type')
+                    ->label('Tipe Izin')
+                    ->formatStateUsing(fn ($state) => $state ? (ServiceClosure::PERMIT_TYPES[$state] ?? $state) : '-')
+                    ->visible(fn ($record) => $record && $record->service_type === 'izin'),
                 Tables\Columns\TextColumn::make('closure_reason')
                     ->label('Alasan')
                     ->limit(50)
@@ -76,6 +80,16 @@ class ServiceClosureResource extends Resource
                 Tables\Columns\ToggleColumn::make('is_closed')
                     ->label('Status')
                     ->getStateUsing(fn ($record) => !$record->is_closed) // Balik logic: true = buka, false = tutup
+                    ->disabled(function ($record) {
+                        // Disable toggle untuk child jika parent ditutup
+                        if ($record->permit_type) {
+                            $parent = ServiceClosure::where('service_type', $record->service_type)
+                                ->whereNull('permit_type')
+                                ->first();
+                            return $parent && $parent->is_closed;
+                        }
+                        return false;
+                    })
                     ->beforeStateUpdated(function ($record, $state) {
                         // $state true = akan buka layanan, false = akan tutup layanan
                         return true;
@@ -83,10 +97,10 @@ class ServiceClosureResource extends Resource
                     ->afterStateUpdated(function ($record, $state) {
                         if ($state) {
                             // Toggle ON = Buka layanan
-                            ServiceClosure::openService($record->service_type);
+                            ServiceClosure::openService($record->service_type, $record->permit_type);
                         } else {
                             // Toggle OFF = Tutup layanan
-                            ServiceClosure::closeService($record->service_type, null);
+                            ServiceClosure::closeService($record->service_type, null, $record->permit_type);
                         }
                     }),
             ])
@@ -94,6 +108,10 @@ class ServiceClosureResource extends Resource
                 Tables\Filters\SelectFilter::make('service_type')
                     ->label('Jenis Layanan')
                     ->options(ServiceClosure::SERVICE_TYPES),
+                Tables\Filters\SelectFilter::make('permit_type')
+                    ->label('Tipe Izin')
+                    ->options(ServiceClosure::PERMIT_TYPES)
+                    ->visible(fn () => true),
                 Tables\Filters\TernaryFilter::make('is_closed')
                     ->label('Status')
                     ->placeholder('Semua Status')
@@ -106,7 +124,13 @@ class ServiceClosureResource extends Resource
             ->bulkActions([
                 // Hapus semua bulk actions
             ])
-            ->defaultSort('service_type');
+            ->defaultSort('service_type')
+            ->modifyQueryUsing(function ($query) {
+                // Urutkan agar parent muncul sebelum children
+                return $query->orderByRaw('CASE WHEN permit_type IS NULL THEN 0 ELSE 1 END')
+                    ->orderBy('service_type')
+                    ->orderBy('permit_type');
+            });
     }
 
     public static function getRelations(): array

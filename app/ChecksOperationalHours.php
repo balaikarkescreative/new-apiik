@@ -11,7 +11,7 @@ trait ChecksOperationalHours
     /**
      * Check if operational hours allow access
      */
-    protected function checkOperationalHours(string $serviceType = 'default'): bool
+    protected function checkOperationalHours(string $serviceType = 'default', ?string $permitType = null): bool
     {
         $setting = OperationalSetting::getActiveSettings();
 
@@ -21,8 +21,8 @@ trait ChecksOperationalHours
         }
 
         // Cek apakah layanan spesifik ditutup
-        if ($this->isServiceSpecificallyClosed($setting, $serviceType)) {
-            $message = $this->buildOperationalMessage($setting, $serviceType);
+        if ($this->isServiceSpecificallyClosed($setting, $serviceType, $permitType)) {
+            $message = $this->buildOperationalMessage($setting, $serviceType, $permitType);
 
             $this->sendOperationalNotification(
                 'Layanan Ditutup Sementara',
@@ -52,7 +52,7 @@ trait ChecksOperationalHours
     /**
      * Check operational hours and redirect if necessary
      */
-    protected function checkOperationalHoursWithRedirect(string $serviceType = 'default', string $redirectTo = '/'): bool
+    protected function checkOperationalHoursWithRedirect(string $serviceType = 'default', string $redirectTo = '/', ?string $permitType = null): bool
     {
         $setting = OperationalSetting::getActiveSettings();
 
@@ -62,8 +62,8 @@ trait ChecksOperationalHours
         }
 
         // Cek apakah layanan spesifik ditutup
-        if ($this->isServiceSpecificallyClosed($setting, $serviceType)) {
-            $message = $this->buildOperationalMessage($setting, $serviceType);
+        if ($this->isServiceSpecificallyClosed($setting, $serviceType, $permitType)) {
+            $message = $this->buildOperationalMessage($setting, $serviceType, $permitType);
 
             $this->sendOperationalNotification(
                 'Layanan Ditutup Sementara',
@@ -95,7 +95,7 @@ trait ChecksOperationalHours
     /**
      * Check operational hours and throw exception if necessary
      */
-    protected function checkOperationalHoursWithException(string $serviceType = 'default'): void
+    protected function checkOperationalHoursWithException(string $serviceType = 'default', ?string $permitType = null): void
     {
         $setting = OperationalSetting::getActiveSettings();
 
@@ -105,8 +105,8 @@ trait ChecksOperationalHours
         }
 
         // Cek apakah layanan spesifik ditutup
-        if ($this->isServiceSpecificallyClosed($setting, $serviceType)) {
-            $message = $this->buildOperationalMessage($setting, $serviceType);
+        if ($this->isServiceSpecificallyClosed($setting, $serviceType, $permitType)) {
+            $message = $this->buildOperationalMessage($setting, $serviceType, $permitType);
             throw new \Exception($message);
         }
 
@@ -120,7 +120,7 @@ trait ChecksOperationalHours
     /**
      * Get operational status for display
      */
-    protected function getOperationalStatus(string $serviceType = 'default'): array
+    protected function getOperationalStatus(string $serviceType = 'default', ?string $permitType = null): array
     {
         $setting = OperationalSetting::getActiveSettings();
 
@@ -133,10 +133,10 @@ trait ChecksOperationalHours
         }
 
         // Cek apakah layanan spesifik ditutup
-        if ($this->isServiceSpecificallyClosed($setting, $serviceType)) {
+        if ($this->isServiceSpecificallyClosed($setting, $serviceType, $permitType)) {
             return [
                 'status' => 'service_closed',
-                'message' => $this->buildOperationalMessage($setting, $serviceType),
+                'message' => $this->buildOperationalMessage($setting, $serviceType, $permitType),
                 'color' => 'danger',
             ];
         }
@@ -159,14 +159,30 @@ trait ChecksOperationalHours
     /**
      * Build operational message
      */
-    private function buildOperationalMessage(OperationalSetting $setting, string $serviceType = 'default'): string
+    private function buildOperationalMessage(OperationalSetting $setting, string $serviceType = 'default', ?string $permitType = null): string
     {
         // Jika layanan spesifik ditutup
-        if ($this->isServiceSpecificallyClosed($setting, $serviceType)) {
-            return sprintf(
-                '%s sedang ditutup sementara oleh administrator.',
-                $this->getServiceName($serviceType)
-            )."\n\nSilakan coba lagi nanti atau hubungi administrator untuk informasi lebih lanjut.";
+        if ($this->isServiceSpecificallyClosed($setting, $serviceType, $permitType)) {
+            // Ambil closure reason dari database
+            $mappedServiceType = match ($serviceType) {
+                'register' => 'account',
+                default => $serviceType
+            };
+            
+            $closure = ServiceClosure::where('service_type', $mappedServiceType)
+                ->when($permitType, fn($q) => $q->where('permit_type', $permitType), fn($q) => $q->whereNull('permit_type'))
+                ->first();
+            
+            $serviceName = $this->getServiceName($serviceType, $permitType);
+            $message = sprintf('%s sedang ditutup sementara oleh administrator.', $serviceName);
+            
+            if ($closure && $closure->closure_reason) {
+                $message .= "\n\nAlasan: " . $closure->closure_reason;
+            }
+            
+            $message .= "\n\nSilakan coba lagi nanti atau hubungi administrator untuk informasi lebih lanjut.";
+            
+            return $message;
         }
 
         // Pesan normal untuk jam operasional
@@ -181,7 +197,7 @@ trait ChecksOperationalHours
 
         return sprintf(
             '%s hanya dapat dilakukan pada %s, jam %s - %s.',
-            $this->getServiceName($serviceType),
+            $this->getServiceName($serviceType, $permitType),
             $operationalDays,
             date('H:i', strtotime($setting->start_time)),
             date('H:i', strtotime($setting->end_time))
@@ -191,7 +207,7 @@ trait ChecksOperationalHours
     /**
      * Check if specific service is closed
      */
-    private function isServiceSpecificallyClosed(OperationalSetting $setting, string $serviceType): bool
+    private function isServiceSpecificallyClosed(OperationalSetting $setting, string $serviceType, ?string $permitType = null): bool
     {
         // Map service type untuk compatibility
         $mappedServiceType = match ($serviceType) {
@@ -200,7 +216,7 @@ trait ChecksOperationalHours
         };
 
         // Cek penutupan layanan spesifik menggunakan ServiceClosure
-        return ServiceClosure::isServiceClosed($mappedServiceType);
+        return ServiceClosure::isServiceClosed($mappedServiceType, $permitType);
     }
 
     /**
@@ -219,14 +235,22 @@ trait ChecksOperationalHours
     /**
      * Get service name based on type
      */
-    private function getServiceName(string $serviceType): string
+    private function getServiceName(string $serviceType, ?string $permitType = null): string
     {
-        return match ($serviceType) {
+        $baseName = match ($serviceType) {
             'account', 'register' => 'Pengajuan akun baru',
             'izin' => 'Pengajuan izin',
             'icv' => 'Pengajuan ICV',
             'default' => 'Layanan ini'
         };
+        
+        // Jika ada permit_type, tambahkan detail
+        if ($permitType && $serviceType === 'izin') {
+            $permitName = ServiceClosure::PERMIT_TYPES[$permitType] ?? $permitType;
+            return $baseName . ' - ' . $permitName;
+        }
+        
+        return $baseName;
     }
 
     /**
