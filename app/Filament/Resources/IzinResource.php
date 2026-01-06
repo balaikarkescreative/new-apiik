@@ -752,35 +752,6 @@ class IzinResource extends Resource
                             ->orderBy('progress_order', $direction);
                     }),
 
-                // Hasil Visitasi - New Column
-                Tables\Columns\TextColumn::make('visitasi_status')
-                    ->label('Hasil Visitasi')
-                    ->badge()
-                    ->getStateUsing(function ($record) {
-                        return $record->izinVisitasi?->status ?? 'Belum Visitasi';
-                    })
-                    ->color(function ($state) {
-                        return match ($state) {
-                            'Memenuhi syarat' => 'success',
-                            'Tidak memenuhi syarat sementara' => 'warning',
-                            'Tidak memenuhi syarat' => 'danger',
-                            default => 'gray',
-                        };
-                    })
-                    ->description(function ($record) {
-                        if ($record->izinVisitasi?->catatan) {
-                            return \Str::limit($record->izinVisitasi->catatan, 50);
-                        }
-                        return null;
-                    })
-                    ->toggleable()
-                    ->sortable(query: function (Builder $query, string $direction): Builder {
-                        return $query
-                            ->leftJoin('tbl_izin_visitasi', 'tbl_izin.id', '=', 'tbl_izin_visitasi.id_izin')
-                            ->select('tbl_izin.*')
-                            ->orderBy('tbl_izin_visitasi.status', $direction);
-                    }),
-
                 // Detail Info (toggleable) - Similar to IcvResource
                 Tables\Columns\TextColumn::make('detail_info')
                     ->label('Detail')
@@ -893,27 +864,6 @@ class IzinResource extends Resource
                             'selesai' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('dokumen_pks_bkk')),
                             default => $query,
                         };
-                    }),
-
-                // Hasil Visitasi Filter
-                SelectFilter::make('hasil_visitasi')
-                    ->label('Hasil Visitasi')
-                    ->options([
-                        'Memenuhi syarat' => 'Memenuhi syarat',
-                        'Tidak memenuhi syarat sementara' => 'Tidak memenuhi syarat sementara',
-                        'Tidak memenuhi syarat' => 'Tidak memenuhi syarat',
-                        'belum' => 'Belum Visitasi',
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        if (! $data['value']) {
-                            return $query;
-                        }
-
-                        if ($data['value'] === 'belum') {
-                            return $query->whereDoesntHave('izinVisitasi');
-                        }
-
-                        return $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', $data['value']));
                     }),
 
                 // Status Filter

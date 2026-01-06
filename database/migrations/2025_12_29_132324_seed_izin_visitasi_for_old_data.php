@@ -36,7 +36,7 @@ return new class extends Migration
                 'tanggal_visitasi' => $izin->tanggal_visitasi ?? $izin->tanggal_persetujuan,
                 'status' => 'Memenuhi syarat',
                 'catatan' => null,
-                'date_updated' => now(),
+                'date_updated' => $izin->tanggal_persetujuan,
             ]);
         }
 
