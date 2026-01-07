@@ -19,7 +19,7 @@ class CreateVaksinator extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        if (auth()->user()->name !== 'Admin') {
+        if (auth()->user()->hasRole('user')) {
             $data['id_akun'] = auth()->id();
         }
 

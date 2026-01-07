@@ -33,7 +33,7 @@ class VaksinatorResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->check() && auth()->user()->hasRole('user') || auth()->user()->hasRole('admin');
+        return auth()->check() && auth()->user()->hasRole('user') || auth()->user()->hasRole('admin') || auth()->user()->hasRole('verifikator1');
     }
 
     public static function form(Form $form): Form
@@ -47,8 +47,8 @@ class VaksinatorResource extends Resource
                             ->relationship('user', 'name')
                             ->searchable()
                             ->preload()
-                            ->default(fn () => auth()->user()->hasRole('admin') ? auth()->id() : auth()->id())
-                            ->disabled(fn () => auth()->user()->hasRole('admin') ? false : true)
+                            ->default(fn () => auth()->user()->hasRole('admin') || auth()->user()->hasRole('verifikator1') ? null : auth()->id())
+                            ->disabled(fn () => auth()->user()->hasRole('admin') || auth()->user()->hasRole('verifikator1') ? false : true)
                             ->required()
                             ->columnSpanFull(),
 
@@ -144,7 +144,7 @@ class VaksinatorResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function (Builder $query) {
-                if (! Auth::user()->hasRole('admin')) {
+                if (! Auth::user()->hasRole('admin') && ! Auth::user()->hasRole('verifikator1')) {
                     $query->join('users', 'tbl_vaksinator.id_akun', '=', 'users.id')
                         ->select('tbl_vaksinator.*', 'users.name as user_name')
                         ->where('tbl_vaksinator.id_akun', Auth::id());
@@ -268,7 +268,7 @@ class VaksinatorResource extends Resource
                 SelectFilter::make('id_akun')
                     ->label('Klinik/RS')
                     ->searchable()
-                    ->visible(fn () => Auth::user()->hasRole('admin'))
+                    ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('verifikator1'))
                     ->options(function () {
                         $userIds = Vaksinator::distinct()->pluck('id_akun');
 
