@@ -15,6 +15,7 @@ class Izin extends Model
         'id',
         'user_id',
         'kategori_izin',
+        'use_new_labels',
         'tanggal_pengajuan',
         'nomor_surat',
         'tanggal_surat',
@@ -32,6 +33,8 @@ class Izin extends Model
         'file12',
         'file13',
         'file14',
+        'file15',
+        'file16',
         'status',
         'tanggal_perbaikan',
         'riwayat_perbaikan', // Tambahkan kolom baru
@@ -44,6 +47,7 @@ class Izin extends Model
         'tanggal_perbaikan' => 'datetime',
         'riwayat_perbaikan' => 'array', // Cast JSON ke array
         'date_updated' => 'datetime',
+        'use_new_labels' => 'boolean',
     ];
 
     /**
@@ -101,5 +105,15 @@ class Izin extends Model
     public function izinDokumenPks()
     {
         return $this->hasOne(IzinDokumenPks::class, 'id_izin');
+    }
+
+    /**
+     * Get file labels based on use_new_labels flag
+     */
+    public function getFileLabels(): array
+    {
+        return $this->use_new_labels 
+            ? \App\FileLabels::getNewIzinLabels() 
+            : \App\FileLabels::getIzinLabels();
     }
 }

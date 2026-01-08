@@ -750,7 +750,9 @@ class VerifikasiIzin extends Page implements HasTable
 
             // Documents Section
             Section::make('Dokumen Pengajuan')
-                ->schema($this->getDocumentFields())
+                ->schema(function ($record) {
+                    return $this->getDocumentFields($record);
+                })
                 ->collapsible()
                 ->collapsed(),
 
@@ -1771,18 +1773,19 @@ class VerifikasiIzin extends Page implements HasTable
         return $schema;
     }
 
-    private function getDocumentFields(): array
+    private function getDocumentFields($record = null): array
     {
         $fields = [];
+        $maxFiles = ($record && $record->use_new_labels) ? 16 : 14;
 
-        for ($i = 1; $i <= 14; $i++) {
+        for ($i = 1; $i <= $maxFiles; $i++) {
             $fields[] = TextInput::make("file{$i}")
-                ->label(fn() => self::getIzinLabel("file{$i}"))
+                ->label(fn($record) => self::getIzinLabel("file{$i}", $record))
                 ->readOnly()
                 ->prefix("{$i}")
                 ->formatStateUsing(function ($record) use ($i) {
                     $fileField = "file{$i}";
-                    if ($record->$fileField) {
+                    if ($record && $record->$fileField) {
                         return substr($record->$fileField, strrpos($record->$fileField, '/') + 1);
                     } else {
                         return 'Tidak ada file';
@@ -1791,10 +1794,10 @@ class VerifikasiIzin extends Page implements HasTable
                 ->hintAction(
                     FormAction::make("unduh_file{$i}")
                         ->icon('heroicon-o-arrow-down-tray')
-                        ->label(fn() => "Unduh " . self::getIzinLabel("file{$i}"))
-                        ->url(fn($record) => $record->{"file{$i}"} ? asset('storage/' . $record->{"file{$i}"}) : '#')
+                        ->label(fn($record) => "Unduh " . self::getIzinLabel("file{$i}", $record))
+                        ->url(fn($record) => ($record && $record->{"file{$i}"}) ? asset('storage/' . $record->{"file{$i}"}) : '#')
                         ->openUrlInNewTab()
-                        ->visible(fn($record) => $record->{"file{$i}"} !== null)
+                        ->visible(fn($record) => $record && $record->{"file{$i}"} !== null)
                 )
                 ->dehydrated(false);
         }

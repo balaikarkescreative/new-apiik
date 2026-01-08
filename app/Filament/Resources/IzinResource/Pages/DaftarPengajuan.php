@@ -813,6 +813,40 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     ->url(fn ($record) => $record->file14 ? asset('storage/'.$record->file14) : null)
                                     ->openUrlInNewTab(),
 
+                                TextEntry::make('file15_display')
+                                    ->label(fn ($record) => '15. ' . $this->getIzinLabel('file15', $record))
+                                    ->getStateUsing(function ($record) {
+                                        if ($record->file15) {
+                                            $filename = basename($record->file15);
+
+                                            return "{$filename} (PDF)";
+                                        }
+
+                                        return 'Tidak ada file';
+                                    })
+                                    ->badge()
+                                    ->color(fn ($record) => $record->file15 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file15 ? asset('storage/'.$record->file15) : null)
+                                    ->openUrlInNewTab()
+                                    ->visible(fn ($record) => $record->use_new_labels),
+
+                                TextEntry::make('file16_display')
+                                    ->label(fn ($record) => '16. ' . $this->getIzinLabel('file16', $record))
+                                    ->getStateUsing(function ($record) {
+                                        if ($record->file16) {
+                                            $filename = basename($record->file16);
+
+                                            return "{$filename} (PDF)";
+                                        }
+
+                                        return 'Tidak ada file';
+                                    })
+                                    ->badge()
+                                    ->color(fn ($record) => $record->file16 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file16 ? asset('storage/'.$record->file16) : null)
+                                    ->openUrlInNewTab()
+                                    ->visible(fn ($record) => $record->use_new_labels),
+
                             ])
                             ->columns(1),
                     ])

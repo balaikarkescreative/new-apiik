@@ -227,6 +227,17 @@ class IzinResource extends Resource
                                 ])
                                 ->default(0)
                                 ->visible(fn () => auth()->user()->name === 'Admin'),
+                            
+                            // Hidden field untuk use_new_labels
+                            // Data baru = true (format baru), data lama = tetap gunakan nilai yang ada
+                            Forms\Components\Hidden::make('use_new_labels')
+                                ->default(fn ($record) => $record ? (bool)$record->use_new_labels : true)
+                                ->dehydrated()
+                                ->afterStateHydrated(function ($component, $state, $record) {
+                                    if (!$record) {
+                                        $component->state(true);
+                                    }
+                                }),
                         ]),
                 ])
                 ->compact()
@@ -269,7 +280,7 @@ class IzinResource extends Resource
                 ->description('Semua dokumen wajib diupload. Format PDF, maksimal 3MB per dokumen.')
                 ->schema([
                     Forms\Components\FileUpload::make('file1')
-                        ->label(self::getIzinLabel('file1'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file1') : self::getIzinLabel('file1'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -280,9 +291,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file1'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file1') : self::getIzinLabel('file1'),
                                 $file->getClientOriginalExtension(),
                                 // get user ID if available from the form data
                                 $get('user_id') ?? auth()->user()->id
@@ -291,7 +302,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file2')
-                        ->label(self::getIzinLabel('file2'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file2') : self::getIzinLabel('file2'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -302,9 +313,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file2'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file2') : self::getIzinLabel('file2'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -312,7 +323,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file3')
-                        ->label(self::getIzinLabel('file3'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file3') : self::getIzinLabel('file3'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -323,9 +334,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file3'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file3') : self::getIzinLabel('file3'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -333,7 +344,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file4')
-                        ->label(self::getIzinLabel('file4'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file4') : self::getIzinLabel('file4'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -344,9 +355,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file4'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file4') : self::getIzinLabel('file4'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -354,7 +365,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file5')
-                        ->label(self::getIzinLabel('file5'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file5') : self::getIzinLabel('file5'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -365,9 +376,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file5'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file5') : self::getIzinLabel('file5'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -375,7 +386,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file6')
-                        ->label(self::getIzinLabel('file6'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file6') : self::getIzinLabel('file6'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -386,9 +397,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file6'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file6') : self::getIzinLabel('file6'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -396,7 +407,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file7')
-                        ->label(self::getIzinLabel('file7'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file7') : self::getIzinLabel('file7'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -407,9 +418,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file7'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file7') : self::getIzinLabel('file7'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -417,7 +428,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file8')
-                        ->label(self::getIzinLabel('file8'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file8') : self::getIzinLabel('file8'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -428,9 +439,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file8'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file8') : self::getIzinLabel('file8'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -438,7 +449,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file9')
-                        ->label(self::getIzinLabel('file9'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file9') : self::getIzinLabel('file9'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -449,9 +460,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file9'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file9') : self::getIzinLabel('file9'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -459,7 +470,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file10')
-                        ->label(self::getIzinLabel('file10'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file10') : self::getIzinLabel('file10'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -470,9 +481,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file10'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file10') : self::getIzinLabel('file10'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -480,7 +491,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file11')
-                        ->label(self::getIzinLabel('file11'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file11') : self::getIzinLabel('file11'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -491,9 +502,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file11'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file11') : self::getIzinLabel('file11'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -501,7 +512,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file12')
-                        ->label(self::getIzinLabel('file12'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file12') : self::getIzinLabel('file12'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -512,9 +523,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file12'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file12') : self::getIzinLabel('file12'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -522,7 +533,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file13')
-                        ->label(self::getIzinLabel('file13'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file13') : self::getIzinLabel('file13'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -533,9 +544,9 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file13'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file13') : self::getIzinLabel('file13'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
@@ -543,7 +554,7 @@ class IzinResource extends Resource
                         ),
 
                     Forms\Components\FileUpload::make('file14')
-                        ->label(self::getIzinLabel('file14'))
+                        ->label(fn ($record, callable $get) => ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file14') : self::getIzinLabel('file14'))
                         ->helperText('Format PDF, maksimal 3MB.')
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(3072)
@@ -554,12 +565,54 @@ class IzinResource extends Resource
                         ->required()
                         ->getUploadedFileNameForStorageUsing(
                             fn (
-                                TemporaryUploadedFile $file, callable $get
+                                TemporaryUploadedFile $file, callable $get, $record
                             ): string => self::generateCustomFilename(
-                                self::getIzinLabel('file14'),
+                                ($record ? $record->use_new_labels : ($get('use_new_labels') ?? true)) ? self::getNewIzinLabel('file14') : self::getIzinLabel('file14'),
                                 $file->getClientOriginalExtension(),
                                 $get('user_id') ?? auth()->user()->id
 
+                            )
+                        ),
+
+                    Forms\Components\FileUpload::make('file15')
+                        ->label(self::getNewIzinLabel('file15'))
+                        ->helperText('Format PDF, maksimal 3MB. Hanya untuk format dokumen terbaru.')
+                        ->acceptedFileTypes(['application/pdf'])
+                        ->maxSize(3072)
+                        ->disk('public')
+                        ->directory('izin-documents')
+                        ->downloadable()
+                        ->openable()
+                        ->required(fn (callable $get) => $get('use_new_labels'))
+                        ->visible(fn (callable $get) => $get('use_new_labels'))
+                        ->getUploadedFileNameForStorageUsing(
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getNewIzinLabel('file15'),
+                                $file->getClientOriginalExtension(),
+                                $get('user_id') ?? auth()->user()->id
+                            )
+                        ),
+
+                    Forms\Components\FileUpload::make('file16')
+                        ->label(self::getNewIzinLabel('file16'))
+                        ->helperText('Format PDF, maksimal 3MB. Hanya untuk format dokumen terbaru.')
+                        ->acceptedFileTypes(['application/pdf'])
+                        ->maxSize(3072)
+                        ->disk('public')
+                        ->directory('izin-documents')
+                        ->downloadable()
+                        ->openable()
+                        ->required(fn (callable $get) => $get('use_new_labels'))
+                        ->visible(fn (callable $get) => $get('use_new_labels'))
+                        ->getUploadedFileNameForStorageUsing(
+                            fn (
+                                TemporaryUploadedFile $file, callable $get
+                            ): string => self::generateCustomFilename(
+                                self::getNewIzinLabel('file16'),
+                                $file->getClientOriginalExtension(),
+                                $get('user_id') ?? auth()->user()->id
                             )
                         ),
 

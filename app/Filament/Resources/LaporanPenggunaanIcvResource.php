@@ -191,6 +191,15 @@ class LaporanPenggunaanIcvResource extends Resource
                     ->label('Tanggal Pelaporan')
                     ->date('d M Y')
                     ->sortable()
+                    ->wrapHeader()
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('date_updated')
+                    ->label('Terakhir Diperbarui')
+                    ->dateTime('d M Y H:i:s')
+                    ->wrapHeader()
+                    ->wrap()
+                    ->sortable()
                     ->searchable(),
 
                 Tables\Columns\TextColumn::make('user.name')
@@ -206,25 +215,30 @@ class LaporanPenggunaanIcvResource extends Resource
                 Tables\Columns\TextColumn::make('jml_terbit_icv')
                     ->label('Terbit ICV')
                     ->numeric()
+                    ->wrapHeader()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('jml_guna_vaksin')
                     ->label('Guna Vaksin')
                     ->numeric()
+                    ->wrapHeader()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('sisa_icv')
                     ->label('Sisa ICV')
                     ->numeric()
+                    ->wrapHeader()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('sisa_vaksin')
                     ->label('Sisa Vaksin')
                     ->numeric()
+                    ->wrapHeader()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('keterangan')
                     ->label('Catatan')
+                    ->wrap()
                     ->searchable(),
             ])
             ->filters([
