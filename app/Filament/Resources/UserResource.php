@@ -319,6 +319,25 @@ class UserResource extends Resource
                 })
                 ->withoutGlobalScopes([SoftDeletingScope::class]))
             ->columns([
+
+
+                Tables\Columns\TextColumn::make('tanggal_pengajuan')
+                    ->label('Tanggal Pengajuan')
+                    ->getStateUsing(function ($record) {
+                        // Jika date_updated lebih tua dari created_at, gunakan date_updated
+                        $createdAt = $record->created_at;
+                        $dateUpdated = $record->date_updated;
+                        
+                        if ($dateUpdated && $createdAt && $dateUpdated < $createdAt) {
+                            return $dateUpdated;
+                        }
+                        
+                        return $createdAt;
+                    })
+                    ->wrapHeader()
+                    ->date('d M Y')
+                    ->sortable(['created_at', 'date_updated']),
+                    
                 // Compact Faskes Info
                 Tables\Columns\TextColumn::make('faskes_info')
                     ->label('Klinik/RS')

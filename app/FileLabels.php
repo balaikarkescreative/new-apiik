@@ -33,9 +33,9 @@ trait FileLabels
             'file3' => 'Surat Pernyataan Penandatanganan ICV',//ada
             'file4' => 'SK Penunjukan Petugas Administrasi (terdapat petugas dengan latarbelakang pendidikan komputer, minimal 1 orang)',
             'file5' => 'Daftar Sarana dan Fasilitas (Lengkapi dengan foto)',//ada
-            'file6' => 'Surat Pernyataan Memiliki COLD CHAIN (Bermaterai)',
+            'file6' => 'Surat Pernyataan Memiliki COLD CHAIN (bermaterai)',
             'file7' => 'Surat Pernyataan Memiliki Alat Pengolah data komputer, printer, passbook, jaringan internet (bermaterai)',
-            'file8' => 'Surat Pernyataan Bermaterai Bersedia Mengisi SINKARKES',
+            'file8' => 'Surat Pernyataan Bersedia Mengisi SINKARKES (bermaterai)',
             'file9' => 'Daftar Alat Pemantau Suhu Penyimpan Vaksin disertai foto (Thermometer, Freeze tag, Log Tag, Form pencatatan suhu manual)',
             'file10' => 'SOP Pelayanan Vaksinasi Internasional',//ada
             'file11' => 'Sertifikat Akreditasi',
