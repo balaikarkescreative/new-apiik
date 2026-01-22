@@ -337,7 +337,7 @@ class UserResource extends Resource
                     ->wrapHeader()
                     ->date('d M Y')
                     ->sortable(['created_at', 'date_updated']),
-                    
+
                 // Compact Faskes Info
                 Tables\Columns\TextColumn::make('faskes_info')
                     ->label('Klinik/RS')
@@ -542,6 +542,22 @@ class UserResource extends Resource
                     ->queries(
                         true: fn (Builder $query) => $query->where('pertanyaan2', 'Ya'),
                         false: fn (Builder $query) => $query->where('pertanyaan2', 'Tidak'),
+                    ),
+
+                 // Filter Akun Baru
+                Filter::make('akun_baru')
+                    ->label('Akun Baru')
+                    // ->toggle()
+                    ->query(fn (Builder $query): Builder => 
+                        $query->where(function ($q) {
+                            $q->where(function ($subQ) {
+                                $subQ->whereNull('verifikasi_akun')
+                                    ->orWhere('verifikasi_akun', 'Belum Diverifikasi');
+                            })->where(function ($subQ) {
+                                $subQ->whereNull('status_akun')
+                                    ->orWhere('status_akun', 'Tidak Aktif');
+                            });
+                        })
                     ),
             ])
             ->headerActions([
