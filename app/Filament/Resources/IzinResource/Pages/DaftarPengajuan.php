@@ -864,7 +864,10 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->visible(function () {
                         // Tampilkan jika belum pernah mengajukan izin baru
                         return ! Izin::where('user_id', auth()->id())
-                            ->where('kategori_izin', 'Izin Baru')
+                            ->where(function ($query) {
+                                $query->where('kategori_izin', 'Izin Baru')
+                                    ->orWhere('kategori_izin', 'Perpanjang Izin');
+                            })
                             ->exists();
                     })
                     ->action(function () {
@@ -878,7 +881,10 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->visible(function () {
                         // Tampilkan jika sudah ada izin baru yang selesai (ada PKS)
                         $latestIzin = Izin::where('user_id', auth()->id())
-                            ->where('kategori_izin', 'Izin Baru')
+                            ->where(function ($query) {
+                                $query->where('kategori_izin', 'Izin Baru')
+                                    ->orWhere('kategori_izin', 'Perpanjang Izin');
+                            })
                             ->with('izinDokumenPks')
                             ->orderBy('tanggal_pengajuan', 'desc')
                             ->first();

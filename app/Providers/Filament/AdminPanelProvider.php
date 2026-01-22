@@ -73,7 +73,10 @@ class AdminPanelProvider extends PanelProvider
                 NavigationItem::make(function () {
                     $userId = Auth::user()?->id;
                     $existingNewPermit = Izin::where('user_id', $userId)
-                        ->where('kategori_izin', 'Izin Baru')
+                        ->where(function ($query) {
+                            $query->where('kategori_izin', 'Izin Baru')
+                                ->orWhere('kategori_izin', 'Perpanjang Izin');
+                        })
                         ->whereHas('izinDokumenPks', function ($query) {
                             $query->whereNotNull('dokumen_pks_bkk');
                         })
@@ -91,7 +94,10 @@ class AdminPanelProvider extends PanelProvider
                     ->url(function (Izin $record) {
                         $userId = Auth::user()?->id;
                         $existingNewPermit = Izin::where('user_id', $userId)
-                            ->where('kategori_izin', 'Izin Baru')
+                            ->where(function ($query) {
+                                $query->where('kategori_izin', 'Izin Baru')
+                                    ->orWhere('kategori_izin', 'Perpanjang Izin');
+                            })
                             ->whereHas('izinDokumenPks', function ($query) {
                                 $query->whereNotNull('dokumen_pks_bkk');
                             })
