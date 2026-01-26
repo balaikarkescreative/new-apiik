@@ -41,7 +41,10 @@ class LaporanPenggunaanIcvResource extends Resource
                 Forms\Components\DatePicker::make('tgl_pelaporan')
                     ->label('Tanggal Pelaporan')
                     ->native(false)
-
+                    // min date today 00:00
+                    ->default(now())
+                    ->minDate(now()->startOfDay())
+                    ->maxDate(now()->endOfDay())
                     ->required(),
 
                 Forms\Components\Select::make('id_user')

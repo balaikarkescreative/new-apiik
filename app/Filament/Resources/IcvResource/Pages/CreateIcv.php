@@ -149,7 +149,7 @@ class CreateIcv extends CreateRecord
         $kemarin = now()->subDay()->format('Y-m-d');
         // Fix: Change user_id to id_user for LaporanPenggunaanIcv table
         if (
-            ! LaporanPenggunaanIcv::where('id_user', auth()->id())->whereIn('tgl_pelaporan', [$hariIni, $kemarin])->exists() &&
+            ! LaporanPenggunaanIcv::where('id_user', auth()->id())->whereIn('tgl_pelaporan', [$hariIni])->exists() &&
             auth()->user()->hasRole('user') &&
             Icv::where('user_id', auth()->id())->exists()
         ) {
