@@ -38,7 +38,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->defaultThemeMode(ThemeMode::System)
             ->breadcrumbs(false)
-            ->favicon(Storage::url('assets/site_favicon.png'))
+            ->favicon(Storage::url('assets/site_favicon.ico'))
             ->brandName('APIIK')
             ->brandLogo(
                 Storage::url('assets/site_logo.png')
@@ -187,22 +187,28 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-arrow-down-tray')
                     ->sort(100)
                     ->visible(function(){
-                        if (!Auth::check() || !Auth::user()->hasRole('user')){
-                            return false;
+                        if (!Auth::user()->hasRole('user')){
+                            return true;
                         }
                         
+                        // Cek apakah ada surat persetujuan yang masih berlaku
+                        $hasSuratBerlaku = \App\Models\SuratPersetujuanIcv::where('id_akun', Auth::user()->id)
+                            ->where('masa_berlaku', '>=', now())
+                            ->exists();
+                        
+                        // Jika ada surat yang masih berlaku, tampilkan button
+                        if ($hasSuratBerlaku) {
+                            return true;
+                        }
+                        
+                        // Jika surat sudah habis, cek apakah ada izin baru dengan visitasi disetujui
                         $latestIzin = Izin::where('user_id', Auth::user()->id)
                             ->latest('tanggal_pengajuan')
                             ->first();
                         
-                        $suratPersetujuan = \App\Models\SuratPersetujuanIcv::where('id_akun', Auth::user()->id)
-                            ->where('masa_berlaku', '>=', now())
-                            ->exists();
-                        
                         return $latestIzin 
                             && $latestIzin->izinVisitasi 
-                            && $latestIzin->izinVisitasi->status === 'Memenuhi syarat'
-                            && $suratPersetujuan;
+                            && $latestIzin->izinVisitasi->status === 'Memenuhi syarat';
                     })
                     ->url(fn () => Storage::url('draft-pks/Draft Perjanjian Kerjasama (PKS) Vaksin_OK_OK.doc'), true),
                     // ->visible(fn () => Auth::user()->hasRole('user')),
