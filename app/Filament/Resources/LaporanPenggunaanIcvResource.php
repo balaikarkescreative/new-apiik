@@ -43,7 +43,18 @@ class LaporanPenggunaanIcvResource extends Resource
                     ->native(false)
                     // min date today 00:00
                     ->default(now())
-                    ->minDate(now()->startOfDay())
+                    ->minDate(function () {
+                        // Jika service closure back date diaktifkan (is_closed = false = buka), izinkan pilih tanggal lama
+                        $backDateClosure = \App\Models\ServiceClosure::getServiceStatus('laporan_icv_backdate');
+                        
+                        // Jika tidak ada record atau is_closed = false (buka), tidak ada batasan min date
+                        if (!$backDateClosure || !$backDateClosure->is_closed) {
+                            return null; // Tidak ada batasan
+                        }
+                        
+                        // Jika is_closed = true (tutup), hanya bisa pilih hari ini
+                        return now()->startOfDay();
+                    })
                     ->maxDate(now()->endOfDay())
                     ->required(),
 

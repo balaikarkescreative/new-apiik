@@ -186,8 +186,27 @@ class AdminPanelProvider extends PanelProvider
                 NavigationItem::make('Unduh Draft PKS')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->sort(100)
-                    ->url(fn () => Storage::url('izin-documents/Draft Perjanjian Kerjasama (PKS).doc'), true),
+                    ->visible(function(){
+                        if (!Auth::check() || !Auth::user()->hasRole('user')){
+                            return false;
+                        }
+                        
+                        $latestIzin = Izin::where('user_id', Auth::user()->id)
+                            ->latest('tanggal_pengajuan')
+                            ->first();
+                        
+                        $suratPersetujuan = \App\Models\SuratPersetujuanIcv::where('id_akun', Auth::user()->id)
+                            ->where('masa_berlaku', '>=', now())
+                            ->exists();
+                        
+                        return $latestIzin 
+                            && $latestIzin->izinVisitasi 
+                            && $latestIzin->izinVisitasi->status === 'Memenuhi syarat'
+                            && $suratPersetujuan;
+                    })
+                    ->url(fn () => Storage::url('draft-pks/Draft Perjanjian Kerjasama (PKS) Vaksin_OK_OK.doc'), true),
                     // ->visible(fn () => Auth::user()->hasRole('user')),
+
                 NavigationItem::make('File Surat Persetujuan ICV')
                     ->icon('heroicon-o-document-check')
                     ->sort(101)

@@ -25,6 +25,7 @@ class ServiceClosure extends Model
         'icv' => 'Pengajuan ICV',
         'izin' => 'Pengajuan Izin', 
         'account' => 'Pengajuan Akun',
+        'laporan_icv_backdate' => 'Back Date Laporan Harian ICV',
     ];
 
     // Permit types untuk layanan izin
