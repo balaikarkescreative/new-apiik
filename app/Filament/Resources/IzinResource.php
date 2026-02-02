@@ -260,7 +260,7 @@ class IzinResource extends Resource
 
                             return $izinDokumen &&
                                 $izinDokumen->catatan &&
-                                $izinDokumen->hasil === 2; // Hanya tampil jika berkas tidak lengkap
+                                ($izinDokumen->hasil === 2 || $izinDokumen->hasil === 3); // Tampil jika berkas tidak lengkap atau ditolak
                         }),
                 ])
                 ->visible(function ($record) {
@@ -765,6 +765,8 @@ class IzinResource extends Resource
                                     return 'Berkas Lengkap';
                                 case 2:
                                     return 'Berkas Tidak Lengkap';
+                                case 3:
+                                    return 'Ditolak';
                                 default:
                                     return 'Menunggu Verifikasi';
                             }
@@ -779,6 +781,7 @@ class IzinResource extends Resource
                             'Visitasi Dijadwalkan' => 'warning',
                             'Berkas Lengkap' => 'success',
                             'Berkas Tidak Lengkap' => 'danger',
+                            'Ditolak' => 'danger',
                             'Menunggu Verifikasi' => 'gray',
                             'Dokumen Diajukan' => 'gray',
                             default => 'gray',
@@ -815,6 +818,7 @@ class IzinResource extends Resource
                             $hasil = match ($record->izinDokumen->hasil) {
                                 1 => 'Lengkap',
                                 2 => 'Tidak Lengkap',
+                                3 => 'Ditolak',
                                 default => 'Pending'
                             };
                             $details[] = 'Verifikasi: '.$hasil;
@@ -1181,6 +1185,8 @@ class IzinResource extends Resource
                     return 'Berkas Lengkap';
                 case 2:
                     return 'Berkas Tidak Lengkap';
+                case 3:
+                    return 'Ditolak';
                 default:
                     return 'Menunggu Verifikasi';
             }

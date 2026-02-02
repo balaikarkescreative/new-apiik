@@ -142,6 +142,7 @@ class IzinDokumenSeeder extends Seeder
             0 => 'Belum Diverifikasi',
             1 => 'Berkas Lengkap',
             2 => 'Berkas Tidak Lengkap',
+            3 => 'Ditolak',
             default => 'Belum Diverifikasi',
         };
     }

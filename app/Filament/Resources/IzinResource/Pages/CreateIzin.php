@@ -321,13 +321,30 @@ class CreateIzin extends CreateRecord
     private function checkExistingActivePermits(int $userId): void
     {
         $activePermits = Izin::where('user_id', $userId)
-            ->with(['izinPersetujuan'])
+            ->with(['izinPersetujuan', 'izinVisitasi', 'izinDokumen'])
             ->where(function ($query) {
                 // Izin yang belum memiliki PKS atau PKS belum selesai
                 $query->whereDoesntHave('izinPersetujuan')
                       ->orWhereHas('izinPersetujuan', function ($subQuery) {
                           $subQuery->whereNull('file_persetujuan');
                       });
+            })
+            // Exclude permits with permanently rejected visitasi or verification
+            ->where(function ($query) {
+                $query->where(function ($subQuery) {
+                    // Exclude rejected documents (hasil = 3)
+                    $subQuery->whereDoesntHave('izinDokumen')
+                             ->orWhereHas('izinDokumen', function ($dokQuery) {
+                                 $dokQuery->where('hasil', '!=', 3);
+                             });
+                })
+                ->where(function ($subQuery) {
+                    // Exclude permanently rejected visitasi
+                    $subQuery->whereDoesntHave('izinVisitasi')
+                             ->orWhereHas('izinVisitasi', function ($visQuery) {
+                                 $visQuery->where('status', '!=', 'Tidak memenuhi syarat');
+                             });
+                });
             })
             ->get();
 
@@ -542,12 +559,29 @@ class CreateIzin extends CreateRecord
     private function validateNoActivePermits(int $userId): void
     {
         $existingActivePermit = Izin::where('user_id', $userId)
-            ->with(['izinPersetujuan'])
+            ->with(['izinPersetujuan', 'izinVisitasi', 'izinDokumen'])
             ->where(function ($query) {
                 $query->whereDoesntHave('izinPersetujuan')
                       ->orWhereHas('izinPersetujuan', function ($subQuery) {
                           $subQuery->whereNull('file_persetujuan');
                       });
+            })
+            // Exclude permits with permanently rejected visitasi or verification
+            ->where(function ($query) {
+                $query->where(function ($subQuery) {
+                    // Exclude rejected documents (hasil = 3)
+                    $subQuery->whereDoesntHave('izinDokumen')
+                             ->orWhereHas('izinDokumen', function ($dokQuery) {
+                                 $dokQuery->where('hasil', '!=', 3);
+                             });
+                })
+                ->where(function ($subQuery) {
+                    // Exclude permanently rejected visitasi
+                    $subQuery->whereDoesntHave('izinVisitasi')
+                             ->orWhereHas('izinVisitasi', function ($visQuery) {
+                                 $visQuery->where('status', '!=', 'Tidak memenuhi syarat');
+                             });
+                });
             })
             ->first();
 

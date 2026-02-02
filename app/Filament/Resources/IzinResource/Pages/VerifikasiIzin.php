@@ -207,6 +207,7 @@ class VerifikasiIzin extends Page implements HasTable
                                 CASE
                                     WHEN tbl_izin_dokumen.hasil IS NULL OR tbl_izin_dokumen.hasil = 0 THEN 1
                                     WHEN tbl_izin_dokumen.hasil = 2 THEN 2
+                                    WHEN tbl_izin_dokumen.hasil = 3 THEN 10
                                     WHEN tbl_izin_dokumen_pks.tanggal_visitasi IS NULL THEN 3
                                     WHEN tbl_izin_visitasi.status IS NULL THEN 4
                                     WHEN tbl_izin_visitasi.status = "Tidak memenuhi syarat sementara" THEN 5
@@ -229,6 +230,7 @@ class VerifikasiIzin extends Page implements HasTable
                             $hasil = match ($record->izinDokumen->hasil) {
                                 1 => 'Lengkap',
                                 2 => 'Tidak Lengkap',
+                                3 => 'Ditolak',
                                 default => 'Pending'
                             };
                             $details[] = "Verifikasi: " . $hasil;
@@ -357,6 +359,11 @@ class VerifikasiIzin extends Page implements HasTable
                                     $q->where('hasil', 2);
                                 });
 
+                            case 'ditolak':
+                                return $query->whereHas('izinDokumen', function ($q) {
+                                    $q->where('hasil', 3);
+                                });
+
                             case 'jadwal_visitasi':
                                 return $query->whereHas('izinDokumen', function ($q) {
                                     $q->where('hasil', 1);
@@ -424,6 +431,7 @@ class VerifikasiIzin extends Page implements HasTable
                     ->options([
                         'lengkap' => 'Berkas Lengkap',
                         'tidak_lengkap' => 'Berkas Tidak Lengkap',
+                        'ditolak' => 'Ditolak',
                         'belum_verifikasi' => 'Belum Verifikasi',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
@@ -433,6 +441,7 @@ class VerifikasiIzin extends Page implements HasTable
                         return match ($data['value']) {
                             'lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 1)),
                             'tidak_lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 2)),
+                            'ditolak' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 3)),
                             'belum_verifikasi' => $query->whereDoesntHave('izinDokumen')
                                 ->orWhereHas('izinDokumen', fn($q) => $q->where('hasil', 0)),
                             default => $query,
@@ -532,6 +541,11 @@ class VerifikasiIzin extends Page implements HasTable
         if (!$record->izinDokumen || !$record->izinDokumen->hasil) {
             return 'Verifikasi Dokumen';
         }
+        
+        if ($record->izinDokumen->hasil == 3) {
+            return 'Ditolak';
+        }
+        
         if ($record->izinDokumen->hasil == 2) {
             return 'Perbaikan Dokumen';
         }
@@ -790,6 +804,7 @@ class VerifikasiIzin extends Page implements HasTable
                                 ->options([
                                     '1' => 'Berkas Lengkap',
                                     '2' => 'Berkas Tidak Lengkap',
+                                    '3' => 'Ditolak',
                                 ])
                                 ->live()
                                 ->afterStateUpdated(function (Get $get, Set $set) {
@@ -801,8 +816,12 @@ class VerifikasiIzin extends Page implements HasTable
                             Textarea::make('catatan')
                                 ->label('Catatan')
                                 ->rows(4)
-                                ->visible(fn(Get $get): bool => $get('hasil') === 2 || $get('hasil') === '2')
-                                ->required(fn(Get $get): bool => $get('hasil') === '2' || $get('hasil') === 2),
+                                ->visible(fn(Get $get): bool => $get('hasil') === 2 || $get('hasil') === '2' || $get('hasil') === 3 || $get('hasil') === '3')
+                                ->required(fn(Get $get): bool => $get('hasil') === '2' || $get('hasil') === 2 || $get('hasil') === '3' || $get('hasil') === 3)
+                                ->helperText(fn(Get $get) => match($get('hasil')) {
+                                    '3', 3 => 'Jelaskan alasan penolakan. Pengajuan yang ditolak tidak dapat dilanjutkan dan harus mengajukan izin baru.',
+                                    default => 'Catatan perbaikan untuk dokumen yang tidak lengkap.'
+                                }),
 
                             DatePicker::make('tanggal_perbaikan')
                                 ->label('Tanggal Perbaikan')
@@ -835,11 +854,11 @@ class VerifikasiIzin extends Page implements HasTable
                                         }
 
                                         $catatan = $get('catatan');
-                                        if ($hasil == '2' && !$catatan) {
+                                        if (($hasil == '2' || $hasil == '3') && !$catatan) {
                                             Notification::make()
                                                 ->title('Gagal Verifikasi')
                                                 ->danger()
-                                                ->body('Catatan harus diisi jika berkas tidak lengkap.')
+                                                ->body('Catatan harus diisi jika berkas tidak lengkap atau ditolak.')
                                                 ->send();
                                             return;
                                         }
@@ -881,9 +900,13 @@ class VerifikasiIzin extends Page implements HasTable
                                         }
 
                                         Notification::make()
-                                            ->title('Verifikasi Dokumen Berhasil')
+                                            ->title($hasil == '3' ? 'Pengajuan Ditolak' : 'Verifikasi Dokumen Berhasil')
                                             ->success()
-                                            ->body('Status verifikasi dokumen telah diperbarui.' . $emailStatus)
+                                            ->body(match($hasil) {
+                                                '3' => 'Pengajuan izin telah ditolak. Klinik harus mengajukan izin baru.' . $emailStatus,
+                                                '2' => 'Dokumen tidak lengkap. Klinik perlu melakukan perbaikan.' . $emailStatus,
+                                                default => 'Status verifikasi dokumen telah diperbarui.' . $emailStatus
+                                            })
                                             ->send();
 
                                         $this->redirect(VerifikasiIzin::getUrl());

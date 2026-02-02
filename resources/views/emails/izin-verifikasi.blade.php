@@ -5,21 +5,21 @@
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .header {
-            background-color: {{ $hasilVerifikasi == 1 ? '#10b981' : '#ef4444' }};
+            background-color: {{ $hasilVerifikasi == 1 ? '#10b981' : ($hasilVerifikasi == 3 ? '#dc2626' : '#ef4444') }};
             color: white;
             padding: 20px;
             text-align: center;
         }
         .content { padding: 20px; }
         .info-box {
-            background-color: {{ $hasilVerifikasi == 1 ? '#d1fae5' : '#fee2e2' }};
-            border-left: 4px solid {{ $hasilVerifikasi == 1 ? '#10b981' : '#ef4444' }};
+            background-color: {{ $hasilVerifikasi == 1 ? '#d1fae5' : ($hasilVerifikasi == 3 ? '#fecaca' : '#fee2e2') }};
+            border-left: 4px solid {{ $hasilVerifikasi == 1 ? '#10b981' : ($hasilVerifikasi == 3 ? '#dc2626' : '#ef4444') }};
             padding: 15px;
             margin: 20px 0;
         }
         .footer { background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #666; }
         .btn {
-            background-color: {{ $hasilVerifikasi == 1 ? '#10b981' : '#ef4444' }};
+            background-color: {{ $hasilVerifikasi == 1 ? '#10b981' : ($hasilVerifikasi == 3 ? '#dc2626' : '#ef4444') }};
             color: white;
             padding: 10px 20px;
             text-decoration: none;
@@ -33,7 +33,7 @@
             font-weight: bold;
             display: inline-block;
             color: white;
-            background-color: {{ $hasilVerifikasi == 1 ? '#10b981' : '#ef4444' }};
+            background-color: {{ $hasilVerifikasi == 1 ? '#10b981' : ($hasilVerifikasi == 3 ? '#dc2626' : '#ef4444') }};
         }
     </style>
 </head>
@@ -77,7 +77,13 @@
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Status Verifikasi:</strong></td>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">
                         <span class="status-badge" style="font-size: 12px; padding: 4px 8px;">
-                            {{ $hasilVerifikasi == 1 ? 'Berkas Lengkap' : 'Berkas Tidak Lengkap' }}
+                            @if($hasilVerifikasi == 1)
+                                Berkas Lengkap
+                            @elseif($hasilVerifikasi == 3)
+                                Ditolak
+                            @else
+                                Berkas Tidak Lengkap
+                            @endif
                         </span>
                     </td>
                 </tr>
@@ -94,6 +100,24 @@
                 <li>Anda akan mendapat notifikasi mengenai jadwal visitasi</li>
                 <li>Setelah visitasi selesai, proses persetujuan izin akan dilanjutkan</li>
                 <li>Jika disetujui, Anda akan menerima surat persetujuan</li>
+            </ol>
+        @elseif($hasilVerifikasi == 3)
+            <h3>❌ Pengajuan Izin Ditolak</h3>
+            <p>Mohon maaf, pengajuan izin Anda <strong>ditolak</strong> karena tidak memenuhi persyaratan yang ditetapkan.</p>
+
+            @if($catatan)
+                <div style="background-color: #fee2e2; border-left: 4px solid #ef4444; padding: 15px; margin: 15px 0;">
+                    <h4 style="color: #991b1b; margin-top: 0;">Alasan Penolakan:</h4>
+                    <p style="color: #991b1b; margin-bottom: 0;">{{ $catatan }}</p>
+                </div>
+            @endif
+
+            <h4>Yang Perlu Anda Lakukan:</h4>
+            <ol>
+                <li>Pengajuan izin yang ditolak tidak dapat dilanjutkan</li>
+                <li>Anda harus mengajukan permohonan izin <strong>baru</strong> dengan melengkapi seluruh persyaratan</li>
+                <li>Pastikan semua dokumen sudah sesuai dengan ketentuan sebelum mengajukan kembali</li>
+                <li>Hubungi customer service jika memerlukan klarifikasi lebih lanjut</li>
             </ol>
         @else
             <h3>❌ Berkas Perlu Diperbaiki</h3>

@@ -123,6 +123,8 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     return 'Berkas Lengkap';
                                 case 2:
                                     return 'Berkas Tidak Lengkap';
+                                case 3:
+                                    return 'Ditolak';
                                 default:
                                     return 'Menunggu Verifikasi';
                             }
@@ -140,6 +142,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             'Visitasi Ditolak' => 'danger',
                             'Berkas Lengkap' => 'success',
                             'Berkas Tidak Lengkap' => 'danger',
+                            'Ditolak' => 'danger',
                             'Menunggu Verifikasi' => 'gray',
                             'Dokumen Diajukan' => 'gray',
                             default => 'gray',
@@ -207,6 +210,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                         'perbaikan' => 'Perbaikan',
                         'berkas_lengkap' => 'Berkas Lengkap',
                         'berkas_tidak_lengkap' => 'Berkas Tidak Lengkap',
+                        'ditolak' => 'Ditolak',
                         'visitasi_dijadwalkan' => 'Visitasi Dijadwalkan',
                         'visitasi_memenuhi' => 'Visitasi Memenuhi Syarat',
                         'visitasi_revisi' => 'Perlu Perbaikan Visitasi',
@@ -229,6 +233,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                 }),
                             'berkas_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 1)),
                             'berkas_tidak_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 2)),
+                            'ditolak' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 3)),
                             'visitasi_dijadwalkan' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('tanggal_visitasi'))
                                 ->where(function($q) {
                                     $q->whereDoesntHave('izinVisitasi')
@@ -270,6 +275,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                             $status = match ($record->izinDokumen->hasil) {
                                                 1 => '✅ Berkas Lengkap',
                                                 2 => '❌ Berkas Tidak Lengkap',
+                                                3 => '❌ Ditolak',
                                                 default => '⏳ Menunggu Verifikasi'
                                             };
                                             $dateText = $record->izinDokumen->date_updated ?

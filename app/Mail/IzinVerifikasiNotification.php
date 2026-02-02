@@ -28,9 +28,11 @@ class IzinVerifikasiNotification extends Mailable
 
     public function envelope(): Envelope
     {
-        $subject = $this->hasilVerifikasi == 1
-            ? 'Verifikasi Dokumen Berhasil - Berkas Lengkap'
-            : 'Verifikasi Dokumen - Berkas Tidak Lengkap';
+        $subject = match($this->hasilVerifikasi) {
+            1 => 'Verifikasi Dokumen Berhasil - Berkas Lengkap',
+            3 => 'Verifikasi Dokumen - Pengajuan Ditolak',
+            default => 'Verifikasi Dokumen - Berkas Tidak Lengkap',
+        };
 
         return new Envelope(
             subject: $subject.' - ID: '.$this->izin->id,

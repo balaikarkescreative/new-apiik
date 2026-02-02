@@ -43,8 +43,9 @@ class IzinDokumen extends Model
     {
         return match ($this->hasil) {
             0 => 'Belum Diverifikasi',
-            1 => 'Berkas Tidak Lengkap',
-            2 => 'Berkas Lengkap',
+            1 => 'Berkas Lengkap',
+            2 => 'Berkas Tidak Lengkap',
+            3 => 'Ditolak',
             default => 'Belum Diverifikasi',
         };
     }
