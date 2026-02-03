@@ -323,7 +323,7 @@ class CreateIzin extends CreateRecord
         $activePermits = Izin::where('user_id', $userId)
             ->with(['izinPersetujuan', 'izinVisitasi', 'izinDokumen'])
             ->where(function ($query) {
-                // Izin yang belum memiliki PKS atau PKS belum selesai
+                // Izin yang belum memiliki Persetujuan atau Persetujuan belum selesai
                 $query->whereDoesntHave('izinPersetujuan')
                       ->orWhereHas('izinPersetujuan', function ($subQuery) {
                           $subQuery->whereNull('file_persetujuan');
@@ -377,9 +377,9 @@ class CreateIzin extends CreateRecord
      */
     private function getPermitStatus($permit): string
     {
-        // Cek apakah sudah disetujui
-        if ($permit->izinPersetujuan && $permit->izinPersetujuan->status == 1) {
-            return 'Disetujui - Menunggu PKS';
+        // Cek apakah sudah ada PKS
+        if ($permit->izinDokumenPks && $permit->izinDokumenPks->dokumen_pks_bkk) {
+            return 'PKS Tersedia - Menunggu Persetujuan';
         }
 
         // Cek apakah sudah dijadwalkan visitasi
