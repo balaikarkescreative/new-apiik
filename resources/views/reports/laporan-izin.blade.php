@@ -32,10 +32,10 @@
             @foreach($data as $row)
             @php
                 $statusProgress = '';
-                if ($row->izinDokumenPks && $row->izinDokumenPks->dokumen_pks_bkk) {
+                if ($row->izinPersetujuan && $row->izinPersetujuan->file_persetujuan) {
                     $statusProgress = "Selesai";
-                } elseif ($row->izinPersetujuan && $row->izinPersetujuan->file_persetujuan) {
-                    $statusProgress = "Disetujui - Menunggu PKS";
+                } elseif ($row->izinDokumenPks && $row->izinDokumenPks->dokumen_pks_bkk) {
+                    $statusProgress = "PKS Tersedia - Menunggu Persetujuan";
                 } elseif ($row->izinVisitasi && $row->izinVisitasi->tanggal_visitasi) {
                     $statusProgress = "Visitasi Dijadwalkan";
                 } elseif ($row->izinDokumen) {

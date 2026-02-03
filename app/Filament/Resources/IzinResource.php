@@ -676,7 +676,7 @@ class IzinResource extends Resource
                                 'berkas_lengkap' => 'Berkas Lengkap',
                                 'berkas_tidak_lengkap' => 'Berkas Tidak Lengkap',
                                 'visitasi_dijadwalkan' => 'Visitasi Dijadwalkan',
-                                'disetujui' => 'Disetujui - Menunggu PKS',
+                                'pks_tersedia' => 'PKS Tersedia - Menunggu Persetujuan',
                                 'selesai' => 'Selesai',
                             ])
                             ->default('semua'),
@@ -734,20 +734,20 @@ class IzinResource extends Resource
                     ->label('Status')
                     ->badge()
                     ->getStateUsing(function ($record) {
+                        // Cek apakah sudah disetujui (step terakhir)
+                        if (
+                            $record->izinPersetujuan &&
+                            $record->izinPersetujuan->file_persetujuan
+                        ) {
+                            return 'Selesai';
+                        }
+
                         // Cek apakah sudah ada PKS
                         if (
                             $record->izinDokumenPks &&
                             $record->izinDokumenPks->dokumen_pks_bkk
                         ) {
-                            return 'Selesai';
-                        }
-
-                        // Cek apakah sudah disetujui
-                        if (
-                            $record->izinPersetujuan &&
-                            $record->izinPersetujuan->file_persetujuan
-                        ) {
-                            return 'Disetujui - Menunggu PKS';
+                            return 'PKS Tersedia - Menunggu Persetujuan';
                         }
 
                         // Cek apakah sudah dijadwalkan visitasi
@@ -777,7 +777,7 @@ class IzinResource extends Resource
                     ->color(function ($state) {
                         return match ($state) {
                             'Selesai' => 'success',
-                            'Disetujui - Menunggu PKS' => 'info',
+                            'PKS Tersedia - Menunggu Persetujuan' => 'info',
                             'Visitasi Dijadwalkan' => 'warning',
                             'Berkas Lengkap' => 'success',
                             'Berkas Tidak Lengkap' => 'danger',
@@ -796,8 +796,8 @@ class IzinResource extends Resource
                             ->select('tbl_izin.*')
                             ->selectRaw('
                                 CASE
-                                    WHEN tbl_izin_dokumen_pks.dokumen_pks_bkk IS NOT NULL THEN 6
-                                    WHEN tbl_izin_persetujuan.file_persetujuan IS NOT NULL THEN 5
+                                    WHEN tbl_izin_persetujuan.file_persetujuan IS NOT NULL THEN 6
+                                    WHEN tbl_izin_dokumen_pks.dokumen_pks_bkk IS NOT NULL THEN 5
                                     WHEN tbl_izin_dokumen_pks.tanggal_visitasi IS NOT NULL THEN 4
                                     WHEN tbl_izin_dokumen.hasil = 1 THEN 3
                                     WHEN tbl_izin_dokumen.hasil = 2 THEN 2
@@ -902,7 +902,7 @@ class IzinResource extends Resource
                         'berkas_lengkap' => 'Berkas Lengkap',
                         'berkas_tidak_lengkap' => 'Berkas Tidak Lengkap',
                         'visitasi_dijadwalkan' => 'Visitasi Dijadwalkan',
-                        'disetujui' => 'Disetujui - Menunggu PKS',
+                        'pks_tersedia' => 'PKS Tersedia - Menunggu Persetujuan',
                         'selesai' => 'Selesai',
                     ])
                     ->default('semua')
@@ -917,8 +917,9 @@ class IzinResource extends Resource
                             'berkas_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 1)),
                             'berkas_tidak_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 2)),
                             'visitasi_dijadwalkan' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('tanggal_visitasi')),
-                            'disetujui' => $query->whereHas('izinPersetujuan', fn ($q) => $q->whereNotNull('file_persetujuan')),
-                            'selesai' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('dokumen_pks_bkk')),
+                            'pks_tersedia' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('dokumen_pks_bkk'))
+                                ->whereDoesntHave('izinPersetujuan', fn ($q) => $q->whereNotNull('file_persetujuan')),
+                            'selesai' => $query->whereHas('izinPersetujuan', fn ($q) => $q->whereNotNull('file_persetujuan')),
                             default => $query,
                         };
                     }),
@@ -1163,14 +1164,14 @@ class IzinResource extends Resource
 
     protected static function getProgressStatus($record)
     {
-        // Cek apakah sudah ada PKS
-        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
+        // Cek apakah sudah disetujui (step terakhir)
+        if ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) {
             return 'Selesai';
         }
 
-        // Cek apakah sudah disetujui
-        if ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) {
-            return 'Disetujui - Menunggu PKS';
+        // Cek apakah sudah ada PKS
+        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
+            return 'PKS Tersedia - Menunggu Persetujuan';
         }
 
         // Cek apakah sudah dijadwalkan visitasi (dari izinDokumenPks)

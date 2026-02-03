@@ -88,14 +88,14 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                         return '';
                     })
                     ->getStateUsing(function ($record) {
-                        // Cek apakah sudah ada PKS
-                        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
+                        // Cek apakah sudah disetujui (step terakhir)
+                        if ($record->izinPersetujuan && $record->izinPersetujuan->status == 1) {
                             return 'Selesai';
                         }
 
-                        // Cek apakah sudah disetujui
-                        if ($record->izinPersetujuan && $record->izinPersetujuan->status == 1) {
-                            return 'Disetujui - Menunggu PKS';
+                        // Cek apakah sudah ada PKS
+                        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
+                            return 'PKS Tersedia - Menunggu Persetujuan';
                         }
 
                         // Cek hasil visitasi
@@ -135,7 +135,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->color(function ($state) {
                         return match ($state) {
                             'Selesai' => 'success',
-                            'Disetujui - Menunggu PKS' => 'info',
+                            'PKS Tersedia - Menunggu Persetujuan' => 'info',
                             'Visitasi Memenuhi Syarat' => 'success',
                             'Visitasi Dijadwalkan' => 'warning',
                             'Perlu Perbaikan Visitasi' => 'warning',
@@ -177,13 +177,13 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             $progress += 10;
                         }
 
-                        // Step 6: Disetujui (10%)
-                        if ($record->izinPersetujuan && $record->izinPersetujuan->status == 1) {
+                        // Step 6: PKS diupload (10%)
+                        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
                             $progress += 10;
                         }
 
-                        // Step 7: PKS selesai (10%)
-                        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
+                        // Step 7: Disetujui (10%) - Step terakhir
+                        if ($record->izinPersetujuan && $record->izinPersetujuan->status == 1) {
                             $progress += 10;
                         }
 

@@ -365,11 +365,11 @@ class SuratPersetujuan extends Page implements HasTable
         if ($record->izinVisitasi->status === 'Tidak memenuhi syarat') {
             return 'Ditolak';
         }
-        if (!$record->izinPersetujuan) {
-            return 'Perlu Upload Persetujuan';
-        }
         if (!$record->izinDokumenPks?->dokumen_pks_bkk) {
             return 'Perlu Upload PKS';
+        }
+        if (!$record->izinPersetujuan) {
+            return 'Perlu Upload Persetujuan';
         }
         return 'Selesai';
     }
@@ -398,10 +398,10 @@ class SuratPersetujuan extends Page implements HasTable
         if ($record->izinVisitasi->status !== 'Memenuhi syarat') {
             return 2;
         }
-        if (!$record->izinPersetujuan) {
+        if (!$record->izinDokumenPks?->dokumen_pks_bkk) {
             return 3;
         }
-        if (!$record->izinDokumenPks?->dokumen_pks_bkk) {
+        if (!$record->izinPersetujuan) {
             return 4;
         }
         return 1;
@@ -815,12 +815,173 @@ class SuratPersetujuan extends Page implements HasTable
                             ]),
                         ]),
 
-                    // Tab 3: Upload Persetujuan
-                    Tabs\Tab::make('persetujuan')
-                        ->label('3. Upload Persetujuan')
-                        ->icon('heroicon-o-check-circle')
+                    // Tab 3: Upload PKS
+                    Tabs\Tab::make('pks')
+                        ->label('3. Upload PKS')
+                        ->icon('heroicon-o-document-arrow-up')
                         ->disabled(function ($record) {
                             return !$record->izinVisitasi || $record->izinVisitasi->status !== 'Memenuhi syarat';
+                        })
+                        ->badge(function ($record) {
+                            return $record->izinDokumenPks?->dokumen_pks_bkk ? '✓' : '';
+                        })
+                        ->badgeColor(function ($record) {
+                            return $record->izinDokumenPks?->dokumen_pks_bkk ? 'success' : 'gray';
+                        })
+                        ->schema([
+                            \Filament\Forms\Components\Placeholder::make('pks_disabled_notice')
+                                ->content('⚠️ Tab ini akan aktif setelah hasil visitasi memenuhi syarat.')
+                                ->visible(function ($record) {
+                                    return !$record->izinVisitasi || $record->izinVisitasi->status !== 'Memenuhi syarat';
+                                }),
+
+                            Grid::make(2)->schema([
+                                TextInput::make('visitasi_info_pks')
+                                    ->label('Tanggal Visitasi')
+                                    ->disabled()
+                                    ->formatStateUsing(fn($record) => $record->izinDokumenPks?->tanggal_visitasi?->translatedFormat('d F Y') ?? 'Belum dijadwalkan')
+                                    ->dehydrated(false),
+                            ])->visible(fn($record) => $record->izinDokumenPks?->tanggal_visitasi !== null),
+
+                            FileUpload::make('dokumen_pks_bkk')
+                                ->label('File Perjanjian Kerjasama')
+                                ->acceptedFileTypes(['application/pdf'])
+                                ->maxSize(3 * 1024) // Maksimal 3MB
+                                ->directory('perjanjian-kerjasama')
+                                ->getUploadedFileNameForStorageUsing(function ($file) {
+                                    $extension = $file->getClientOriginalExtension();
+                                    return "PKS [" . date("dmyHis") . "]." . $extension;
+                                })
+                                ->openable()
+                                ->downloadable()
+                                ->helperText(fn($record) => $record->izinDokumenPks?->dokumen_pks_bkk ?
+                                    'PKS telah diupload. Anda dapat mengganti file jika diperlukan.' :
+                                    'Upload file PKS dalam format PDF (Maksimal 3MB)'),
+
+                            FormActions::make([
+                                FormActions\Action::make('simpan_pks')
+                                    ->label('Simpan/Update PKS')
+                                    ->icon('heroicon-o-check')
+                                    ->color('success')
+                                    ->visible(fn($record) => true)
+                                    ->action(function (Get $get, Set $set, $record) {
+                                        $pks = $get('dokumen_pks_bkk');
+
+                                        if (!$pks) {
+                                            Notification::make()
+                                                ->title('Gagal Upload PKS')
+                                                ->danger()
+                                                ->body('File PKS harus diupload.')
+                                                ->send();
+                                            return;
+                                        }
+
+                                        $file_uuid = array_key_first($pks);
+                                        $pksFile = $pks[$file_uuid];
+
+                                        if (is_string($pksFile)) {
+                                            // Sudah berupa path file lama
+                                            $filePath = $pksFile;
+                                        } elseif (is_object($pksFile) && method_exists($pksFile, 'getClientOriginalExtension')) {
+                                            // File baru diupload
+                                            $filePath = \Storage::disk('public')
+                                                ->putFileAs(
+                                                    'perjanjian-kerjasama',
+                                                    $pksFile,
+                                                    'PKS ' . $record->user->name . ' [' . now()->format('dmYHis') . '].' . $pksFile->getClientOriginalExtension()
+                                                );
+                                        } else {
+                                            $filePath = null;
+                                        }
+
+                                        if (!$filePath) {
+                                            Notification::make()
+                                                ->title('Gagal Upload PKS')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat memproses file PKS.')
+                                                ->send();
+                                            return;
+                                        }
+
+                                        $record->izinDokumenPks()->updateOrCreate(
+                                            ['id_izin' => $record->id],
+                                            [
+                                                'dokumen_pks_bkk' => $filePath,
+                                                'status_dokumen' => 'sign both',
+                                            ]
+                                        );
+
+                                        try {
+                                            if ($record->user && $record->user->email) {
+                                                Mail::to($record->user->email)->send(
+                                                    new IzinPksNotification($record)
+                                                );
+                                                $emailStatus = ' Email notifikasi PKS telah dikirim.';
+                                            } else {
+                                                $emailStatus = ' Email tidak dikirim (user tidak memiliki email).';
+                                            }
+                                        } catch (\Exception $e) {
+                                            error_log('Failed to send PKS email: ' . $e->getMessage());
+                                            $emailStatus = ' Email gagal dikirim.';
+                                        }
+
+                                        Notification::make()
+                                            ->title('PKS Berhasil Diupload')
+                                            ->success()
+                                            ->body('File Perjanjian Kerjasama telah berhasil diupload.' . $emailStatus)
+                                            ->send();
+
+                                        // Refresh record
+                                        $this->redirect(SuratPersetujuan::getUrl());
+
+                                    }),
+                                    
+                                FormActions\Action::make('hapus_pks')
+                                    ->label('Hapus PKS')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->visible(fn($record) => $record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk)
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus PKS')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus file PKS ini? Tindakan ini akan menghapus file PKS dan mengatur ulang status dokumen. Tindakan ini tidak dapat dibatalkan.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record) {
+                                        // Hapus file PKS dari storage jika ada
+                                        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
+                                            try {
+                                                \Storage::disk('public')->delete($record->izinDokumenPks->dokumen_pks_bkk);
+                                            } catch (\Exception $e) {
+                                                error_log('Failed to delete PKS file: ' . $e->getMessage());
+                                            }
+                                        }
+
+                                        // Hapus field dokumen_pks_bkk dan reset status_dokumen
+                                        if ($record->izinDokumenPks) {
+                                            $record->izinDokumenPks->update([
+                                                'dokumen_pks_bkk' => null,
+                                                'status_dokumen' => null,
+                                            ]);
+                                        }
+
+                                        $record->refresh();
+
+                                        Notification::make()
+                                            ->title('PKS Berhasil Dihapus')
+                                            ->success()
+                                            ->body('File PKS telah dihapus dan status dokumen direset.')
+                                            ->send();
+
+                                        $this->redirect(SuratPersetujuan::getUrl());
+                                    })
+                            ]),
+                        ]),
+
+                    // Tab 4: Upload Persetujuan
+                    Tabs\Tab::make('persetujuan')
+                        ->label('4. Upload Persetujuan')
+                        ->icon('heroicon-o-check-circle')
+                        ->disabled(function ($record) {
+                            return !$record->izinDokumenPks || !$record->izinDokumenPks->dokumen_pks_bkk;
                         })
                         ->badge(function ($record) {
                             return $record->izinPersetujuan ? '✓' : '';
@@ -830,18 +991,18 @@ class SuratPersetujuan extends Page implements HasTable
                         })
                         ->schema([
                             \Filament\Forms\Components\Placeholder::make('persetujuan_disabled_notice')
-                                ->content('⚠️ Tab ini akan aktif setelah hasil visitasi memenuhi syarat.')
+                                ->content('⚠️ Tab ini akan aktif setelah PKS diupload.')
                                 ->visible(function ($record) {
-                                    return !$record->izinVisitasi || $record->izinVisitasi->status !== 'Memenuhi syarat';
+                                    return !$record->izinDokumenPks || !$record->izinDokumenPks->dokumen_pks_bkk;
                                 }),
 
                             Grid::make(2)->schema([
-                                TextInput::make('visitasi_info')
-                                    ->label('Tanggal Visitasi')
+                                TextInput::make('pks_info')
+                                    ->label('Status PKS')
                                     ->disabled()
-                                    ->formatStateUsing(fn($record) => $record->izinDokumenPks?->tanggal_visitasi?->translatedFormat('d F Y') ?? 'Belum dijadwalkan')
+                                    ->formatStateUsing(fn($record) => $record->izinDokumenPks?->dokumen_pks_bkk ? 'PKS Tersedia' : 'Belum ada PKS')
                                     ->dehydrated(false),
-                            ])->visible(fn($record) => $record->izinDokumenPks?->tanggal_visitasi !== null),
+                            ])->visible(fn($record) => $record->izinDokumenPks?->dokumen_pks_bkk !== null),
 
                             DatePicker::make('tanggal_persetujuan')
                                 ->label('Tanggal Persetujuan')
@@ -1038,176 +1199,6 @@ class SuratPersetujuan extends Page implements HasTable
                                             ->title('Persetujuan Berhasil Dihapus')
                                             ->success()
                                             ->body('Data persetujuan dan file terkait telah dihapus.')
-                                            ->send();
-
-                                        $this->redirect(SuratPersetujuan::getUrl());
-                                    })
-                            ]),
-                        ]),
-
-                    // Tab 4: Upload PKS
-                    Tabs\Tab::make('pks')
-                        ->label('4. Upload PKS')
-                        ->icon('heroicon-o-document-arrow-up')
-                        ->disabled(function ($record) {
-                            return !$record->izinPersetujuan;
-                        })
-                        ->badge(function ($record) {
-                            return $record->izinDokumenPks?->dokumen_pks_bkk ? '✓' : '';
-                        })
-                        ->badgeColor(function ($record) {
-                            return $record->izinDokumenPks?->dokumen_pks_bkk ? 'success' : 'gray';
-                        })
-                        ->schema([
-                            \Filament\Forms\Components\Placeholder::make('pks_disabled_notice')
-                                ->content('⚠️ Tab ini akan aktif setelah persetujuan diupload.')
-                                ->visible(function ($record) {
-                                    return !$record->izinPersetujuan;
-                                }),
-
-                            Grid::make(2)->schema([
-                                TextInput::make('persetujuan_info')
-                                    ->label('Tanggal Persetujuan')
-                                    ->disabled()
-                                    ->formatStateUsing(fn($record) => $record->izinPersetujuan?->date_updated?->translatedFormat('d F Y') ?? 'Belum disetujui')
-                                    ->dehydrated(false),
-
-                                TextInput::make('file_persetujuan_info')
-                                    ->label('File Persetujuan')
-                                    ->disabled()
-                                    ->formatStateUsing(function ($record) {
-                                        return $record->izinPersetujuan?->file_persetujuan ?
-                                            basename($record->izinPersetujuan->file_persetujuan) : 'Belum ada file';
-                                    })
-                                    ->dehydrated(false),
-                            ])->visible(fn($record) => $record->izinPersetujuan !== null),
-
-                            FileUpload::make('dokumen_pks_bkk')
-                                ->label('File Perjanjian Kerjasama')
-                                ->acceptedFileTypes(['application/pdf'])
-                                ->maxSize(3 * 1024) // Maksimal 3MB
-                                ->directory('perjanjian-kerjasama')
-                                ->getUploadedFileNameForStorageUsing(function ($file) {
-                                    $extension = $file->getClientOriginalExtension();
-                                    return "PKS [" . date("dmyHis") . "]." . $extension;
-                                })
-                                ->openable()
-                                ->downloadable()
-                                ->helperText(fn($record) => $record->izinDokumenPks?->dokumen_pks_bkk ?
-                                    'PKS telah diupload. Anda dapat mengganti file jika diperlukan.' :
-                                    'Upload file PKS dalam format PDF (Maksimal 3MB)'),
-
-                            FormActions::make([
-                                FormActions\Action::make('simpan_pks')
-                                    ->label('Simpan/Update PKS')
-                                    ->icon('heroicon-o-check')
-                                    ->color('success')
-                                    ->visible(fn($record) => true)
-                                    ->action(function (Get $get, Set $set, $record) {
-                                        $pks = $get('dokumen_pks_bkk');
-
-                                        if (!$pks) {
-                                            Notification::make()
-                                                ->title('Gagal Upload PKS')
-                                                ->danger()
-                                                ->body('File PKS harus diupload.')
-                                                ->send();
-                                            return;
-                                        }
-
-                                        $file_uuid = array_key_first($pks);
-                                        $pksFile = $pks[$file_uuid];
-
-                                        if (is_string($pksFile)) {
-                                            // Sudah berupa path file lama
-                                            $filePath = $pksFile;
-                                        } elseif (is_object($pksFile) && method_exists($pksFile, 'getClientOriginalExtension')) {
-                                            // File baru diupload
-                                            $filePath = \Storage::disk('public')
-                                                ->putFileAs(
-                                                    'perjanjian-kerjasama',
-                                                    $pksFile,
-                                                    'PKS ' . $record->user->name . ' [' . now()->format('dmYHis') . '].' . $pksFile->getClientOriginalExtension()
-                                                );
-                                        } else {
-                                            $filePath = null;
-                                        }
-
-                                        if (!$filePath) {
-                                            Notification::make()
-                                                ->title('Gagal Upload PKS')
-                                                ->danger()
-                                                ->body('Terjadi kesalahan saat memproses file PKS.')
-                                                ->send();
-                                            return;
-                                        }
-
-                                        $record->izinDokumenPks()->updateOrCreate(
-                                            ['id_izin' => $record->id],
-                                            [
-                                                'dokumen_pks_bkk' => $filePath,
-                                                'status_dokumen' => 'sign both',
-                                            ]
-                                        );
-
-                                        try {
-                                            if ($record->user && $record->user->email) {
-                                                Mail::to($record->user->email)->send(
-                                                    new IzinPksNotification($record)
-                                                );
-                                                $emailStatus = ' Email notifikasi PKS telah dikirim.';
-                                            } else {
-                                                $emailStatus = ' Email tidak dikirim (user tidak memiliki email).';
-                                            }
-                                        } catch (\Exception $e) {
-                                            error_log('Failed to send PKS email: ' . $e->getMessage());
-                                            $emailStatus = ' Email gagal dikirim.';
-                                        }
-
-                                        Notification::make()
-                                            ->title('PKS Berhasil Diupload')
-                                            ->success()
-                                            ->body('File Perjanjian Kerjasama telah berhasil diupload.' . $emailStatus)
-                                            ->send();
-
-                                        // Refresh record
-                                        $this->redirect(SuratPersetujuan::getUrl());
-
-                                    }),
-                                    
-                                FormActions\Action::make('hapus_pks')
-                                    ->label('Hapus PKS')
-                                    ->icon('heroicon-o-trash')
-                                    ->color('danger')
-                                    ->visible(fn($record) => $record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk)
-                                    ->requiresConfirmation()
-                                    ->modalHeading('Hapus PKS')
-                                    ->modalDescription('Apakah Anda yakin ingin menghapus file PKS ini? Tindakan ini akan menghapus file PKS dan mengatur ulang status dokumen. Tindakan ini tidak dapat dibatalkan.')
-                                    ->modalSubmitActionLabel('Ya, Hapus')
-                                    ->action(function ($record) {
-                                        // Hapus file PKS dari storage jika ada
-                                        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
-                                            try {
-                                                \Storage::disk('public')->delete($record->izinDokumenPks->dokumen_pks_bkk);
-                                            } catch (\Exception $e) {
-                                                error_log('Failed to delete PKS file: ' . $e->getMessage());
-                                            }
-                                        }
-
-                                        // Hapus field dokumen_pks_bkk dan reset status_dokumen
-                                        if ($record->izinDokumenPks) {
-                                            $record->izinDokumenPks->update([
-                                                'dokumen_pks_bkk' => null,
-                                                'status_dokumen' => null,
-                                            ]);
-                                        }
-
-                                        $record->refresh();
-
-                                        Notification::make()
-                                            ->title('PKS Berhasil Dihapus')
-                                            ->success()
-                                            ->body('File PKS telah dihapus dan status dokumen direset.')
                                             ->send();
 
                                         $this->redirect(SuratPersetujuan::getUrl());
