@@ -320,6 +320,19 @@ class CreateIzin extends CreateRecord
      */
     private function checkExistingActivePermits(int $userId): void
     {
+        // Cek pengajuan terakhir user
+        $latestPermit = Izin::where('user_id', $userId)
+            ->with(['izinPersetujuan'])
+            ->latest('tanggal_pengajuan')
+            ->first();
+
+        // Jika pengajuan terakhir sudah memiliki persetujuan, izinkan perpanjangan
+        if ($latestPermit && $latestPermit->izinPersetujuan && $latestPermit->izinPersetujuan->file_persetujuan) {
+            // User bisa mengajukan perpanjangan karena izin terakhir sudah selesai
+            return;
+        }
+
+        // Jika belum, cek apakah ada pengajuan yang masih aktif/belum selesai
         $activePermits = Izin::where('user_id', $userId)
             ->with(['izinPersetujuan', 'izinVisitasi', 'izinDokumen'])
             ->where(function ($query) {
