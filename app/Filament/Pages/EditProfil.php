@@ -117,10 +117,7 @@ class EditProfil extends Page implements HasForms
                                 }
                             })
                             ->showMyLocationButton(true)
-                            ->zoom(12)
-
-                            ->required()
-                            ->columnSpanFull(),
+                            ->zoom(12),
 
                         Forms\Components\Actions::make([
                             Forms\Components\Actions\Action::make('tutorial')
@@ -204,8 +201,8 @@ class EditProfil extends Page implements HasForms
                             ->password()
                             ->revealable()
                             ->helperText('Masukkan password saat ini untuk mengubah password')
-                            ->visible(fn (callable $get) => ! empty($get('new_password')) || ! empty($get('new_password_confirmation')))
-                            ->required(fn (callable $get) => ! empty($get('new_password')) && ! Auth::user()->hasRole('admin'))
+                            ->visible(fn(callable $get) => ! empty($get('new_password')) || ! empty($get('new_password_confirmation')))
+                            ->required(fn(callable $get) => ! empty($get('new_password')) && ! Auth::user()->hasRole('admin'))
                             ->rule(function () {
                                 return function (string $attribute, $value, \Closure $fail) {
                                     // Skip validation if user is admin or if no new password is provided
@@ -232,8 +229,8 @@ class EditProfil extends Page implements HasForms
                             ->password()
                             ->revealable()
                             ->same('new_password')
-                            ->visible(fn (callable $get) => ! empty($get('new_password')))
-                            ->required(fn (callable $get) => ! empty($get('new_password'))),
+                            ->visible(fn(callable $get) => ! empty($get('new_password')))
+                            ->required(fn(callable $get) => ! empty($get('new_password'))),
                     ])
                     ->columns(1)
                     ->collapsible()
@@ -292,12 +289,11 @@ class EditProfil extends Page implements HasForms
 
             // Refresh form data setelah berhasil disimpan
             $this->mount();
-
         } catch (\Exception $e) {
             // Error notification
             Notification::make()
                 ->title('Gagal menyimpan')
-                ->body('Terjadi kesalahan saat menyimpan data: '.$e->getMessage())
+                ->body('Terjadi kesalahan saat menyimpan data: ' . $e->getMessage())
                 ->danger()
                 ->send();
         }
