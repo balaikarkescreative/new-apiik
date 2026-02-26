@@ -63,7 +63,6 @@ class VerifikasiIcv extends Page implements HasTable
         if (! auth()->user()->hasRole(['admin'])) {
             // abort(403, 'Akses ditolak. Hanya admin yang dapat mengelola pengajuan ICV.');
             redirect()->to('/');
-
         }
     }
 
@@ -97,9 +96,9 @@ class VerifikasiIcv extends Page implements HasTable
                         $klinik = $record->user?->name ?? 'N/A';
                         $lokasi = $record->user?->kotakab ?? 'N/A';
 
-                        return '<div>'.
-                            '<div class="font-medium text-sm">'.e($klinik).'</div>'.
-                            '<div class="text-xs text-gray-500">'.e($lokasi).'</div>'.
+                        return '<div>' .
+                            '<div class="font-medium text-sm">' . e($klinik) . '</div>' .
+                            '<div class="text-xs text-gray-500">' . e($lokasi) . '</div>' .
                             '</div>';
                     })
                     ->html()
@@ -236,15 +235,15 @@ class VerifikasiIcv extends Page implements HasTable
                         $details = [];
 
                         if ($record->icvAlokasi?->icv_disetujui) {
-                            $details[] = 'Alokasi: '.number_format($record->icvAlokasi->icv_disetujui);
+                            $details[] = 'Alokasi: ' . number_format($record->icvAlokasi->icv_disetujui);
                         }
 
                         if ($record->icvBilling?->kode_billing) {
-                            $details[] = 'Billing: '.$record->icvBilling->kode_billing;
+                            $details[] = 'Billing: ' . $record->icvBilling->kode_billing;
                         }
 
                         if ($record->icvJadwal?->jadwal_pengambilan) {
-                            $details[] = 'Jadwal: '.Carbon::parse($record->icvJadwal->jadwal_pengambilan)->translatedFormat('d M');
+                            $details[] = 'Jadwal: ' . Carbon::parse($record->icvJadwal->jadwal_pengambilan)->translatedFormat('d M');
                         }
 
                         return implode("\n", $details) ?: 'Belum ada detail';
@@ -252,15 +251,15 @@ class VerifikasiIcv extends Page implements HasTable
                     ->html()
                     ->formatStateUsing(function ($state) {
                         if ($state === 'Belum ada detail') {
-                            return '<span class="text-xs text-gray-400">'.$state.'</span>';
+                            return '<span class="text-xs text-gray-400">' . $state . '</span>';
                         }
 
                         $lines = explode("\n", $state);
                         $formatted = array_map(function ($line) {
-                            return '<div class="text-xs">'.$line.'</div>';
+                            return '<div class="text-xs">' . $line . '</div>';
                         }, $lines);
 
-                        return '<div class="space-y-1">'.implode('', $formatted).'</div>';
+                        return '<div class="space-y-1">' . implode('', $formatted) . '</div>';
                     })
                     ->toggleable()
                     ->toggledHiddenByDefault(),
@@ -321,22 +320,22 @@ class VerifikasiIcv extends Page implements HasTable
 
                         return match ($data['value']) {
                             'verifikasi' => $query->whereDoesntHave('icvCekDokumen')
-                                ->orWhereHas('icvCekDokumen', fn ($q) => $q->whereNull('hasil_verif')),
+                                ->orWhereHas('icvCekDokumen', fn($q) => $q->whereNull('hasil_verif')),
                             'perbaikan' => $query
                                 ->whereNotNull('tanggal_perbaikan')
                                 ->whereDoesntHave('icvCekDokumen'), // Filter perbaikan
-                            'ditolak' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '3')),
-                            'alokasi' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '1'))
+                            'ditolak' => $query->whereHas('icvCekDokumen', fn($q) => $q->where('hasil_verif', '3')),
+                            'alokasi' => $query->whereHas('icvCekDokumen', fn($q) => $q->where('hasil_verif', '1'))
                                 ->whereDoesntHave('icvAlokasi'),
                             'billing' => $query->whereHas('icvAlokasi')
                                 ->whereDoesntHave('icvBilling'),
                             'pembayaran' => $query->whereHas('icvBilling')
                                 ->whereDoesntHave('icvBuktiBayar'),
-                            'jadwal' => $query->whereHas('icvBuktiBayar', fn ($q) => $q->whereNotNull('file_bukti_bayar'))
+                            'jadwal' => $query->whereHas('icvBuktiBayar', fn($q) => $q->whereNotNull('file_bukti_bayar'))
                                 ->whereDoesntHave('icvJadwal'),
                             'sinkarkes' => $query->whereHas('icvJadwal')
-                                ->whereDoesntHave('icvSbbk', fn ($q) => $q->where('sinkarkes', 'Sudah')),
-                            'selesai' => $query->whereHas('icvSbbk', fn ($q) => $q->where('sinkarkes', 'Sudah')),
+                                ->whereDoesntHave('icvSbbk', fn($q) => $q->where('sinkarkes', 'Sudah')),
+                            'selesai' => $query->whereHas('icvSbbk', fn($q) => $q->where('sinkarkes', 'Sudah')),
                             default => $query,
                         };
                     }),
@@ -379,11 +378,11 @@ class VerifikasiIcv extends Page implements HasTable
                         }
 
                         return match ($data['value']) {
-                            'lengkap' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '1')),
-                            'tidak_lengkap' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '2')),
-                            'ditolak' => $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', '3')),
+                            'lengkap' => $query->whereHas('icvCekDokumen', fn($q) => $q->where('hasil_verif', '1')),
+                            'tidak_lengkap' => $query->whereHas('icvCekDokumen', fn($q) => $q->where('hasil_verif', '2')),
+                            'ditolak' => $query->whereHas('icvCekDokumen', fn($q) => $q->where('hasil_verif', '3')),
                             'belum_verifikasi' => $query->whereDoesntHave('icvCekDokumen')
-                                ->orWhereHas('icvCekDokumen', fn ($q) => $q->whereNull('hasil_verif')),
+                                ->orWhereHas('icvCekDokumen', fn($q) => $q->whereNull('hasil_verif')),
                             default => $query,
                         };
                     }),
@@ -395,7 +394,7 @@ class VerifikasiIcv extends Page implements HasTable
                     ->icon('heroicon-o-cog-6-tooth')
                     ->color('primary')
                     ->size('sm')
-                    ->modalHeading(fn ($record) => 'Detail Verifikasi ICV - '.$record->user->name)
+                    ->modalHeading(fn($record) => 'Detail Verifikasi ICV - ' . $record->user->name)
                     ->modalWidth('8xl')
                     ->modalSubmitAction(false)
                     ->form($this->getDetailVerificationForm())
@@ -479,7 +478,7 @@ class VerifikasiIcv extends Page implements HasTable
                                 );
                             }
                         } catch (\Exception $e) {
-                            error_log('Gagal mengirim email verifikasi ICV: '.$e->getMessage());
+                            error_log('Gagal mengirim email verifikasi ICV: ' . $e->getMessage());
                         }
 
                         Notification::make()
@@ -503,8 +502,8 @@ class VerifikasiIcv extends Page implements HasTable
 
         for ($i = 1; $i <= 7; $i++) {
             $fileField = "file{$i}";
-            $fields[] = TextInput::make($fileField.'_info')
-                ->label(fn ($record) => $record->getFileLabels()[$fileField] ?? "File {$i}")
+            $fields[] = TextInput::make($fileField . '_info')
+                ->label(fn($record) => $record->getFileLabels()[$fileField] ?? "File {$i}")
                 ->disabled()
                 ->formatStateUsing(function ($record) use ($fileField) {
                     if ($record->$fileField) {
@@ -516,10 +515,10 @@ class VerifikasiIcv extends Page implements HasTable
                 ->hintAction(
                     FormAction::make("download_{$fileField}")
                         ->icon('heroicon-o-arrow-down-tray')
-                        ->label(fn ($record) => 'Unduh '.self::getIcvLabel($fileField))
-                        ->url(fn ($record) => $record->$fileField ? asset('storage/'.$record->$fileField) : '#')
+                        ->label(fn($record) => 'Unduh ' . self::getIcvLabel($fileField))
+                        ->url(fn($record) => $record->$fileField ? asset('storage/' . $record->$fileField) : '#')
                         ->openUrlInNewTab()
-                        ->visible(fn ($record) => $record->$fileField !== null)
+                        ->visible(fn($record) => $record->$fileField !== null)
                 )
                 ->dehydrated(false);
         }
@@ -624,7 +623,7 @@ class VerifikasiIcv extends Page implements HasTable
                                     ->url(function ($record) {
                                         $file = $record->user->paktaIntegritas?->file;
 
-                                        return $file ? asset('storage/'.$file) : null;
+                                        return $file ? asset('storage/' . $file) : null;
                                     })
                                     ->openUrlInNewTab()
                                     ->visible(function ($record) {
@@ -702,7 +701,7 @@ class VerifikasiIcv extends Page implements HasTable
                                 return '';
                             }
 
-                            return match($record->icvCekDokumen->hasil_verif) {
+                            return match ($record->icvCekDokumen->hasil_verif) {
                                 '1' => '✓',
                                 '2' => '✗',
                                 '3' => '✖',
@@ -714,7 +713,7 @@ class VerifikasiIcv extends Page implements HasTable
                                 return 'gray';
                             }
 
-                            return match($record->icvCekDokumen->hasil_verif) {
+                            return match ($record->icvCekDokumen->hasil_verif) {
                                 '1' => 'success',
                                 '2' => 'warning',
                                 '3' => 'danger',
@@ -739,6 +738,22 @@ class VerifikasiIcv extends Page implements HasTable
                                     }
                                     if ($get('hasil_verif') === '1') {
                                         $set('catatan_verif', null); // <-- Tambahkan baris ini
+                                        $set('blokir_akun', false); // Matikan toggle blokir jika lengkap
+                                    }
+                                }),
+
+                            \Filament\Forms\Components\Toggle::make('blokir_akun')
+                                ->label('Belum buat laporan harian penggunaan ICV')
+                                ->helperText('Aktifkan untuk langsung memblokir akun faskes ini dengan alasan belum buat laporan harian')
+                                ->visible(fn(Get $get): bool => in_array($get('hasil_verif'), ['2', '3']))
+                                ->live()
+                                ->afterStateUpdated(function (Get $get, Set $set, $state) {
+                                    if ($state) {
+                                        $set('catatan_verif', 'Belum buat laporan harian penggunaan ICV sebelumnya');
+                                    } else {
+                                        if ($get('catatan_verif') === 'Belum buat laporan harian penggunaan ICV sebelumnya') {
+                                            $set('catatan_verif', null);
+                                        }
                                     }
                                 }),
 
@@ -747,19 +762,19 @@ class VerifikasiIcv extends Page implements HasTable
                                     ->label('Stok Vaksin Tersedia')
                                     ->numeric()
                                     ->minValue(0)
-                                    ->visible(fn (Get $get): bool => $get('hasil_verif') === '1')
-                                    ->required(fn (Get $get): bool => $get('hasil_verif') === '1'),
+                                    ->visible(fn(Get $get): bool => $get('hasil_verif') === '1')
+                                    ->required(fn(Get $get): bool => $get('hasil_verif') === '1'),
 
                                 TextInput::make('date_verif')
                                     ->label('Tanggal Verifikasi')
                                     ->disabled()
-                                    ->formatStateUsing(fn ($record) => $record->icvCekDokumen?->date_updated?->translatedFormat('d F Y H:i'))
+                                    ->formatStateUsing(fn($record) => $record->icvCekDokumen?->date_updated?->translatedFormat('d F Y H:i'))
                                     ->dehydrated(false),
                             ]),
 
                             Section::make('Riwayat Catatan Perbaikan')
                                 ->collapsible()
-                                ->visible(fn ($record) => ! empty($record->riwayat_perbaikan))
+                                ->visible(fn($record) => ! empty($record->riwayat_perbaikan))
                                 ->schema(function ($record) {
                                     $schema = [];
                                     foreach (($record->riwayat_perbaikan ?? []) as $index => $item) {
@@ -772,10 +787,10 @@ class VerifikasiIcv extends Page implements HasTable
                                 }),
 
                             Textarea::make('catatan_verif')
-                                ->label('Catatan Perbaikan')
+                                ->label(fn(Get $get) => $get('hasil_verif') === '3' ? 'Alasan Penolakan' : 'Catatan Perbaikan')
                                 ->rows(3)
-                                ->visible(fn (Get $get): bool => $get('hasil_verif') === '2')
-                                ->required(fn (Get $get): bool => $get('hasil_verif') === '2'),
+                                ->visible(fn(Get $get): bool => in_array($get('hasil_verif'), ['2', '3']))
+                                ->required(fn(Get $get): bool => in_array($get('hasil_verif'), ['2', '3'])),
 
                             DatePicker::make('tanggal_perbaikan')
                                 ->label('Tanggal Perbaikan')
@@ -783,7 +798,7 @@ class VerifikasiIcv extends Page implements HasTable
                                 ->displayFormat('d F Y H:i')
                                 ->disabled()
                                 ->dehydrated(false)
-                                ->visible(fn ($state) => $state ?? false),
+                                ->visible(fn($state) => $state ?? false),
 
                             Actions::make([
                                 FormAction::make('verifikasi_dokumen')
@@ -813,6 +828,13 @@ class VerifikasiIcv extends Page implements HasTable
                                         // Refresh record dengan eager loading sebelum kirim email
                                         $record = $record->fresh(['user', 'icvCekDokumen']);
 
+                                        $isBlockedNow = false;
+                                        // Blokir akun faskes jika toggle blokir akun menyala
+                                        if ($get('blokir_akun') && $record->user) {
+                                            $record->user->update(['is_blocked' => true]);
+                                            $isBlockedNow = true;
+                                        }
+
                                         // Kirim email notifikasi ke user
                                         try {
                                             if ($record->user && $record->user->email) {
@@ -825,14 +847,14 @@ class VerifikasiIcv extends Page implements HasTable
                                                 );
                                             }
                                         } catch (\Exception $e) {
-                                            error_log('Gagal mengirim email verifikasi ICV: '.$e->getMessage());
+                                            error_log('Gagal mengirim email verifikasi ICV: ' . $e->getMessage());
                                         }
 
                                         Notification::make()
                                             ->title('Verifikasi Berhasil Disimpan')
                                             ->icon('heroicon-o-check-circle')
                                             ->success()
-                                            ->body('Verifikasi dokumen berhasil disimpan dan email notifikasi telah dikirim.')
+                                            ->body('Verifikasi dokumen berhasil disimpan dan email notifikasi telah dikirim.' . ($isBlockedNow ? ' Akun Faskes juga telah diblokir.' : ''))
                                             ->send();
 
                                         // $this->redirect(VerifikasiIcv::getUrl());
@@ -864,15 +886,15 @@ class VerifikasiIcv extends Page implements HasTable
                                                 ->send();
 
                                             $this->redirect(VerifikasiIcv::getUrl());
-
                                         } catch (\Exception $e) {
                                             Notification::make()
                                                 ->title('Gagal Menghapus Data')
                                                 ->danger()
-                                                ->body('Terjadi kesalahan saat menghapus data: '.$e->getMessage())
+                                                ->body('Terjadi kesalahan saat menghapus data: ' . $e->getMessage())
                                                 ->send();
                                         }
-                                    })]),
+                                    })
+                            ]),
                         ]),
 
                     // Tab 2: ICV Allocation - Disabled jika verifikasi belum selesai atau tidak lengkap
@@ -896,13 +918,13 @@ class VerifikasiIcv extends Page implements HasTable
                                 TextInput::make('stok_tersedia_info')
                                     ->label('Stok Tersedia')
                                     ->disabled()
-                                    ->formatStateUsing(fn ($record) => number_format($record->icvCekDokumen?->stok_vaksin ?? 0))
+                                    ->formatStateUsing(fn($record) => number_format($record->icvCekDokumen?->stok_vaksin ?? 0))
                                     ->dehydrated(false),
 
                                 TextInput::make('jumlah_diminta_info')
                                     ->label('Jumlah Diminta')
                                     ->disabled()
-                                    ->formatStateUsing(fn ($record) => number_format($record->jumlah_icv))
+                                    ->formatStateUsing(fn($record) => number_format($record->jumlah_icv))
                                     ->dehydrated(false),
 
                                 TextInput::make('icv_disetujui')
@@ -916,7 +938,7 @@ class VerifikasiIcv extends Page implements HasTable
                             TextInput::make('date_alokasi')
                                 ->label('Tanggal Alokasi')
                                 ->disabled()
-                                ->formatStateUsing(fn ($record) => $record->icvAlokasi?->date_updated?->translatedFormat('d F Y H:i') ?? now()->translatedFormat('d F Y H:i'))
+                                ->formatStateUsing(fn($record) => $record->icvAlokasi?->date_updated?->translatedFormat('d F Y H:i') ?? now()->translatedFormat('d F Y H:i'))
                                 ->dehydrated(false),
 
                             Actions::make([
@@ -955,7 +977,7 @@ class VerifikasiIcv extends Page implements HasTable
                                                 );
                                             }
                                         } catch (\Exception $e) {
-                                            error_log('Gagal mengirim email alokasi ICV: '.$e->getMessage());
+                                            error_log('Gagal mengirim email alokasi ICV: ' . $e->getMessage());
                                         }
 
                                         Notification::make()
@@ -966,7 +988,6 @@ class VerifikasiIcv extends Page implements HasTable
 
                                         // Refresh page to reflect changes
                                         $this->redirect(VerifikasiIcv::getUrl());
-
                                     }),
 
                                 Actions\Action::make('hapus_alokasi')
@@ -977,7 +998,7 @@ class VerifikasiIcv extends Page implements HasTable
                                     ->modalHeading('Hapus Data Alokasi')
                                     ->modalDescription('Apakah Anda yakin ingin menghapus data alokasi ICV ini?')
                                     ->modalSubmitActionLabel('Ya, Hapus')
-                                    ->visible(fn ($record) => $record->icvAlokasi !== null)
+                                    ->visible(fn($record) => $record->icvAlokasi !== null)
                                     ->action(function ($record) {
                                         try {
                                             // Hapus data alokasi
@@ -990,12 +1011,11 @@ class VerifikasiIcv extends Page implements HasTable
                                                 ->send();
 
                                             $this->redirect(VerifikasiIcv::getUrl());
-
                                         } catch (\Exception $e) {
                                             Notification::make()
                                                 ->title('Gagal Menghapus Data')
                                                 ->danger()
-                                                ->body('Terjadi kesalahan saat menghapus data: '.$e->getMessage())
+                                                ->body('Terjadi kesalahan saat menghapus data: ' . $e->getMessage())
                                                 ->send();
                                         }
                                     }),
@@ -1022,21 +1042,21 @@ class VerifikasiIcv extends Page implements HasTable
                                 TextInput::make('kode_billing')
                                     ->label('Kode Billing')
                                     ->numeric()
-                                    ->required(fn (Get $get): bool => (bool) $get('icv_disetujui'))
+                                    ->required(fn(Get $get): bool => (bool) $get('icv_disetujui'))
                                     ->helperText('Masukkan kode billing unik'),
 
                                 TextInput::make('nominal')
                                     ->label('Nominal Pembayaran')
                                     ->numeric()
                                     ->prefix('Rp')
-                                    ->required(fn (Get $get): bool => (bool) $get('icv_disetujui'))
+                                    ->required(fn(Get $get): bool => (bool) $get('icv_disetujui'))
                                     ->helperText('Nominal yang harus dibayar'),
                             ]),
 
                             TextInput::make('date_billing')
                                 ->label('Tanggal Penerbitan')
                                 ->disabled()
-                                ->formatStateUsing(fn ($record) => $record->icvBilling?->date_updated?->translatedFormat('d F Y H:i') ?? now()->translatedFormat('d F Y H:i'))
+                                ->formatStateUsing(fn($record) => $record->icvBilling?->date_updated?->translatedFormat('d F Y H:i') ?? now()->translatedFormat('d F Y H:i'))
                                 ->dehydrated(false),
 
                             Actions::make([
@@ -1079,7 +1099,7 @@ class VerifikasiIcv extends Page implements HasTable
                                                 );
                                             }
                                         } catch (\Exception $e) {
-                                            error_log('Gagal mengirim email billing ICV: '.$e->getMessage());
+                                            error_log('Gagal mengirim email billing ICV: ' . $e->getMessage());
                                         }
 
                                         Notification::make()
@@ -1089,7 +1109,6 @@ class VerifikasiIcv extends Page implements HasTable
                                             ->send();
 
                                         $this->redirect(VerifikasiIcv::getUrl());
-
                                     }),
 
                                 Actions\Action::make('hapus_billing')
@@ -1100,7 +1119,7 @@ class VerifikasiIcv extends Page implements HasTable
                                     ->modalHeading('Hapus Data Billing')
                                     ->modalDescription('Apakah Anda yakin ingin menghapus data billing ICV ini?')
                                     ->modalSubmitActionLabel('Ya, Hapus')
-                                    ->visible(fn ($record) => $record->icvBilling !== null)
+                                    ->visible(fn($record) => $record->icvBilling !== null)
                                     ->action(function ($record) {
                                         try {
                                             // Hapus data billing
@@ -1113,12 +1132,11 @@ class VerifikasiIcv extends Page implements HasTable
                                                 ->send();
 
                                             $this->redirect(VerifikasiIcv::getUrl());
-
                                         } catch (\Exception $e) {
                                             Notification::make()
                                                 ->title('Gagal Menghapus Data')
                                                 ->danger()
-                                                ->body('Terjadi kesalahan saat menghapus data: '.$e->getMessage())
+                                                ->body('Terjadi kesalahan saat menghapus data: ' . $e->getMessage())
                                                 ->send();
                                         }
                                     }),
@@ -1168,12 +1186,12 @@ class VerifikasiIcv extends Page implements HasTable
                                 ->hintAction(
                                     FormAction::make('download_bukti')
                                         ->icon('heroicon-o-arrow-down-tray')
-                                        ->label(fn ($record) => $record->icvBuktiBayar?->file_bukti_bayar ?
-                                            'Unduh '.basename($record->icvBuktiBayar->file_bukti_bayar) : 'Tidak ada file')
-                                        ->url(fn ($record) => $record->icvBuktiBayar?->file_bukti_bayar ?
-                                            asset('storage/'.$record->icvBuktiBayar->file_bukti_bayar) : '#')
+                                        ->label(fn($record) => $record->icvBuktiBayar?->file_bukti_bayar ?
+                                            'Unduh ' . basename($record->icvBuktiBayar->file_bukti_bayar) : 'Tidak ada file')
+                                        ->url(fn($record) => $record->icvBuktiBayar?->file_bukti_bayar ?
+                                            asset('storage/' . $record->icvBuktiBayar->file_bukti_bayar) : '#')
                                         ->openUrlInNewTab()
-                                        ->visible(fn ($record) => $record->icvBuktiBayar?->file_bukti_bayar !== null)
+                                        ->visible(fn($record) => $record->icvBuktiBayar?->file_bukti_bayar !== null)
                                 )
                                 ->dehydrated(false),
 
@@ -1181,20 +1199,20 @@ class VerifikasiIcv extends Page implements HasTable
                                 TextInput::make('info_billing')
                                     ->label('Kode Billing')
                                     ->disabled()
-                                    ->formatStateUsing(fn ($record) => $record->icvBilling?->kode_billing ?? '-')
+                                    ->formatStateUsing(fn($record) => $record->icvBilling?->kode_billing ?? '-')
                                     ->dehydrated(false),
 
                                 TextInput::make('info_nominal')
                                     ->label('Nominal')
                                     ->disabled()
-                                    ->formatStateUsing(fn ($record) => 'Rp '.number_format($record->icvBilling?->nominal ?? 0, 0, ',', '.'))
+                                    ->formatStateUsing(fn($record) => 'Rp ' . number_format($record->icvBilling?->nominal ?? 0, 0, ',', '.'))
                                     ->dehydrated(false),
                             ]),
 
                             TextInput::make('date_bayar')
                                 ->label('Tanggal Pembayaran')
                                 ->disabled()
-                                ->formatStateUsing(fn ($record) => $record->icvJadwal?->jadwal_pengambilan->translatedFormat('d F Y') ?? 'Belum ada tanggal')
+                                ->formatStateUsing(fn($record) => $record->icvJadwal?->jadwal_pengambilan->translatedFormat('d F Y') ?? 'Belum ada tanggal')
                                 ->dehydrated(false),
 
                             Textarea::make('catatan_bayar')
@@ -1210,7 +1228,7 @@ class VerifikasiIcv extends Page implements HasTable
                                     ->modalHeading('Hapus Data Bukti Bayar')
                                     ->modalDescription('Apakah Anda yakin ingin menghapus data bukti bayar ICV ini? Data jadwal dan sinkarkes terkait juga akan dihapus.')
                                     ->modalSubmitActionLabel('Ya, Hapus')
-                                    ->visible(fn ($record) => $record->icvBuktiBayar !== null)
+                                    ->visible(fn($record) => $record->icvBuktiBayar !== null)
                                     ->action(function ($record) {
                                         try {
                                             // Hapus file bukti bayar dari storage jika ada
@@ -1232,12 +1250,11 @@ class VerifikasiIcv extends Page implements HasTable
                                                 ->send();
 
                                             $this->redirect(VerifikasiIcv::getUrl());
-
                                         } catch (\Exception $e) {
                                             Notification::make()
                                                 ->title('Gagal Menghapus Data')
                                                 ->danger()
-                                                ->body('Terjadi kesalahan saat menghapus data: '.$e->getMessage())
+                                                ->body('Terjadi kesalahan saat menghapus data: ' . $e->getMessage())
                                                 ->send();
                                         }
                                     }),
@@ -1251,7 +1268,6 @@ class VerifikasiIcv extends Page implements HasTable
                         ->disabled(function ($record) {
                             return ! $record->icvBuktiBayar ||
                                 ! $record->icvBuktiBayar->file_bukti_bayar;
-
                         })
                         ->badge(function ($record) {
                             return $record->icvJadwal?->jadwal_pengambilan ? '✓' : '';
@@ -1270,7 +1286,7 @@ class VerifikasiIcv extends Page implements HasTable
                                 TextInput::make('jumlah_icv_distribusi')
                                     ->label('Jumlah ICV Disetujui')
                                     ->disabled()
-                                    ->formatStateUsing(fn ($record) => number_format($record->icvAlokasi?->icv_disetujui ?? 0))
+                                    ->formatStateUsing(fn($record) => number_format($record->icvAlokasi?->icv_disetujui ?? 0))
                                     ->dehydrated(false),
 
                                 Placeholder::make('distribusi_info')
@@ -1348,7 +1364,7 @@ class VerifikasiIcv extends Page implements HasTable
                                 TextInput::make('jadwal_info')
                                     ->label('Jadwal Distribusi')
                                     ->disabled()
-                                    ->formatStateUsing(fn ($record) => $record->icvJadwal?->jadwal_pengambilan?->translatedFormat('d F Y') ?? 'Belum dijadwalkan')
+                                    ->formatStateUsing(fn($record) => $record->icvJadwal?->jadwal_pengambilan?->translatedFormat('d F Y') ?? 'Belum dijadwalkan')
                                     ->dehydrated(false),
 
                                 Placeholder::make('distribusi_info')
@@ -1416,19 +1432,19 @@ class VerifikasiIcv extends Page implements HasTable
                             TextInput::make('tanggal_pengajuan')
                                 ->label('Tanggal Pengajuan')
                                 ->readOnly()
-                                ->formatStateUsing(fn ($record) => $record->tanggal_pengajuan?->translatedFormat('d F Y'))
+                                ->formatStateUsing(fn($record) => $record->tanggal_pengajuan?->translatedFormat('d F Y'))
                                 ->dehydrated(false),
 
                             TextInput::make('pemohon')
                                 ->label('Pemohon')
                                 ->readOnly()
-                                ->formatStateUsing(fn ($record) => $record->user->name)
+                                ->formatStateUsing(fn($record) => $record->user->name)
                                 ->dehydrated(false),
 
                             TextInput::make('jumlah_icv_pengajuan')
                                 ->label('Jumlah ICV Pengajuan')
                                 ->readOnly()
-                                ->formatStateUsing(fn ($record) => $record->jumlah_icv)
+                                ->formatStateUsing(fn($record) => $record->jumlah_icv)
                                 ->dehydrated(false),
                         ]),
                 ])
@@ -1459,8 +1475,8 @@ class VerifikasiIcv extends Page implements HasTable
                         ->label('Stok Vaksin')
                         ->numeric()
                         ->minValue(0)
-                        ->visible(fn (Get $get): bool => $get('hasil_verif') === '1')
-                        ->required(fn (Get $get): bool => $get('hasil_verif') === '1'),
+                        ->visible(fn(Get $get): bool => $get('hasil_verif') === '1')
+                        ->required(fn(Get $get): bool => $get('hasil_verif') === '1'),
 
                     // TextInput::make('jumlah_icv')
                     //     ->label('Jumlah ICV yang Disetujui')
@@ -1472,8 +1488,8 @@ class VerifikasiIcv extends Page implements HasTable
                     Textarea::make('catatan')
                         ->label('Catatan')
                         ->rows(4)
-                        ->visible(fn (Get $get): bool => $get('hasil_verif') === '2')
-                        ->required(fn (Get $get): bool => $get('hasil_verif') === '2'),
+                        ->visible(fn(Get $get): bool => $get('hasil_verif') === '2')
+                        ->required(fn(Get $get): bool => $get('hasil_verif') === '2'),
 
                     TextInput::make('date_updated')
                         ->label('Tanggal Verifikasi')
@@ -1490,7 +1506,7 @@ class VerifikasiIcv extends Page implements HasTable
         for ($i = 1; $i <= 7; $i++) {
             $fileField = "file{$i}";
             $fields[] = TextInput::make($fileField)
-                ->label(fn ($record) => $record->getFileLabels()[$fileField] ?? "File {$i}")
+                ->label(fn($record) => $record->getFileLabels()[$fileField] ?? "File {$i}")
                 ->readOnly()
                 ->prefix($i)
                 ->formatStateUsing(function ($record) use ($fileField) {
@@ -1503,10 +1519,10 @@ class VerifikasiIcv extends Page implements HasTable
                 ->hintAction(
                     FormAction::make("download_{$fileField}")
                         ->icon('heroicon-o-arrow-down-tray')
-                        ->label(fn ($record) => 'Unduh '.self::getIcvLabel($fileField))
-                        ->url(fn ($record) => $record->$fileField ? asset('storage/'.$record->$fileField) : '#')
+                        ->label(fn($record) => 'Unduh ' . self::getIcvLabel($fileField))
+                        ->url(fn($record) => $record->$fileField ? asset('storage/' . $record->$fileField) : '#')
                         ->openUrlInNewTab()
-                        ->visible(fn ($record) => $record->$fileField !== null)
+                        ->visible(fn($record) => $record->$fileField !== null)
                 )
                 ->dehydrated(false);
         }

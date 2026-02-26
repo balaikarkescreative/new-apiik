@@ -46,6 +46,7 @@ class User extends Authenticatable implements FilamentUser
         'pertanyaan2',
         'verifikasi_akun',
         'status_akun',
+        'is_blocked',
         'date_updated',
     ];
 

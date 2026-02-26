@@ -35,6 +35,19 @@ class CreateIcv extends CreateRecord
     {
         parent::mount();
 
+        // Jika user diblokir, tidak boleh mengajukan ICV
+        if (auth()->user()->is_blocked) {
+            Notification::make()
+                ->title('Akun Diblokir')
+                ->body('Akun faskes Anda sedang diblokir. Anda tidak dapat membuat pengajuan ICV baru. Hubungi Admin untuk informasi lebih lanjut.')
+                ->danger()
+                ->persistent()
+                ->send();
+            redirect()->to(IcvResource::getUrl('daftar-pengajuan'));
+
+            return;
+        }
+
         // Jika user (bukan admin) belum punya laporan geotagging, redirect ke create laporan geotagging
         if (auth()->user()->hasRole('user') && ! auth()->user()->laporanGeotagging) {
             Notification::make()
@@ -239,9 +252,9 @@ class CreateIcv extends CreateRecord
         if (! $vaksinator->masa_aktif_izin_praktek) {
             $errors[] = '• Masa aktif izin praktek belum diisi';
         } elseif ($vaksinator->masa_aktif_izin_praktek < now()) {
-            $errors[] = '• Izin praktek sudah kadaluarsa ('.$vaksinator->masa_aktif_izin_praktek->format('d/m/Y').')';
+            $errors[] = '• Izin praktek sudah kadaluarsa (' . $vaksinator->masa_aktif_izin_praktek->format('d/m/Y') . ')';
         } elseif ($vaksinator->masa_aktif_izin_praktek <= now()->addDays(30)) {
-            $warnings[] = '• Izin praktek akan habis dalam 30 hari ('.$vaksinator->masa_aktif_izin_praktek->format('d/m/Y').')';
+            $warnings[] = '• Izin praktek akan habis dalam 30 hari (' . $vaksinator->masa_aktif_izin_praktek->format('d/m/Y') . ')';
         }
 
         // Cek dokumen izin praktek
@@ -253,9 +266,9 @@ class CreateIcv extends CreateRecord
         if (! $vaksinator->masa_aktif_sertifikat) {
             $errors[] = '• Masa aktif sertifikat vaksinator belum diisi';
         } elseif ($vaksinator->masa_aktif_sertifikat < now()) {
-            $errors[] = '• Sertifikat vaksinator sudah kadaluarsa ('.$vaksinator->masa_aktif_sertifikat->format('d/m/Y').')';
+            $errors[] = '• Sertifikat vaksinator sudah kadaluarsa (' . $vaksinator->masa_aktif_sertifikat->format('d/m/Y') . ')';
         } elseif ($vaksinator->masa_aktif_sertifikat <= now()->addDays(30)) {
-            $warnings[] = '• Sertifikat vaksinator akan habis dalam 30 hari ('.$vaksinator->masa_aktif_sertifikat->format('d/m/Y').')';
+            $warnings[] = '• Sertifikat vaksinator akan habis dalam 30 hari (' . $vaksinator->masa_aktif_sertifikat->format('d/m/Y') . ')';
         }
 
         // Cek dokumen sertifikat vaksinator
@@ -265,7 +278,7 @@ class CreateIcv extends CreateRecord
 
         // Jika ada error, blokir pembuatan ICV
         if (! empty($errors)) {
-            $errorMessage = "Data vaksinator Anda tidak valid untuk mengajukan ICV:\n\n".implode("\n", $errors)."\n\nSilakan perbarui data vaksinator terlebih dahulu.";
+            $errorMessage = "Data vaksinator Anda tidak valid untuk mengajukan ICV:\n\n" . implode("\n", $errors) . "\n\nSilakan perbarui data vaksinator terlebih dahulu.";
 
             Notification::make()
                 ->title('Data Vaksinator Tidak Valid')
@@ -287,7 +300,7 @@ class CreateIcv extends CreateRecord
 
         // Jika ada warning, tampilkan peringatan tapi tetap izinkan
         if (! empty($warnings)) {
-            $warningMessage = "Peringatan mengenai data vaksinator Anda:\n\n".implode("\n", $warnings)."\n\nDisarankan untuk memperbarui data vaksinator segera.";
+            $warningMessage = "Peringatan mengenai data vaksinator Anda:\n\n" . implode("\n", $warnings) . "\n\nDisarankan untuk memperbarui data vaksinator segera.";
 
             Notification::make()
                 ->title('Peringatan Data Vaksinator')
@@ -346,9 +359,9 @@ class CreateIcv extends CreateRecord
         if (! $suratPersetujuan->masa_berlaku) {
             $errors[] = '• Masa berlaku surat persetujuan ICV belum diisi';
         } elseif ($suratPersetujuan->masa_berlaku < now()) {
-            $errors[] = '• Surat persetujuan ICV sudah kadaluarsa ('.$suratPersetujuan->masa_berlaku->format('d/m/Y').')';
+            $errors[] = '• Surat persetujuan ICV sudah kadaluarsa (' . $suratPersetujuan->masa_berlaku->format('d/m/Y') . ')';
         } elseif ($suratPersetujuan->masa_berlaku <= now()->addDays(30)) {
-            $warnings[] = '• Surat persetujuan ICV akan habis dalam 30 hari ('.$suratPersetujuan->masa_berlaku->format('d/m/Y').')';
+            $warnings[] = '• Surat persetujuan ICV akan habis dalam 30 hari (' . $suratPersetujuan->masa_berlaku->format('d/m/Y') . ')';
         }
 
         // Validasi nomor surat
@@ -363,7 +376,7 @@ class CreateIcv extends CreateRecord
 
         // Jika ada error, blokir pembuatan ICV
         if (! empty($errors)) {
-            $errorMessage = "Surat persetujuan ICV Anda tidak valid untuk mengajukan ICV:\n\n".implode("\n", $errors)."\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.";
+            $errorMessage = "Surat persetujuan ICV Anda tidak valid untuk mengajukan ICV:\n\n" . implode("\n", $errors) . "\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.";
 
             Notification::make()
                 ->title('Surat Persetujuan ICV Tidak Valid')
@@ -385,7 +398,7 @@ class CreateIcv extends CreateRecord
 
         // Jika ada warning, tampilkan peringatan tapi tetap izinkan
         if (! empty($warnings)) {
-            $warningMessage = "Peringatan mengenai surat persetujuan ICV Anda:\n\n".implode("\n", $warnings)."\n\nDisarankan untuk memperbarui surat persetujuan ICV segera.";
+            $warningMessage = "Peringatan mengenai surat persetujuan ICV Anda:\n\n" . implode("\n", $warnings) . "\n\nDisarankan untuk memperbarui surat persetujuan ICV segera.";
 
             Notification::make()
                 ->title('Peringatan Surat Persetujuan ICV')
@@ -459,7 +472,7 @@ class CreateIcv extends CreateRecord
 
             Notification::make()
                 ->title('Data Vaksinator Tidak Valid')
-                ->body("{$userName} memiliki masalah dengan data vaksinator:\n• ".implode("\n• ", $errors)."\n\nSilakan perbarui data vaksinator terlebih dahulu.")
+                ->body("{$userName} memiliki masalah dengan data vaksinator:\n• " . implode("\n• ", $errors) . "\n\nSilakan perbarui data vaksinator terlebih dahulu.")
                 ->danger()
                 ->persistent()
                 ->send();
@@ -510,7 +523,7 @@ class CreateIcv extends CreateRecord
 
             Notification::make()
                 ->title('Surat Persetujuan ICV Tidak Valid')
-                ->body("{$userName} memiliki masalah dengan surat persetujuan ICV:\n• ".implode("\n• ", $errors)."\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.")
+                ->body("{$userName} memiliki masalah dengan surat persetujuan ICV:\n• " . implode("\n• ", $errors) . "\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.")
                 ->danger()
                 ->persistent()
                 ->send();

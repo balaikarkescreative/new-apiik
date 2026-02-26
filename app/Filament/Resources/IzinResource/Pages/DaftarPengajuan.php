@@ -868,6 +868,11 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->icon('heroicon-o-document-plus')
                     ->color('primary')
                     ->visible(function () {
+                        // Sembunyikan jika akun terblokir
+                        if (auth('web')->user()->is_blocked) {
+                            return false;
+                        }
+
                         // Tampilkan jika belum pernah mengajukan izin baru
                         return ! Izin::where('user_id', auth('web')->id())
                             ->where(function ($query) {
@@ -885,6 +890,11 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
                     ->visible(function () {
+                        // Sembunyikan jika akun terblokir
+                        if (auth('web')->user()->is_blocked) {
+                            return false;
+                        }
+
                         // Tampilkan jika sudah ada izin baru yang selesai (ada PKS)
                         $latestIzin = Izin::where('user_id', auth('web')->id())
                             ->where(function ($query) {
@@ -909,6 +919,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->label('Buat Pengajuan Izin Pertama')
                     ->icon('heroicon-o-plus-circle')
                     ->color('primary')
+                    ->visible(fn() => !auth('web')->user()->is_blocked)
                     ->action(function () {
                         return redirect()->to(IzinResource::getUrl('create') . '?type=baru');
                     }),

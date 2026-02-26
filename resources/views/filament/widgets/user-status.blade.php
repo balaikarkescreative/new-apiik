@@ -6,6 +6,21 @@
         </x-slot>
 
         <div class="space-y-6">
+            @if($this->getViewData()['userStatus']->is_blocked)
+                <!-- Alert/Peringatan Blokir -->
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
+                    <div class="flex-shrink-0">
+                        <x-heroicon-o-exclamation-triangle class="h-5 w-5 text-red-600" />
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">Perhatian: Akun Diblokir</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <p>Akun faskes Anda sedang diblokir oleh sistem. Anda tidak dapat membuat pengajuan Izin maupun ICV baru saat ini. Silakan hubungi admin aplikasi BKK Bandung untuk informasi lebih lanjut jika Anda merasa ada kesalahan.</p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <!-- Status Akun -->
             <div>
                 <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-3">Status Akun</h4>
