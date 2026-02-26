@@ -5,6 +5,7 @@ namespace App\Filament\Resources\IzinResource\Pages;
 use App\Filament\Resources\IzinResource;
 use App\Models\IzinDokumen;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Notifications\Notification;
 
 class EditIzin extends EditRecord
 {
@@ -26,6 +27,17 @@ class EditIzin extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
+        if ($this->record->user->is_blocked) {
+            Notification::make()
+                ->title('Akun Diblokir')
+                ->body('Akun faskes Anda sedang diblokir oleh sistem. Anda tidak dapat membuat pengajuan Izin maupun ICV baru saat ini. Silakan hubungi admin untuk informasi lebih lanjut.')
+                ->danger()
+                ->persistent()
+                ->send();
+
+            redirect()->to(IzinResource::getUrl('daftar-pengajuan'));
+        }
+
         $type = request()->get('type');
         if ($type === 'perbaikan') {
             $data['tanggal_perbaikan'] = now();

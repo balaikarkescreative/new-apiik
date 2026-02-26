@@ -5,6 +5,8 @@ namespace App\Filament\Resources\IcvResource\Pages;
 use App\Filament\Resources\IcvResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Notifications\Notification;
+
 
 class EditIcv extends EditRecord
 {
@@ -26,6 +28,18 @@ class EditIcv extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
+
+        if ($this->record->user->is_blocked) {
+            Notification::make()
+                ->title('Akun Diblokir')
+                ->body('Akun faskes Anda sedang diblokir oleh sistem. Anda tidak dapat membuat pengajuan Izin maupun ICV baru saat ini. Silakan hubungi admin untuk informasi lebih lanjut.')
+                ->danger()
+                ->persistent()
+                ->send();
+
+            redirect()->to(IcvResource::getUrl('daftar-pengajuan'));
+        }
+
         $type = request()->get('type');
         if ($type === 'perbaikan') {
             $data['tanggal_perbaikan'] = now();
@@ -46,7 +60,7 @@ class EditIcv extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make()->visible(fn () => auth()->user()->hasRole('admin')),
+            Actions\DeleteAction::make()->visible(fn() => auth()->user()->hasRole('admin')),
         ];
     }
 }
