@@ -15,7 +15,7 @@
                     <div class="ml-3">
                         <h3 class="text-sm font-medium text-red-800">Perhatian: Akun Diblokir</h3>
                         <div class="mt-2 text-sm text-red-700">
-                            <p>Akun faskes Anda sedang diblokir oleh sistem. Anda tidak dapat membuat pengajuan Izin maupun ICV baru saat ini. Silakan hubungi admin aplikasi BKK Bandung untuk informasi lebih lanjut jika Anda merasa ada kesalahan.</p>
+                            <p>Akun faskes Anda sedang diblokir oleh sistem. Anda tidak dapat membuat pengajuan Izin maupun ICV baru saat ini. Silakan hubungi admin untuk informasi lebih lanjut.</p>
                         </div>
                     </div>
                 </div>
