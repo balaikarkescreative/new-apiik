@@ -1,7 +1,16 @@
 <?php
 
+use App\Http\Controllers\SanitizedFileUploadController;
 use App\Http\Controllers\VideoController;
 use Illuminate\Support\Facades\Route;
+
+// Override Livewire file upload endpoint dengan controller yang men-sanitasi
+// nama file berkarakter khusus (emoji, tanda baca, dll) sebelum disimpan ke
+// temp storage. Ini mencegah error "Unable to retrieve the file_size for file
+// at location: livewire-tmp/livewire-tmp".
+Route::post('/livewire/upload-file', [SanitizedFileUploadController::class, 'handle'])
+    ->middleware(['web'])
+    ->name('livewire.upload-file');
 
 // Route::get('/', function () {
 //     return view('welcome');
