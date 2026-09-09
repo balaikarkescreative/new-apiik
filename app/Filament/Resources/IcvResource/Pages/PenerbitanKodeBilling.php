@@ -5,6 +5,7 @@ namespace App\Filament\Resources\IcvResource\Pages;
 use App\Filament\Resources\IcvResource;
 use App\Mail\IcvBillingNotification;
 use App\Models\Icv;
+use App\Models\IcvBilling;
 use Filament\Forms\Components\Actions;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Grid;
@@ -225,6 +226,20 @@ class PenerbitanKodeBilling extends Page implements HasTable
                             ]),
                     ])
                     ->action(function (array $data, $record) {
+                        // Cek duplikasi kode billing (abaikan pengajuan saat ini)
+                        $existingBilling = IcvBilling::where('kode_billing', $data['kode_billing'])
+                            ->where('id_icv', '!=', $record->id)
+                            ->first();
+
+                        if ($existingBilling) {
+                            Notification::make()
+                                ->title('Gagal Terbitkan Billing')
+                                ->danger()
+                                ->body('Kode billing sudah digunakan oleh pengajuan lain.')
+                                ->send();
+
+                            return;
+                        }
 
                         // Create billing
                         $record->icvBilling()->updateOrCreate([
@@ -648,6 +663,21 @@ class PenerbitanKodeBilling extends Page implements HasTable
                                                 ->title('Gagal Terbitkan Billing')
                                                 ->danger()
                                                 ->body('Kode billing dan nominal harus diisi.')
+                                                ->send();
+
+                                            return;
+                                        }
+
+                                        // Cek duplikasi kode billing (abaikan pengajuan saat ini)
+                                        $existingBilling = IcvBilling::where('kode_billing', $kodeBilling)
+                                            ->where('id_icv', '!=', $record->id)
+                                            ->first();
+
+                                        if ($existingBilling) {
+                                            Notification::make()
+                                                ->title('Gagal Terbitkan Billing')
+                                                ->danger()
+                                                ->body('Kode billing sudah digunakan oleh pengajuan lain.')
                                                 ->send();
 
                                             return;

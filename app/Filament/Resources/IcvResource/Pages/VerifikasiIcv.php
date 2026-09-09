@@ -8,6 +8,7 @@ use App\Mail\IcvAlokasiNotification;
 use App\Mail\IcvBillingNotification;
 use App\Mail\IcvVerifikasiNotification;
 use App\Models\Icv;
+use App\Models\IcvBilling;
 use App\Models\Izin;
 use App\Models\LaporanPenggunaanIcv;
 use Carbon\Carbon;
@@ -1073,6 +1074,21 @@ class VerifikasiIcv extends Page implements HasTable
                                                 ->title('Gagal Terbitkan Billing')
                                                 ->danger()
                                                 ->body('Kode billing dan nominal harus diisi.')
+                                                ->send();
+
+                                            return;
+                                        }
+
+                                        // Cek duplikasi kode billing (abaikan pengajuan saat ini)
+                                        $existingBilling = IcvBilling::where('kode_billing', $kodeBilling)
+                                            ->where('id_icv', '!=', $record->id)
+                                            ->first();
+
+                                        if ($existingBilling) {
+                                            Notification::make()
+                                                ->title('Gagal Terbitkan Billing')
+                                                ->danger()
+                                                ->body('Kode billing sudah digunakan oleh pengajuan lain.')
                                                 ->send();
 
                                             return;

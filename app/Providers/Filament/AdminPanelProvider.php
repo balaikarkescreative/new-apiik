@@ -164,7 +164,7 @@ class AdminPanelProvider extends PanelProvider
                     ->group('ICV')
                     ->url(fn () => IcvResource::getUrl('jadwal-distribusi'))
                     ->visible(fn () => Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('pos')),
-                NavigationItem::make('Surar Bukti Barang Keluar')
+                NavigationItem::make('Update Sinkarkes')
                     ->icon('heroicon-o-document-text')
                     ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.icv.upload-sbbk'))
                     ->group('ICV')
