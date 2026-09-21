@@ -30,7 +30,7 @@ class EditIzin extends EditRecord
         if ($this->record->user->is_blocked) {
             Notification::make()
                 ->title('Akun Diblokir')
-                ->body('Akun faskes Anda sedang diblokir oleh sistem. Anda tidak dapat membuat pengajuan Izin maupun ICV baru saat ini. Silakan hubungi admin untuk informasi lebih lanjut.')
+                ->body('Akun faskes Anda saat ini diblokir karena belum melakukan pengisian laporan harian, yang merupakan pelanggaran terhadap komitmen pada Nota Kesepahaman (MoU) yang telah disepakati. Selama akun diblokir, Anda tidak dapat membuat pengajuan Izin maupun ICV baru. Silakan lengkapi laporan atau hubungi Admin untuk bantuan lebih lanjut.')
                 ->danger()
                 ->persistent()
                 ->send();

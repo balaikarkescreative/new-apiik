@@ -43,7 +43,7 @@ class CreateIzin extends CreateRecord
         if (auth()->user()->is_blocked) {
             Notification::make()
                 ->title('Akun Diblokir')
-                ->body('Akun faskes Anda sedang diblokir. Anda tidak dapat membuat pengajuan Izin baru atau perpanjangan. Hubungi Admin untuk informasi lebih lanjut.')
+                ->body('Akun faskes Anda saat ini diblokir karena belum melakukan pengisian laporan harian, yang merupakan pelanggaran terhadap komitmen pada Nota Kesepahaman (MoU) yang telah disepakati. Selama akun diblokir, Anda tidak dapat membuat pengajuan Izin maupun ICV baru. Silakan lengkapi laporan atau hubungi Admin untuk bantuan lebih lanjut.')
                 ->danger()
                 ->persistent()
                 ->send();

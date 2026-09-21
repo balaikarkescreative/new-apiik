@@ -8,14 +8,14 @@
         <div class="space-y-6">
             @if($this->getViewData()['userStatus']->is_blocked)
                 <!-- Alert/Peringatan Blokir -->
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start">
+                <div class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-4 flex items-start">
                     <div class="flex-shrink-0">
-                        <x-heroicon-o-exclamation-triangle class="h-5 w-5 text-red-600" />
+                        <x-heroicon-o-exclamation-triangle class="h-5 w-5 text-red-600 dark:text-red-400" />
                     </div>
                     <div class="ml-3">
-                        <h3 class="text-sm font-medium text-red-800">Perhatian: Akun Diblokir</h3>
-                        <div class="mt-2 text-sm text-red-700">
-                            <p>Akun faskes Anda sedang diblokir oleh sistem. Anda tidak dapat membuat pengajuan Izin maupun ICV baru saat ini. Silakan hubungi admin untuk informasi lebih lanjut.</p>
+                        <h3 class="text-sm font-medium text-red-800 dark:text-red-300">Perhatian: Akun Diblokir</h3>
+                        <div class="mt-2 text-sm text-red-700 dark:text-red-200">
+                            <p>Akun faskes Anda saat ini diblokir karena belum melakukan pengisian laporan harian, yang merupakan pelanggaran terhadap komitmen pada Nota Kesepahaman (MoU) yang telah disepakati. Selama akun diblokir, Anda tidak dapat membuat pengajuan Izin maupun ICV baru. Silakan lengkapi laporan atau hubungi Admin untuk bantuan lebih lanjut.</p>
                         </div>
                     </div>
                 </div>
