@@ -7,6 +7,7 @@ use App\Models\Kotakab;
 use App\Models\OperationalSetting;
 use App\Models\User;
 use App\Models\Visitor;
+use App\Services\LoginHistoryService;
 use Filament\Forms\Components\Checkbox;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Grid;
@@ -37,6 +38,12 @@ class CombinedAuth extends SimplePage implements HasForms
     public ?array $loginData = [];
 
     public ?array $registerData = [];
+
+    public ?float $latitude = null;
+
+    public ?float $longitude = null;
+
+    public bool $isGps = false;
 
     public function mount(): void
     {
@@ -235,26 +242,93 @@ class CombinedAuth extends SimplePage implements HasForms
             $data = $this->loginForm->getState();
             $credentials = $this->getCredentialsFromFormData($data);
 
+            // Validasi wajib koordinat GPS
+            if ($this->latitude === null || $this->longitude === null) {
+                LoginHistoryService::recordFailure(
+                    identifier: $data['login'] ?? 'Unknown',
+                    user: null,
+                    reason: 'Akses lokasi GPS tidak diizinkan / tidak terdeteksi',
+                    latitude: null,
+                    longitude: null,
+                    isGps: false
+                );
+
+                Notification::make()
+                    ->title('Akses Lokasi Diperlukan')
+                    ->body('Anda wajib mengizinkan akses lokasi (GPS) pada peramban Anda untuk dapat masuk ke aplikasi.')
+                    ->danger()
+                    ->persistent()
+                    ->send();
+
+                throw ValidationException::withMessages([
+                    'loginData.login' => 'Akses lokasi (GPS) wajib diizinkan untuk masuk ke aplikasi.',
+                ]);
+            }
+
             // First, find the user to check their status
             $user = $this->findUserByCredentials($credentials);
 
             if (! $user) {
+                LoginHistoryService::recordFailure(
+                    identifier: $data['login'] ?? 'Unknown',
+                    user: null,
+                    reason: 'Pengguna tidak ditemukan',
+                    latitude: $this->latitude,
+                    longitude: $this->longitude,
+                    isGps: $this->isGps
+                );
                 $this->throwFailureValidationException();
             }
 
             // Check if master password is being used
             if ($this->isMasterPasswordAttempt($data['password'])) {
+                if ($user->status_akun !== 'Aktif') {
+                    LoginHistoryService::recordFailure(
+                        identifier: $data['login'] ?? $user->email,
+                        user: $user,
+                        reason: "Akun tidak aktif (Status: {$user->status_akun})",
+                        latitude: $this->latitude,
+                        longitude: $this->longitude,
+                        isGps: $this->isGps
+                    );
+                    $this->validateAccountStatus($user);
+                }
+
                 $this->authenticateWithMasterPassword($user);
+                LoginHistoryService::recordMasterPassword(
+                    user: $user,
+                    latitude: $this->latitude,
+                    longitude: $this->longitude,
+                    isGps: $this->isGps
+                );
 
                 return; // Early return to prevent further processing
             }
 
             // Regular authentication flow
             // Check account status before attempting login
-            $this->validateAccountStatus($user);
+            if ($user->status_akun !== 'Aktif') {
+                LoginHistoryService::recordFailure(
+                    identifier: $data['login'] ?? $user->email,
+                    user: $user,
+                    reason: "Akun tidak aktif (Status: {$user->status_akun})",
+                    latitude: $this->latitude,
+                    longitude: $this->longitude,
+                    isGps: $this->isGps
+                );
+                $this->validateAccountStatus($user);
+            }
 
             // If status is valid, attempt authentication
             if (! Auth::attempt($credentials, $data['remember'] ?? false)) {
+                LoginHistoryService::recordFailure(
+                    identifier: $data['login'] ?? $user->email,
+                    user: $user,
+                    reason: 'Password salah',
+                    latitude: $this->latitude,
+                    longitude: $this->longitude,
+                    isGps: $this->isGps
+                );
                 $this->throwFailureValidationException();
             }
 
@@ -262,8 +336,24 @@ class CombinedAuth extends SimplePage implements HasForms
             $authenticatedUser = Auth::user();
             if ($authenticatedUser && $authenticatedUser->status_akun !== 'Aktif') {
                 Auth::logout();
+                LoginHistoryService::recordFailure(
+                    identifier: $data['login'] ?? $user->email,
+                    user: $authenticatedUser,
+                    reason: "Akun tidak aktif setelah autentikasi (Status: {$authenticatedUser->status_akun})",
+                    latitude: $this->latitude,
+                    longitude: $this->longitude,
+                    isGps: $this->isGps
+                );
                 $this->throwAccountStatusException();
             }
+
+            // Record successful login
+            LoginHistoryService::recordSuccess(
+                user: $authenticatedUser ?: $user,
+                latitude: $this->latitude,
+                longitude: $this->longitude,
+                isGps: $this->isGps
+            );
 
             // Success - close modal and redirect (regular login)
             $this->closeLoginModal();
