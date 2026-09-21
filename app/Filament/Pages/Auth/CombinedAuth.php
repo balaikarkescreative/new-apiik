@@ -365,9 +365,11 @@ class CombinedAuth extends SimplePage implements HasForms
             $this->redirect(filament()->getUrl());
 
         } catch (ValidationException $exception) {
+            $this->dispatch('login-failed');
             // Re-throw validation exceptions to show form errors
             throw $exception;
         } catch (\Exception $e) {
+            $this->dispatch('login-failed');
             // Clear notifications before showing error
             session()->forget('filament.notifications');
 

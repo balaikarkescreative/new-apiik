@@ -70,6 +70,7 @@
 
             // 1. Jika koordinat GPS sudah siap: langsung submit instan (0 delay)!
             if (this.gpsStatus === 'ready' && this.latitude !== null && this.longitude !== null) {
+                this.isSubmitting = true;
                 @this.set('latitude', this.latitude, false);
                 @this.set('longitude', this.longitude, false);
                 @this.set('isGps', true, false);
@@ -94,6 +95,7 @@
             this.fetchLocationSilently();
         }
     }"
+    @login-failed.window="isSubmitting = false"
 >
     {{-- Buttons Layout (outside info card) --}}
     <div class="flex flex-col sm:flex-row gap-3 w-full">
@@ -155,9 +157,17 @@
                             type="button"
                             @click="submitWithGps()"
                             :disabled="isSubmitting"
-                            class="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                            class="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-4 rounded-xl shadow-md transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
                         >
+                            {{-- Spinner bawaan Filament --}}
+                            <x-filament::loading-indicator
+                                x-show="isSubmitting"
+                                class="h-5 w-5 text-white flex-shrink-0"
+                            />
+
+                            {{-- Ikon panah normal saat belum submit --}}
                             <x-filament::icon
+                                x-show="!isSubmitting"
                                 icon="heroicon-o-arrow-right-on-rectangle"
                                 class="w-5 h-5 flex-shrink-0"
                             />
