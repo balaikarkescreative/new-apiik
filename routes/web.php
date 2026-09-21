@@ -26,3 +26,10 @@ Route::middleware(['web'])->group(function () {
     Route::get('/video/metadata/{id}', [VideoController::class, 'metadata'])->name('video.metadata');
     Route::get('/video/test/{id}', [VideoController::class, 'test'])->name('video.test');
 });
+
+// Download ZIP dokumen izin
+Route::middleware(['web', 'auth'])->group(function () {
+    Route::get('/admin/izin/{record}/download-zip', [\App\Http\Controllers\IzinZipController::class, 'download'])
+        ->name('izin.download-zip');
+});
+

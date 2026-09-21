@@ -10,8 +10,10 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Resources\Pages\Page;
 use App\Models\Izin;
 use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\BulkAction;
 use Filament\Forms\Components\Actions\Action as FormAction;
 use Filament\Actions\Action as PageAction;
+use Illuminate\Database\Eloquent\Collection;
 use App\Models\IzinDokumen;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -490,7 +492,26 @@ class VerifikasiIzin extends Page implements HasTable
                     })
                     ->action(function (array $data, $record) {
                         $this->processVerificationSteps($data, $record);
+                    }),
+                Action::make('download_zip')
+                    ->label('Unduh ZIP')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('info')
+                    ->size('sm')
+                    ->tooltip('Unduh semua berkas permohonan izin dalam format ZIP')
+                    ->url(fn($record) => route('izin.download-zip', $record->id))
+                    ->openUrlInNewTab(false),
+            ])
+            ->bulkActions([
+                BulkAction::make('download_zip_bulk')
+                    ->label('Unduh Dokumen (ZIP)')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('info')
+                    ->action(function (Collection $records) {
+                        $urls = $records->map(fn($record) => route('izin.download-zip', $record->id))->values()->toArray();
+                        $this->dispatch('download-multiple-zips', urls: $urls);
                     })
+                    ->deselectRecordsAfterCompletion(),
             ])
             ->defaultSort('tanggal_pengajuan', 'desc')
             ->striped()
@@ -764,6 +785,15 @@ class VerifikasiIzin extends Page implements HasTable
 
             // Documents Section
             Section::make('Dokumen Pengajuan')
+                ->headerActions([
+                    FormAction::make('unduh_semua_zip')
+                        ->label('Unduh Dokumen (ZIP)')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('info')
+                        ->url(fn($record) => $record ? route('izin.download-zip', $record->id) : '#')
+                        ->openUrlInNewTab(false)
+                        ->visible(fn($record) => $record !== null),
+                ])
                 ->schema(function ($record) {
                     return $this->getDocumentFields($record);
                 })
