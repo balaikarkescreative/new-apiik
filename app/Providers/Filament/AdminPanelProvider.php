@@ -187,32 +187,32 @@ class AdminPanelProvider extends PanelProvider
                 NavigationItem::make('Unduh Draft PKS')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->sort(100)
-                    ->visible(function(){
-                        if (!Auth::user()->hasRole('user')){
+                    ->visible(function () {
+                        if (! Auth::user()->hasRole('user')) {
                             return true;
                         }
-                        
+
                         // Cek apakah ada surat persetujuan yang masih berlaku
                         $hasSuratBerlaku = \App\Models\SuratPersetujuanIcv::where('id_akun', Auth::user()->id)
                             ->where('masa_berlaku', '>=', now())
                             ->exists();
-                        
+
                         // Jika ada surat yang masih berlaku, tampilkan button
                         if ($hasSuratBerlaku) {
                             return true;
                         }
-                        
+
                         // Jika surat sudah habis, cek apakah ada izin baru dengan visitasi disetujui
                         $latestIzin = Izin::where('user_id', Auth::user()->id)
                             ->latest('tanggal_pengajuan')
                             ->first();
-                        
-                        return $latestIzin 
-                            && $latestIzin->izinVisitasi 
+
+                        return $latestIzin
+                            && $latestIzin->izinVisitasi
                             && $latestIzin->izinVisitasi->status === 'Memenuhi syarat';
                     })
                     ->url(fn () => Storage::url('draft-pks/Draft Perjanjian Kerjasama (PKS) Vaksin_OK_OK.doc'), true),
-                    // ->visible(fn () => Auth::user()->hasRole('user')),
+                // ->visible(fn () => Auth::user()->hasRole('user')),
 
                 NavigationItem::make('File Surat Persetujuan ICV')
                     ->icon('heroicon-o-document-check')
@@ -269,6 +269,10 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn () => view('filament.scripts.disable-number-spinners')
+            )
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn () => view('filament.components.export-progress-modal')
             )
             ->plugins(
                 [

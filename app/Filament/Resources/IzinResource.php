@@ -7,6 +7,7 @@ use App\FileLabels;
 use App\Mail\IzinCreatedNotification;
 use App\Models\Izin;
 use App\Models\User;
+use App\Services\Export\IzinExportService;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -227,14 +228,14 @@ class IzinResource extends Resource
                                 ])
                                 ->default(0)
                                 ->visible(fn () => auth()->user()->name === 'Admin'),
-                            
+
                             // Hidden field untuk use_new_labels
                             // Data baru = true (format baru), data lama = tetap gunakan nilai yang ada
                             Forms\Components\Hidden::make('use_new_labels')
-                                ->default(fn ($record) => $record ? (bool)$record->use_new_labels : true)
+                                ->default(fn ($record) => $record ? (bool) $record->use_new_labels : true)
                                 ->dehydrated()
                                 ->afterStateHydrated(function ($component, $state, $record) {
-                                    if (!$record) {
+                                    if (! $record) {
                                         $component->state(true);
                                     }
                                 }),
@@ -648,16 +649,16 @@ class IzinResource extends Resource
                 Tables\Actions\Action::make('downloadLaporan')
                     ->label('Download Laporan')
                     ->icon('heroicon-o-arrow-down-tray')
+                    ->modalHeading('Export Laporan Pengajuan Izin')
+                    ->modalSubmitActionLabel('Download')
                     ->form([
                         Forms\Components\DatePicker::make('tanggal_mulai')
                             ->label('Tanggal Mulai')
                             ->native(false)
-
                             ->required(),
                         Forms\Components\DatePicker::make('tanggal_selesai')
                             ->label('Tanggal Selesai')
                             ->native(false)
-
                             ->required(),
                         Forms\Components\Select::make('kategori_izin')
                             ->label('Kategori Izin')
@@ -677,9 +678,28 @@ class IzinResource extends Resource
                                 'berkas_tidak_lengkap' => 'Berkas Tidak Lengkap',
                                 'visitasi_dijadwalkan' => 'Visitasi Dijadwalkan',
                                 'pks_tersedia' => 'PKS Tersedia - Menunggu Persetujuan',
+                                'disetujui' => 'Disetujui',
                                 'selesai' => 'Selesai',
                             ])
                             ->default('semua'),
+                        Forms\Components\Select::make('kotakab')
+                            ->label('Kota/Kabupaten')
+                            ->options(fn () => User::whereNotNull('kotakab')->where('kotakab', '!=', '')->distinct()->orderBy('kotakab')->pluck('kotakab', 'kotakab')->toArray())
+                            ->searchable()
+                            ->placeholder('Semua Kota/Kabupaten'),
+                        Forms\Components\Select::make('user_id')
+                            ->label('Faskes / Klinik')
+                            ->options(fn () => User::whereNotNull('name')->orderBy('name')->pluck('name', 'id')->toArray())
+                            ->searchable()
+                            ->placeholder('Semua Faskes / Klinik'),
+                        Forms\Components\Radio::make('tipe_laporan')
+                            ->label('Tipe Laporan')
+                            ->options([
+                                'lengkap' => 'Laporan Lengkap (Semua Detail & Riwayat)',
+                                'ringkas' => 'Laporan Ringkas (Data Utama)',
+                            ])
+                            ->default('lengkap')
+                            ->required(),
                         Forms\Components\Select::make('format')
                             ->label('Format File')
                             ->options([
@@ -690,8 +710,15 @@ class IzinResource extends Resource
                             ->default('excel')
                             ->required(),
                     ])
-                    ->action(function (array $data) {
-                        return static::downloadLaporanIzin($data);
+                    ->action(function (array $data, \Livewire\Component $livewire) {
+                        $count = IzinExportService::countRecords($data);
+
+                        if ($count <= 25 || ($data['format'] ?? 'excel') === 'csv') {
+                            return IzinExportService::export($data);
+                        }
+
+                        $batchInfo = IzinExportService::initBatch($data);
+                        $livewire->dispatch('open-export-progress-modal', $batchInfo);
                     }),
             ])
             ->columns([
@@ -1032,167 +1059,26 @@ class IzinResource extends Resource
 
     public static function downloadLaporanIzin(array $data)
     {
-        $query = Izin::with([
-            'user',
-            'izinDokumen',
-            'izinVisitasi',
-            'izinPersetujuan',
-            'izinDokumenPks',
-        ])
-            ->whereBetween('tanggal_pengajuan', [$data['tanggal_mulai'], $data['tanggal_selesai']]);
-
-        // Filter berdasarkan kategori izin
-        if ($data['kategori_izin'] !== 'semua') {
-            $query->where('kategori_izin', $data['kategori_izin']);
-        }
-
-        // Filter berdasarkan status progress
-        if ($data['status_progress'] !== 'semua') {
-            switch ($data['status_progress']) {
-                case 'menunggu_verifikasi':
-                    $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 0));
-                    break;
-                case 'berkas_lengkap':
-                    $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 1));
-                    break;
-                case 'berkas_tidak_lengkap':
-                    $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 2));
-                    break;
-                case 'visitasi_dijadwalkan':
-                    $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('tanggal_visitasi'));
-                    break;
-                case 'disetujui':
-                    $query->whereHas('izinPersetujuan', fn ($q) => $q->whereNotNull('file_persetujuan'));
-                    break;
-                case 'selesai':
-                    $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('dokumen_pks_bkk'));
-                    break;
-            }
-        }
-
-        $laporan = $query->orderBy('tanggal_pengajuan', 'desc')->get();
-
-        switch ($data['format']) {
-            case 'excel':
-                return static::downloadExcelIzin($laporan, $data);
-            case 'csv':
-                return static::downloadCsvIzin($laporan, $data);
-            case 'pdf':
-                return static::downloadPdfIzin($laporan, $data);
-            default:
-                return static::downloadExcelIzin($laporan, $data);
-        }
+        return IzinExportService::export($data);
     }
 
     protected static function downloadExcelIzin(Collection $data, array $params)
     {
-        $filename = 'laporan_pengajuan_izin_'.date('Y-m-d_H-i-s').'.csv';
-
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Content-Transfer-Encoding' => 'binary',
-            'Expires' => '0',
-            'Pragma' => 'public',
-        ];
-
-        $callback = function () use ($data) {
-            $output = fopen('php://output', 'w');
-
-            // BOM untuk UTF-8
-            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-
-            // Header
-            fputcsv($output, [
-                'ID',
-                'Pemohon',
-                'Kota/Kabupaten',
-                'Kategori Izin',
-                'Nomor Surat',
-                'Tanggal Pengajuan',
-                'Tanggal Surat',
-                'Status Progress',
-                'Tanggal Update',
-            ]);
-
-            // Data
-            foreach ($data as $row) {
-                $statusProgress = static::getProgressStatus($row);
-
-                fputcsv($output, [
-                    $row->id,
-                    $row->user->name ?? '',
-                    $row->user->kotakab ?? '',
-                    $row->kategori_izin ?? '',
-                    $row->nomor_surat ?? '',
-                    $row->tanggal_pengajuan ?? '',
-                    $row->tanggal_surat ?? '',
-                    $statusProgress,
-                    $row->date_updated ?? '',
-                ]);
-            }
-
-            fclose($output);
-        };
-
-        return response()->stream($callback, 200, $headers);
+        return IzinExportService::downloadExcel($data, $params);
     }
 
     protected static function downloadCsvIzin(Collection $data, array $params)
     {
-        return static::downloadExcelIzin($data, $params);
+        return IzinExportService::downloadCsv($data, $params);
     }
 
     protected static function downloadPdfIzin(Collection $data, array $params)
     {
-        // Install: composer require barryvdh/laravel-dompdf
-        $pdf = \PDF::loadView('reports.laporan-izin', [
-            'data' => $data,
-            'tanggal_mulai' => $params['tanggal_mulai'],
-            'tanggal_selesai' => $params['tanggal_selesai'],
-            'kategori_izin' => $params['kategori_izin'],
-            'status_progress' => $params['status_progress'],
-        ]);
-
-        $filename = 'laporan_pengajuan_izin_'.date('Y-m-d_H-i-s').'.pdf';
-
-        return response()->streamDownload(function () use ($pdf) {
-            echo $pdf->output();
-        }, $filename);
+        return IzinExportService::downloadPdf($data, $params);
     }
 
-    protected static function getProgressStatus($record)
+    public static function getProgressStatus($record): string
     {
-        // Cek apakah sudah disetujui (step terakhir)
-        if ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) {
-            return 'Selesai';
-        }
-
-        // Cek apakah sudah ada PKS
-        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
-            return 'PKS Tersedia - Menunggu Persetujuan';
-        }
-
-        // Cek apakah sudah dijadwalkan visitasi (dari izinDokumenPks)
-        if ($record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi) {
-            return 'Visitasi Dijadwalkan';
-        }
-
-        // Cek apakah dokumen sudah diverifikasi
-        if ($record->izinDokumen) {
-            switch ($record->izinDokumen->hasil) {
-                case 1:
-                    return 'Berkas Lengkap';
-                case 2:
-                    return 'Berkas Tidak Lengkap';
-                case 3:
-                    return 'Ditolak';
-                default:
-                    return 'Menunggu Verifikasi';
-            }
-        }
-
-        return 'Dokumen Diajukan';
+        return IzinExportService::getProgressStatus($record);
     }
 }

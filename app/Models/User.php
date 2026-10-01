@@ -100,4 +100,9 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasOne(PaktaIntegritas::class);
     }
+
+    public function suratPersetujuanIcv()
+    {
+        return $this->hasOne(SuratPersetujuanIcv::class, 'id_akun', 'id');
+    }
 }

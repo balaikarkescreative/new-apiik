@@ -31,5 +31,14 @@ Route::middleware(['web'])->group(function () {
 Route::middleware(['web', 'auth'])->group(function () {
     Route::get('/admin/izin/{record}/download-zip', [\App\Http\Controllers\IzinZipController::class, 'download'])
         ->name('izin.download-zip');
-});
 
+    // Batch Export routes with real-time progress
+    Route::post('/admin/export/process-chunk', [\App\Http\Controllers\ExportBatchController::class, 'processChunk'])
+        ->name('export.process-chunk');
+    Route::post('/admin/export/finalize', [\App\Http\Controllers\ExportBatchController::class, 'finalize'])
+        ->name('export.finalize');
+    Route::post('/admin/export/cancel', [\App\Http\Controllers\ExportBatchController::class, 'cancel'])
+        ->name('export.cancel');
+    Route::get('/admin/export/download/{token}', [\App\Http\Controllers\ExportBatchController::class, 'download'])
+        ->name('export.download');
+});

@@ -6,6 +6,7 @@ use App\Filament\Resources\IcvResource\Pages;
 use App\FileLabels;
 use App\Models\Icv;
 use App\Models\User;
+use App\Services\Export\IcvExportService;
 use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
@@ -17,7 +18,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
@@ -321,12 +321,12 @@ class IcvResource extends Resource
                         Forms\Components\DatePicker::make('tanggal_mulai')
                             ->label('Tanggal Mulai')
                             ->native(false)
-
+                            ->default(now()->subMonth()->startOfMonth())
                             ->required(),
                         Forms\Components\DatePicker::make('tanggal_selesai')
                             ->label('Tanggal Selesai')
                             ->native(false)
-
+                            ->default(now())
                             ->required(),
                         Forms\Components\Select::make('progress_status')
                             ->label('Progress Status')
@@ -339,18 +339,53 @@ class IcvResource extends Resource
                                 'menunggu_pembayaran' => 'Menunggu Pembayaran',
                                 'selesai' => 'Selesai',
                             ])
-                            ->default('semua'),
+                            ->default('semua')
+                            ->required(),
+                        Forms\Components\Select::make('kotakab')
+                            ->label('Kota / Kabupaten')
+                            ->placeholder('Semua Kota / Kabupaten')
+                            ->searchable()
+                            ->options(function () {
+                                return User::whereNotNull('kotakab')
+                                    ->where('kotakab', '!=', '')
+                                    ->distinct()
+                                    ->orderBy('kotakab')
+                                    ->pluck('kotakab', 'kotakab');
+                            }),
+                        Forms\Components\Select::make('user_id')
+                            ->label('Faskes / Klinik')
+                            ->placeholder('Semua Faskes / Klinik')
+                            ->searchable()
+                            ->options(function () {
+                                return User::orderBy('name')->pluck('name', 'id');
+                            }),
+                        Forms\Components\Select::make('tipe_laporan')
+                            ->label('Tipe Laporan')
+                            ->options([
+                                'lengkap' => 'Laporan Lengkap (Semua Detail & Riwayat)',
+                                'ringkas' => 'Laporan Ringkas (Data Utama)',
+                            ])
+                            ->default('lengkap')
+                            ->required(),
                         Forms\Components\Select::make('format')
                             ->label('Format File')
                             ->options([
                                 'excel' => 'Excel (.xlsx)',
                                 'csv' => 'CSV (.csv)',
+                                'pdf' => 'PDF (.pdf)',
                             ])
                             ->default('excel')
                             ->required(),
                     ])
-                    ->action(function (array $data) {
-                        return static::downloadLaporanIcv($data);
+                    ->action(function (array $data, \Livewire\Component $livewire) {
+                        $count = IcvExportService::countRecords($data);
+
+                        if ($count <= 25 || ($data['format'] ?? 'excel') === 'csv') {
+                            return IcvExportService::export($data);
+                        }
+
+                        $batchInfo = IcvExportService::initBatch($data);
+                        $livewire->dispatch('open-export-progress-modal', $batchInfo);
                     }),
             ])
             ->columns([
@@ -681,148 +716,6 @@ class IcvResource extends Resource
 
     public static function downloadLaporanIcv(array $data)
     {
-        $query = Icv::with([
-            'user',
-            'icvCekDokumen',
-            'icvAlokasi',
-            'icvBilling',
-            'icvBuktiBayar',
-            'icvJadwal',
-            'icvSbbk',
-        ])
-            ->whereBetween('tanggal_pengajuan', [$data['tanggal_mulai'], $data['tanggal_selesai']]);
-
-        // Filter berdasarkan progress status
-        if ($data['progress_status'] !== 'semua') {
-            switch ($data['progress_status']) {
-                case 'menunggu_verifikasi':
-                    $query->whereDoesntHave('icvCekDokumen')
-                        ->orWhereHas('icvCekDokumen', fn ($q) => $q->whereNull('hasil_verif'));
-                    break;
-                case 'berkas_lengkap':
-                    $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', 'Berkas Lengkap'));
-                    break;
-                case 'berkas_tidak_lengkap':
-                    $query->whereHas('icvCekDokumen', fn ($q) => $q->where('hasil_verif', 'Berkas Tidak Lengkap'));
-                    break;
-                case 'dialokasikan':
-                    $query->whereHas('icvAlokasi');
-                    break;
-                case 'menunggu_pembayaran':
-                    $query->whereHas('icvBilling');
-                    break;
-                case 'selesai':
-                    $query->whereHas('icvSbbk', fn ($q) => $q->where('sinkarkes', 'Sudah'));
-                    break;
-            }
-        }
-
-        $laporan = $query->orderBy('tanggal_pengajuan', 'desc')->get();
-
-        switch ($data['format']) {
-            case 'excel':
-                return static::downloadExcelIcv($laporan, $data);
-            case 'csv':
-                return static::downloadCsvIcv($laporan, $data);
-            default:
-                return static::downloadExcelIcv($laporan, $data);
-        }
-    }
-
-    protected static function downloadExcelIcv(Collection $data, array $params)
-    {
-        $filename = 'laporan_pengajuan_icv_'.date('Y-m-d_H-i-s').'.csv';
-
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Content-Transfer-Encoding' => 'binary',
-            'Expires' => '0',
-            'Pragma' => 'public',
-        ];
-
-        $callback = function () use ($data) {
-            $output = fopen('php://output', 'w');
-
-            // BOM untuk UTF-8
-            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
-
-            // Header
-            fputcsv($output, [
-                'ID',
-                'Tanggal Pengajuan',
-                'Klinik/RS',
-                'Kota/Kabupaten',
-                'Jumlah ICV',
-                'Progress Status',
-                'Tanggal Update',
-            ]);
-
-            // Data
-            foreach ($data as $row) {
-                $progressStatus = static::getProgressStatusIcv($row);
-
-                fputcsv($output, [
-                    $row->id,
-                    $row->tanggal_pengajuan,
-                    $row->user->name ?? '',
-                    $row->user->kotakab ?? '',
-                    $row->jumlah_icv,
-                    $progressStatus,
-                    $row->updated_at ?? '',
-                ]);
-            }
-
-            fclose($output);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    protected static function downloadCsvIcv(Collection $data, array $params)
-    {
-        return static::downloadExcelIcv($data, $params);
-    }
-
-    protected static function getProgressStatusIcv($record)
-    {
-        if ($record->icvSbbk && $record->icvSbbk->sinkarkes === 'Sudah') {
-            return 'Selesai (SBBK Uploaded)';
-        }
-
-        if ($record->icvJadwal && $record->icvJadwal->status === 1) {
-            return 'ICV Sudah Diambil';
-        }
-
-        if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
-            return 'Jadwal Pengambilan Ditentukan';
-        }
-
-        if ($record->icvBuktiBayar && $record->icvBuktiBayar->status === 1) {
-            return 'Pembayaran Terverifikasi';
-        }
-
-        if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar) {
-            return 'Menunggu Verifikasi Pembayaran';
-        }
-
-        if ($record->icvBilling) {
-            return 'Menunggu Pembayaran';
-        }
-
-        if ($record->icvAlokasi) {
-            return 'ICV Dialokasikan';
-        }
-
-        if ($record->icvCekDokumen) {
-            if ($record->icvCekDokumen->hasil_verif === 'Berkas Lengkap') {
-                return 'Berkas Lengkap - Menunggu Alokasi';
-            } elseif ($record->icvCekDokumen->hasil_verif === 'Berkas Tidak Lengkap') {
-                return 'Berkas Tidak Lengkap';
-            }
-        }
-
-        return 'Menunggu Verifikasi';
+        return IcvExportService::export($data);
     }
 }
