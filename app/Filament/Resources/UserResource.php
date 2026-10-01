@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
+use App\Services\MapSearchService;
 use Carbon\Carbon;
 use Dotswan\MapPicker\Fields\Map;
 use Filament\Forms;
@@ -63,11 +64,53 @@ class UserResource extends Resource
                             ->label('No. Whatsapp')
                             ->defaultCountry('ID')
                             ->allowDropdown(false)
-                            ->required(fn() => ! auth()->user()->hasRole('admin'))
+                            ->required(fn () => ! auth()->user()->hasRole('admin'))
+                            ->columnSpan(2),
+
+                        Forms\Components\Select::make('map_search')
+                            ->label('Cari Titik Lokasi di Peta')
+                            ->placeholder('Ketik nama faskes, klinik, RS, alamat, atau tempel koordinat lat, lng...')
+                            ->helperText('Pilih lokasi dari saran pencarian untuk menggeser pin peta secara otomatis.')
+                            ->prefixIcon('heroicon-o-magnifying-glass')
+                            ->searchable()
+                            ->getSearchResultsUsing(fn (string $search): array => MapSearchService::search($search))
+                            ->getOptionLabelUsing(fn (?string $value): ?string => MapSearchService::getLabel($value))
+                            ->afterStateUpdated(function ($state, callable $set, $livewire) {
+                                if (! $state) {
+                                    return;
+                                }
+
+                                $parts = explode(',', $state);
+                                if (count($parts) === 2) {
+                                    $lat = (float) trim($parts[0]);
+                                    $lng = (float) trim($parts[1]);
+
+                                    $set('location', [
+                                        'lat' => $lat,
+                                        'lng' => $lng,
+                                    ]);
+
+                                    $livewire->dispatch('refreshMap');
+                                }
+                            })
+                            ->reactive()
+                            ->dehydrated(false)
+                            ->extraAttributes([
+                                'style' => 'position: relative; z-index: 30;',
+                            ])
+                            ->extraFieldWrapperAttributes([
+                                'style' => 'position: relative; z-index: 30;',
+                            ])
                             ->columnSpan(2),
 
                         Map::make('location')
                             ->label('Lokasi Klinik/RS')
+                            ->extraStyles([
+                                'min-height: 350px',
+                                'position: relative',
+                                'z-index: 1',
+                                'isolation: isolate',
+                            ])
                             ->defaultLocation(
                                 latitude: auth()->user()->latitude ?? -6.9039,
                                 longitude: auth()->user()->longitude ?? 107.6186,
@@ -75,7 +118,7 @@ class UserResource extends Resource
                             ->clickable(true)
                             ->showMyLocationButton(true)
                             ->zoom(12)
-                            ->required(fn() => ! auth()->user()->hasRole('admin'))
+                            ->required(fn () => ! auth()->user()->hasRole('admin'))
                             ->columnSpan(2),
 
                         Forms\Components\Select::make('kotakab')
@@ -94,7 +137,7 @@ class UserResource extends Resource
 
                         Forms\Components\TextInput::make('alamat')
                             ->label('Alamat')
-                            ->required(fn() => ! auth()->user()->hasRole('admin'))
+                            ->required(fn () => ! auth()->user()->hasRole('admin'))
                             ->maxLength(500)
                             ->columnSpan(1),
                     ])
@@ -165,8 +208,8 @@ class UserResource extends Resource
                             ->label('Password')
                             ->password()
                             ->minLength(8)
-                            ->dehydrated(fn($state) => filled($state))
-                            ->dehydrateStateUsing(fn($state) => Hash::make($state))
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->dehydrateStateUsing(fn ($state) => Hash::make($state))
                             ->columnSpan(2),
 
                         Forms\Components\Actions::make([
@@ -188,7 +231,7 @@ class UserResource extends Resource
 
                                     // Generate username
                                     $cleanName = preg_replace('/[^a-zA-Z0-9]/', '', strtolower($name));
-                                    $baseUsername = $cleanName . '_bkkbandung';
+                                    $baseUsername = $cleanName.'_bkkbandung';
 
                                     // Check if username already exists (exclude current user)
                                     $username = $baseUsername;
@@ -200,7 +243,7 @@ class UserResource extends Resource
                                     }
 
                                     while ($query->exists()) {
-                                        $username = $baseUsername . $iteration;
+                                        $username = $baseUsername.$iteration;
                                         $query = User::where('username', $username);
                                         if ($record && $record->exists) {
                                             $query->where('id', '!=', $record->id);
@@ -247,7 +290,7 @@ class UserResource extends Resource
                                     $credentials .= "Kontak PJ: {$kontak}\\n";
 
                                     $livewire->js('
-                                        window.navigator.clipboard.writeText("' . $credentials . '");
+                                        window.navigator.clipboard.writeText("'.$credentials.'");
                                         $tooltip("Kredensial berhasil disalin ke clipboard", { timeout: 2000 });
                                     ');
                                 }),
@@ -292,7 +335,7 @@ class UserResource extends Resource
     protected static function generateUniqueUsername(string $name, $excludeUserId = null): string
     {
         $cleanName = preg_replace('/[^a-zA-Z0-9]/', '', strtolower($name));
-        $baseUsername = $cleanName . '_bkkbandung';
+        $baseUsername = $cleanName.'_bkkbandung';
 
         $query = User::where('username', $baseUsername);
         if ($excludeUserId) {
@@ -305,7 +348,7 @@ class UserResource extends Resource
 
         $counter = 1;
         do {
-            $username = $baseUsername . $counter;
+            $username = $baseUsername.$counter;
             $query = User::where('username', $username);
             if ($excludeUserId) {
                 $query->where('id', '!=', $excludeUserId);
@@ -319,13 +362,12 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn(Builder $query) => $query->select('users.*')
+            ->modifyQueryUsing(fn (Builder $query) => $query->select('users.*')
                 ->whereHas('roles', function (Builder $query) {
                     $query->where('name', 'user');
                 })
                 ->withoutGlobalScopes([SoftDeletingScope::class]))
             ->columns([
-
 
                 Tables\Columns\TextColumn::make('tanggal_pengajuan')
                     ->label('Tanggal Pengajuan')
@@ -358,9 +400,9 @@ class UserResource extends Resource
                     ->formatStateUsing(function ($state) {
                         $lines = explode("\n", $state);
 
-                        return '<div class="space-y-1">' .
-                            '<div class="font-medium text-sm">' . $lines[0] . '</div>' .
-                            '<div class="text-xs text-gray-500">' . $lines[1] . '</div>' .
+                        return '<div class="space-y-1">'.
+                            '<div class="font-medium text-sm">'.$lines[0].'</div>'.
+                            '<div class="text-xs text-gray-500">'.$lines[1].'</div>'.
                             '</div>';
                     })
                     ->searchable(['name', 'kategori', 'kotakab'])
@@ -381,9 +423,9 @@ class UserResource extends Resource
                     ->formatStateUsing(function ($state) {
                         $lines = explode("\n", $state);
 
-                        return '<div class="space-y-1">' .
-                            '<div class="font-medium text-sm">' . $lines[0] . '</div>' .
-                            '<div class="text-xs text-gray-500">' . $lines[1] . '</div>' .
+                        return '<div class="space-y-1">'.
+                            '<div class="font-medium text-sm">'.$lines[0].'</div>'.
+                            '<div class="text-xs text-gray-500">'.$lines[1].'</div>'.
                             '</div>';
                     })
                     ->searchable(['nomor_surat_izin_operasional'])
@@ -447,8 +489,8 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('is_blocked')
                     ->label('Blokir')
                     ->badge()
-                    ->color(fn(string $state): string => $state ? 'danger' : 'success')
-                    ->formatStateUsing(fn(string $state): string => $state ? 'Diblokir' : 'Tidak Diblokir')
+                    ->color(fn (string $state): string => $state ? 'danger' : 'success')
+                    ->formatStateUsing(fn (string $state): string => $state ? 'Diblokir' : 'Tidak Diblokir')
                     ->sortable(),
 
                 // Persyaratan Vaksinasi
@@ -464,9 +506,9 @@ class UserResource extends Resource
                     ->formatStateUsing(function ($state) {
                         $lines = explode("\n", $state);
 
-                        return '<div class="space-y-1">' .
-                            '<div class="text-xs">' . $lines[0] . '</div>' .
-                            '<div class="text-xs">' . $lines[1] . '</div>' .
+                        return '<div class="space-y-1">'.
+                            '<div class="text-xs">'.$lines[0].'</div>'.
+                            '<div class="text-xs">'.$lines[1].'</div>'.
                             '</div>';
                     })
                     ->toggleable(),
@@ -485,7 +527,7 @@ class UserResource extends Resource
                     ->label('Kota/Kabupaten')
                     ->searchable()
                     ->options(function () {
-                        return User::whereHas('roles', fn($q) => $q->where('name', 'user'))
+                        return User::whereHas('roles', fn ($q) => $q->where('name', 'user'))
                             ->whereNotNull('kotakab')
                             ->distinct('kotakab')
                             ->pluck('kotakab', 'kotakab')
@@ -549,8 +591,8 @@ class UserResource extends Resource
                     ->trueLabel('Ya')
                     ->falseLabel('Tidak')
                     ->queries(
-                        true: fn(Builder $query) => $query->where('pertanyaan1', 'Ya'),
-                        false: fn(Builder $query) => $query->where('pertanyaan1', 'Tidak'),
+                        true: fn (Builder $query) => $query->where('pertanyaan1', 'Ya'),
+                        false: fn (Builder $query) => $query->where('pertanyaan1', 'Tidak'),
                     ),
 
                 TernaryFilter::make('pertanyaan2')
@@ -559,8 +601,8 @@ class UserResource extends Resource
                     ->trueLabel('Ya')
                     ->falseLabel('Tidak')
                     ->queries(
-                        true: fn(Builder $query) => $query->where('pertanyaan2', 'Ya'),
-                        false: fn(Builder $query) => $query->where('pertanyaan2', 'Tidak'),
+                        true: fn (Builder $query) => $query->where('pertanyaan2', 'Ya'),
+                        false: fn (Builder $query) => $query->where('pertanyaan2', 'Tidak'),
                     ),
 
                 // Filter Akun Baru
@@ -568,8 +610,7 @@ class UserResource extends Resource
                     ->label('Akun Baru')
                     // ->toggle()
                     ->query(
-                        fn(Builder $query): Builder =>
-                        $query->where(function ($q) {
+                        fn (Builder $query): Builder => $query->where(function ($q) {
                             $q->where(function ($subQ) {
                                 $subQ->whereNull('verifikasi_akun')
                                     ->orWhere('verifikasi_akun', 'Belum Diverifikasi');
@@ -597,7 +638,7 @@ class UserResource extends Resource
                         Forms\Components\Select::make('kotakab')
                             ->label('Kota/Kabupaten')
                             ->options(function () {
-                                return User::whereHas('roles', fn($q) => $q->where('name', 'user'))
+                                return User::whereHas('roles', fn ($q) => $q->where('name', 'user'))
                                     ->whereNotNull('kotakab')
                                     ->distinct('kotakab')
                                     ->pluck('kotakab', 'kotakab')
@@ -647,7 +688,7 @@ class UserResource extends Resource
                     ->icon('heroicon-o-eye')
                     ->size('sm')
                     ->color('info')
-                    ->modalHeading(fn(User $record): string => "Detail {$record->name}")
+                    ->modalHeading(fn (User $record): string => "Detail {$record->name}")
                     ->modalWidth(MaxWidth::FiveExtraLarge)
                     ->infolist([
                         Section::make('Informasi Klinik/RS')
@@ -662,7 +703,7 @@ class UserResource extends Resource
                                         TextEntry::make('kategori')
                                             ->label('Kategori')
                                             ->badge()
-                                            ->color(fn(string $state): string => match ($state) {
+                                            ->color(fn (string $state): string => match ($state) {
                                                 'Klinik' => 'success',
                                                 'Rumah Sakit' => 'info',
                                                 default => 'gray',
@@ -682,7 +723,7 @@ class UserResource extends Resource
                                             ->copyable()
                                             ->copyMessage('Nomor telepon berhasil disalin')
                                             ->formatStateUsing(
-                                                fn(string $state): string => preg_replace('/(\d{2})(\d{4})(\d{4})(\d{2,4})/', '$1-$2-$3-$4', $state)
+                                                fn (string $state): string => preg_replace('/(\d{2})(\d{4})(\d{4})(\d{2,4})/', '$1-$2-$3-$4', $state)
                                             ),
                                     ]),
                             ])
@@ -731,9 +772,9 @@ class UserResource extends Resource
                                                 $formatted = $expiry->translatedFormat('d F Y');
 
                                                 if ($daysDiff < 0) {
-                                                    return $formatted . ' (KADALUARSA)';
+                                                    return $formatted.' (KADALUARSA)';
                                                 } elseif ($daysDiff <= 30) {
-                                                    return $formatted . " (Expires in {$daysDiff} days)";
+                                                    return $formatted." (Expires in {$daysDiff} days)";
                                                 }
 
                                                 return $formatted;
@@ -750,22 +791,22 @@ class UserResource extends Resource
                                         TextEntry::make('pertanyaan1')
                                             ->label('Dokter vaksinator sudah pelatihan vaksinologi?')
                                             ->badge()
-                                            ->color(fn(string $state): string => match ($state) {
+                                            ->color(fn (string $state): string => match ($state) {
                                                 'Ya' => 'success',
                                                 'Tidak' => 'danger',
                                                 default => 'gray',
                                             })
-                                            ->formatStateUsing(fn(?string $state): string => $state ?? 'Belum dijawab'),
+                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Belum dijawab'),
 
                                         TextEntry::make('pertanyaan2')
                                             ->label('Faskes sudah memiliki coldchain sesuai ketentuan?')
                                             ->badge()
-                                            ->color(fn(string $state): string => match ($state) {
+                                            ->color(fn (string $state): string => match ($state) {
                                                 'Ya' => 'success',
                                                 'Tidak' => 'danger',
                                                 default => 'gray',
                                             })
-                                            ->formatStateUsing(fn(?string $state): string => $state ?? 'Belum dijawab'),
+                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Belum dijawab'),
                                     ]),
                             ])
                             ->icon('heroicon-o-shield-check')
@@ -778,29 +819,29 @@ class UserResource extends Resource
                                         TextEntry::make('verifikasi_akun')
                                             ->label('Status Verifikasi')
                                             ->badge()
-                                            ->color(fn(?string $state): string => match ($state) {
+                                            ->color(fn (?string $state): string => match ($state) {
                                                 'Diterima' => 'success',
                                                 'Ditolak' => 'danger',
                                                 'Belum Diverifikasi' => 'warning',
                                                 default => 'gray',
                                             })
-                                            ->formatStateUsing(fn(?string $state): string => $state ?? 'Belum Diverifikasi'),
+                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Belum Diverifikasi'),
 
                                         TextEntry::make('status_akun')
                                             ->label('Status Akun')
                                             ->badge()
-                                            ->color(fn(?string $state): string => match ($state) {
+                                            ->color(fn (?string $state): string => match ($state) {
                                                 'Aktif' => 'success',
                                                 'Tidak Aktif' => 'danger',
                                                 default => 'gray',
                                             })
-                                            ->formatStateUsing(fn(?string $state): string => $state ?? 'Tidak Aktif'),
+                                            ->formatStateUsing(fn (?string $state): string => $state ?? 'Tidak Aktif'),
 
                                         TextEntry::make('is_blocked')
                                             ->label('Status Blokir')
                                             ->badge()
-                                            ->color(fn(string $state): string => $state ? 'danger' : 'success')
-                                            ->formatStateUsing(fn(string $state): string => $state ? 'Diblokir' : 'Tidak Diblokir'),
+                                            ->color(fn (string $state): string => $state ? 'danger' : 'success')
+                                            ->formatStateUsing(fn (string $state): string => $state ? 'Diblokir' : 'Tidak Diblokir'),
 
                                         TextEntry::make('date_updated')
                                             ->label('Terakhir Diperbarui')
@@ -855,13 +896,13 @@ class UserResource extends Resource
                     ->size('sm'),
 
                 Tables\Actions\Action::make('toggleBlock')
-                    ->label(fn(User $record) => $record->is_blocked ? 'Buka Blokir' : 'Blokir')
-                    ->icon(fn(User $record) => $record->is_blocked ? 'heroicon-o-lock-open' : 'heroicon-o-lock-closed')
-                    ->color(fn(User $record) => $record->is_blocked ? 'success' : 'danger')
+                    ->label(fn (User $record) => $record->is_blocked ? 'Buka Blokir' : 'Blokir')
+                    ->icon(fn (User $record) => $record->is_blocked ? 'heroicon-o-lock-open' : 'heroicon-o-lock-closed')
+                    ->color(fn (User $record) => $record->is_blocked ? 'success' : 'danger')
                     ->size('sm')
                     ->requiresConfirmation()
                     ->action(function (User $record) {
-                        $record->is_blocked = !$record->is_blocked;
+                        $record->is_blocked = ! $record->is_blocked;
                         $record->save();
 
                         \Filament\Notifications\Notification::make()
@@ -914,7 +955,7 @@ class UserResource extends Resource
                                     static::sendAccountActivationEmail($record);
                                 }
                             })
-                            ->disabled(fn(User $record): bool => $record->verifikasi_akun !== 'Diterima'),
+                            ->disabled(fn (User $record): bool => $record->verifikasi_akun !== 'Diterima'),
 
                         Forms\Components\TextInput::make('defaultUsername')
                             ->label('Username yang akan di-generate')
@@ -996,11 +1037,11 @@ class UserResource extends Resource
         $data = $query->orderBy('name')->get();
 
         // Buat file Excel
-        $filename = 'daftar_faskes_' . date('Y-m-d_H-i-s') . '.csv';
+        $filename = 'daftar_faskes_'.date('Y-m-d_H-i-s').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Content-Transfer-Encoding' => 'binary',
             'Expires' => '0',
@@ -1011,7 +1052,7 @@ class UserResource extends Resource
             $output = fopen('php://output', 'w');
 
             // BOM untuk UTF-8
-            fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
             // Header
             fputcsv($output, [
@@ -1039,8 +1080,8 @@ class UserResource extends Resource
                     $row->kategori,
                     $row->kotakab,
                     $row->alamat,
-                    "'" . $row->kontak_pj, // Tambahkan kutip satu di depan kontak PJ
-                    "'" . $row->nomor_surat_izin_operasional, // Tambahkan kutip satu di depan nomor surat
+                    "'".$row->kontak_pj, // Tambahkan kutip satu di depan kontak PJ
+                    "'".$row->nomor_surat_izin_operasional, // Tambahkan kutip satu di depan nomor surat
                     $row->masa_berlaku_surat_izin_operasional
                         ? Carbon::parse($row->masa_berlaku_surat_izin_operasional)->format('d/m/Y')
                         : '-',

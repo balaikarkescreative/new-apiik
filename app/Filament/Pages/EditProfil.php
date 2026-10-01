@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\Kotakab;
 use App\Models\User;
+use App\Services\MapSearchService;
 use Dotswan\MapPicker\Fields\Map;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -108,8 +109,51 @@ class EditProfil extends Page implements HasForms
                 // Section Lokasi
                 Forms\Components\Section::make('Lokasi')
                     ->schema([
+                        Forms\Components\Select::make('map_search')
+                            ->label('Cari Titik Lokasi di Peta')
+                            ->placeholder('Ketik nama faskes, klinik, RS, alamat, atau tempel koordinat lat, lng...')
+                            ->helperText('Pilih lokasi dari saran pencarian untuk menggeser pin peta secara otomatis.')
+                            ->prefixIcon('heroicon-o-magnifying-glass')
+                            ->searchable()
+                            ->getSearchResultsUsing(fn (string $search): array => MapSearchService::search($search))
+                            ->getOptionLabelUsing(fn (?string $value): ?string => MapSearchService::getLabel($value))
+                            ->afterStateUpdated(function ($state, callable $set, $livewire) {
+                                if (! $state) {
+                                    return;
+                                }
+
+                                $parts = explode(',', $state);
+                                if (count($parts) === 2) {
+                                    $lat = (float) trim($parts[0]);
+                                    $lng = (float) trim($parts[1]);
+
+                                    $set('location', [
+                                        'lat' => $lat,
+                                        'lng' => $lng,
+                                    ]);
+                                    $set('latitude', (string) $lat);
+                                    $set('longitude', (string) $lng);
+
+                                    $livewire->dispatch('refreshMap');
+                                }
+                            })
+                            ->reactive()
+                            ->dehydrated(false)
+                            ->extraAttributes([
+                                'style' => 'position: relative; z-index: 30;',
+                            ])
+                            ->extraFieldWrapperAttributes([
+                                'style' => 'position: relative; z-index: 30;',
+                            ]),
+
                         Map::make('location')
                             ->label('Lokasi Klinik/RS')
+                            ->extraStyles([
+                                'min-height: 350px',
+                                'position: relative',
+                                'z-index: 1',
+                                'isolation: isolate',
+                            ])
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if ($state) {
                                     $set('latitude', $state['lat'] ?? null);
@@ -201,8 +245,8 @@ class EditProfil extends Page implements HasForms
                             ->password()
                             ->revealable()
                             ->helperText('Masukkan password saat ini untuk mengubah password')
-                            ->visible(fn(callable $get) => ! empty($get('new_password')) || ! empty($get('new_password_confirmation')))
-                            ->required(fn(callable $get) => ! empty($get('new_password')) && ! Auth::user()->hasRole('admin'))
+                            ->visible(fn (callable $get) => ! empty($get('new_password')) || ! empty($get('new_password_confirmation')))
+                            ->required(fn (callable $get) => ! empty($get('new_password')) && ! Auth::user()->hasRole('admin'))
                             ->rule(function () {
                                 return function (string $attribute, $value, \Closure $fail) {
                                     // Skip validation if user is admin or if no new password is provided
@@ -229,8 +273,8 @@ class EditProfil extends Page implements HasForms
                             ->password()
                             ->revealable()
                             ->same('new_password')
-                            ->visible(fn(callable $get) => ! empty($get('new_password')))
-                            ->required(fn(callable $get) => ! empty($get('new_password'))),
+                            ->visible(fn (callable $get) => ! empty($get('new_password')))
+                            ->required(fn (callable $get) => ! empty($get('new_password'))),
                     ])
                     ->columns(1)
                     ->collapsible()
@@ -293,7 +337,7 @@ class EditProfil extends Page implements HasForms
             // Error notification
             Notification::make()
                 ->title('Gagal menyimpan')
-                ->body('Terjadi kesalahan saat menyimpan data: ' . $e->getMessage())
+                ->body('Terjadi kesalahan saat menyimpan data: '.$e->getMessage())
                 ->danger()
                 ->send();
         }
