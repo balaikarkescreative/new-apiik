@@ -42,4 +42,18 @@ class EditUser extends EditRecord
 
         return $data;
     }
+
+    protected function afterSave(): void
+    {
+        if ($this->record->wasChanged('is_blocked')) {
+            \App\Models\RiwayatBlokirFaskes::create([
+                'user_id' => $this->record->id,
+                'admin_id' => auth()->id(),
+                'action' => $this->record->is_blocked ? \App\Models\RiwayatBlokirFaskes::ACTION_BLOKIR : \App\Models\RiwayatBlokirFaskes::ACTION_BUKA_BLOKIR,
+                'alasan' => $this->record->is_blocked
+                    ? 'Diblokir melalui form edit akun faskes'
+                    : 'Buka blokir melalui form edit akun faskes',
+            ]);
+        }
+    }
 }

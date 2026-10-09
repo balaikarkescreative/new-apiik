@@ -111,4 +111,14 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->belongsTo(SimplyUser::class, 'simply_user_id', 'id_user');
     }
+
+    public function riwayatBlokir()
+    {
+        return $this->hasMany(RiwayatBlokirFaskes::class, 'user_id')->latest();
+    }
+
+    public function riwayatBlokirDibuat()
+    {
+        return $this->hasMany(RiwayatBlokirFaskes::class, 'admin_id');
+    }
 }

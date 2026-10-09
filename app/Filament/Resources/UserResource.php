@@ -890,6 +890,16 @@ class UserResource extends Resource
                             ->icon('heroicon-o-map')
                             ->collapsed()
                             ->collapsible(),
+
+                        Section::make('Riwayat Blokir')
+                            ->icon('heroicon-o-no-symbol')
+                            ->schema([
+                                \Filament\Infolists\Components\ViewEntry::make('riwayat_blokir_view')
+                                    ->label('')
+                                    ->view('filament.modals.riwayat-blokir-faskes'),
+                            ])
+                            ->collapsed()
+                            ->collapsible(),
                     ]),
 
                 Tables\Actions\EditAction::make()
@@ -900,10 +910,33 @@ class UserResource extends Resource
                     ->icon(fn (User $record) => $record->is_blocked ? 'heroicon-o-lock-open' : 'heroicon-o-lock-closed')
                     ->color(fn (User $record) => $record->is_blocked ? 'success' : 'danger')
                     ->size('sm')
-                    ->requiresConfirmation()
-                    ->action(function (User $record) {
-                        $record->is_blocked = ! $record->is_blocked;
+                    ->modalHeading(fn (User $record) => $record->is_blocked ? 'Konfirmasi Buka Blokir Akun' : 'Konfirmasi Blokir Akun')
+                    ->modalDescription(fn (User $record) => $record->is_blocked
+                        ? "Apakah Anda yakin ingin membuka blokir akun faskes {$record->name}? Masukkan alasan pembukaan blokir di bawah ini."
+                        : "Apakah Anda yakin ingin memblokir akun faskes {$record->name}? Masukkan alasan pemblokiran di bawah ini."
+                    )
+                    ->modalSubmitActionLabel(fn (User $record) => $record->is_blocked ? 'Buka Blokir' : 'Blokir Akun')
+                    ->form([
+                        Forms\Components\Textarea::make('alasan')
+                            ->label(fn (User $record) => $record->is_blocked ? 'Alasan Buka Blokir' : 'Alasan Pemblokiran')
+                            ->placeholder(fn (User $record) => $record->is_blocked
+                                ? 'Contoh: Laporan harian telah dilengkapi, klarifikasi telah disetujui, dll.'
+                                : 'Contoh: Belum melakukan pengisian laporan harian pemakaian vaksin, pelanggaran komitmen MoU, dll.'
+                            )
+                            ->required()
+                            ->rows(3),
+                    ])
+                    ->action(function (User $record, array $data) {
+                        $newStatus = ! $record->is_blocked;
+                        $record->is_blocked = $newStatus;
                         $record->save();
+
+                        \App\Models\RiwayatBlokirFaskes::create([
+                            'user_id' => $record->id,
+                            'admin_id' => auth()->id(),
+                            'action' => $newStatus ? \App\Models\RiwayatBlokirFaskes::ACTION_BLOKIR : \App\Models\RiwayatBlokirFaskes::ACTION_BUKA_BLOKIR,
+                            'alasan' => $data['alasan'],
+                        ]);
 
                         \Filament\Notifications\Notification::make()
                             ->title('Berhasil')
@@ -911,6 +944,18 @@ class UserResource extends Resource
                             ->success()
                             ->send();
                     }),
+
+                Tables\Actions\Action::make('riwayatBlokir')
+                    ->label('Riwayat')
+                    ->tooltip('Lihat Riwayat Blokir Faskes')
+                    ->icon('heroicon-o-clock')
+                    ->color('gray')
+                    ->size('sm')
+                    ->modalHeading(fn (User $record) => 'Riwayat Blokir - '.$record->name)
+                    ->modalWidth('2xl')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup')
+                    ->modalContent(fn (User $record) => view('filament.modals.riwayat-blokir-faskes', ['record' => $record])),
 
                 Tables\Actions\Action::make('toggleModal')
                     ->label('Status')
