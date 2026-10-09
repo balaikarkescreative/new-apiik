@@ -121,4 +121,9 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasMany(RiwayatBlokirFaskes::class, 'admin_id');
     }
+
+    public function izinPic()
+    {
+        return $this->hasMany(Izin::class, 'pic_dokter_id');
+    }
 }

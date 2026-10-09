@@ -89,6 +89,12 @@
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Tanggal Pengajuan:</strong></td>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ $izin->tanggal_pengajuan->format('d/m/Y') }}</td>
                 </tr>
+                @if ($izin->picDokter)
+                <tr>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>PIC Dokter Visitasi:</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ $izin->picDokter->name }}</td>
+                </tr>
+                @endif
             </table>
         </div>
 

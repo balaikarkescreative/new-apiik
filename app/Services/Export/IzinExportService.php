@@ -64,6 +64,7 @@ class IzinExportService
             'izinVisitasi',
             'izinPersetujuan',
             'izinDokumenPks',
+            'picDokter',
         ]);
 
         // Date range filter

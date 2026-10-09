@@ -12,6 +12,7 @@ use App\Models\Izin;
 use App\Models\IzinDokumen;
 use App\Models\IzinPersetujuan;
 use App\Models\SuratPersetujuanIcv;
+use App\Models\User;
 use Carbon\Carbon;
 use Filament\Forms\Components\Actions;
 use Filament\Forms\Components\Actions\Action as FormAction;
@@ -84,7 +85,12 @@ class VerifikasiIzin extends Page implements HasTable
                         'izinVisitasi',
                         'izinPersetujuan',
                         'izinDokumenPks',
+                        'picDokter',
                     ])
+                    ->when(
+                        auth()->user()->hasRole('dokter') && ! auth()->user()->hasRole('admin'),
+                        fn ($query) => $query->where('tbl_izin.pic_dokter_id', auth()->id())
+                    )
             )
             ->columns([
                 // Tanggal Pengajuan - Sortable & Searchable
@@ -225,6 +231,13 @@ class VerifikasiIzin extends Page implements HasTable
                             ')
                             ->orderBy('step_order', $direction);
                     }),
+
+                // PIC Dokter
+                TextColumn::make('picDokter.name')
+                    ->label('PIC Dokter')
+                    ->placeholder('-')
+                    ->searchable()
+                    ->sortable(),
 
                 // Detail Status (toggleable)
                 TextColumn::make('detail_status')
@@ -455,6 +468,13 @@ class VerifikasiIzin extends Page implements HasTable
                             default => $query,
                         };
                     }),
+
+                // PIC Dokter Filter
+                SelectFilter::make('pic_dokter_id')
+                    ->label('PIC Dokter')
+                    ->searchable()
+                    ->options(fn () => User::role('dokter')->orderBy('name')->pluck('name', 'id'))
+                    ->visible(fn () => ! (auth()->user()->hasRole('dokter') && ! auth()->user()->hasRole('admin'))),
             ], FiltersLayout::AboveContent)
             ->persistFiltersInSession()
             ->actions([
@@ -483,6 +503,7 @@ class VerifikasiIzin extends Page implements HasTable
 
                             // Step 2: Visitasi
                             'tanggal_visitasi' => $record->izinDokumenPks?->tanggal_visitasi,
+                            'pic_dokter_id' => $record->pic_dokter_id,
 
                             // Step 3: Hasil Visitasi
                             'status_visitasi' => $record->izinVisitasi?->status ?? null,
@@ -660,6 +681,10 @@ class VerifikasiIzin extends Page implements HasTable
 
         // Step 2: Jadwal Visitasi
         if (isset($data['tanggal_visitasi']) && $data['tanggal_visitasi']) {
+            if (isset($data['pic_dokter_id']) && $data['pic_dokter_id']) {
+                $record->update(['pic_dokter_id' => $data['pic_dokter_id']]);
+            }
+
             $record->izinDokumenPks()->updateOrCreate(
                 ['id_izin' => $record->id],
                 ['tanggal_visitasi' => $data['tanggal_visitasi']]
@@ -1027,10 +1052,25 @@ class VerifikasiIzin extends Page implements HasTable
                                     ->dehydrated(false),
                             ]),
 
-                            DatePicker::make('tanggal_visitasi')
-                                ->label('Tanggal Visitasi')
-                                // ->native(false)
-                                ->displayFormat('d F Y'),
+                            Grid::make(2)->schema([
+                                Select::make('pic_dokter_id')
+                                    ->label('PIC Dokter Visitasi')
+                                    ->options(fn () => User::role('dokter')->orderBy('name')->pluck('name', 'id'))
+                                    ->searchable()
+                                    ->preload()
+                                    ->required()
+                                    ->helperText(fn ($record) => $record->picDokter ? 'PIC saat ini: '.$record->picDokter->name : 'Pilih dokter yang ditugaskan sebagai PIC visitasi.')
+                                    ->disabled(fn () => auth()->user()->hasRole('dokter') && ! auth()->user()->hasRole('admin')),
+
+                                DatePicker::make('tanggal_visitasi')
+                                    ->label('Tanggal Visitasi')
+                                    // ->native(false)
+                                    ->displayFormat('d F Y')
+                                    ->helperText(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi ?
+                                        'Jadwal visitasi telah ditetapkan pada '.$record->izinDokumenPks->tanggal_visitasi->translatedFormat('d F Y') :
+                                        'Tentukan tanggal visitasi.')
+                                    ->required(),
+                            ]),
 
                             Actions::make([
                                 Actions\Action::make('set_jadwal_visitasi')
@@ -1039,6 +1079,8 @@ class VerifikasiIzin extends Page implements HasTable
                                     ->color('success')
                                     ->action(function (Get $get, Set $set, $record) {
                                         $tanggalVisitasi = $get('tanggal_visitasi');
+                                        $picDokterId = $get('pic_dokter_id') ?? $record->pic_dokter_id;
+
                                         if (! $tanggalVisitasi) {
                                             Notification::make()
                                                 ->title('Gagal Menetapkan Jadwal')
@@ -1048,6 +1090,20 @@ class VerifikasiIzin extends Page implements HasTable
 
                                             return;
                                         }
+
+                                        if (! $picDokterId) {
+                                            Notification::make()
+                                                ->title('Gagal Menetapkan Jadwal')
+                                                ->danger()
+                                                ->body('PIC Dokter visitasi harus dipilih.')
+                                                ->send();
+
+                                            return;
+                                        }
+
+                                        $record->update([
+                                            'pic_dokter_id' => $picDokterId,
+                                        ]);
 
                                         $record->izinDokumenPks()->updateOrCreate(
                                             ['id_izin' => $record->id],
@@ -1100,6 +1156,10 @@ class VerifikasiIzin extends Page implements HasTable
                                                 'tanggal_visitasi' => null,
                                             ]);
                                         }
+
+                                        $record->update([
+                                            'pic_dokter_id' => null,
+                                        ]);
 
                                         $record->refresh();
 

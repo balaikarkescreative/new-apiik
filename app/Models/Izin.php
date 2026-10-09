@@ -14,6 +14,7 @@ class Izin extends Model
     protected $fillable = [
         'id',
         'user_id',
+        'pic_dokter_id',
         'kategori_izin',
         'use_new_labels',
         'tanggal_pengajuan',
@@ -56,6 +57,14 @@ class Izin extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
+     * Get the doctor assigned as PIC for this Izin.
+     */
+    public function picDokter()
+    {
+        return $this->belongsTo(User::class, 'pic_dokter_id');
     }
 
     /**

@@ -18,7 +18,7 @@ class IzinVisitasiNotification extends Mailable
     public function __construct(Izin $izin)
     {
         // Ensure the relationship is loaded
-        $this->izin = $izin->load('izinDokumenPks', 'user');
+        $this->izin = $izin->load('izinDokumenPks', 'user', 'picDokter');
     }
 
     public function envelope(): Envelope

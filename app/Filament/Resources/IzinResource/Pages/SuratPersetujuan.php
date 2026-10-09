@@ -7,11 +7,13 @@ use App\Mail\IzinPksNotification;
 use App\Mail\IzinVisitasiNotification;
 use App\Models\Izin;
 use App\Models\SuratPersetujuanIcv;
+use App\Models\User;
 use Filament\Forms\Components\Actions as FormActions;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Get;
@@ -72,6 +74,7 @@ class SuratPersetujuan extends Page implements HasTable
                         'izinDokumenPks',
                         'izinVisitasi',
                         'izinPersetujuan',
+                        'picDokter',
                     ])
                     ->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 1))
                     // Custom ordering: yang belum ada jadwal visitasi di atas
@@ -152,6 +155,12 @@ class SuratPersetujuan extends Page implements HasTable
                         END '.$direction)
                             ->select('tbl_izin.*');
                     }),
+
+                TextColumn::make('picDokter.name')
+                    ->label('PIC Dokter')
+                    ->placeholder('-')
+                    ->searchable()
+                    ->sortable(),
             ])
             ->actions([
                 Action::make('proses_persetujuan')
@@ -171,6 +180,7 @@ class SuratPersetujuan extends Page implements HasTable
 
                             // Tab fields
                             'tanggal_visitasi' => $record->izinDokumenPks?->tanggal_visitasi,
+                            'pic_dokter_id' => $record->pic_dokter_id,
                             'status_visitasi' => $record->izinVisitasi?->status ?? null,
                             'catatan_visitasi' => $record->izinVisitasi?->catatan ?? null,
                             'tanggal_persetujuan' => $record->izinPersetujuan?->date_updated ?? now(),
@@ -339,6 +349,11 @@ class SuratPersetujuan extends Page implements HasTable
                                 })
                         );
                     }),
+
+                Tables\Filters\SelectFilter::make('pic_dokter_id')
+                    ->label('PIC Dokter')
+                    ->searchable()
+                    ->options(fn () => User::role('dokter')->orderBy('name')->pluck('name', 'id')),
             ], FiltersLayout::AboveContent);
     }
 
@@ -452,14 +467,26 @@ class SuratPersetujuan extends Page implements HasTable
                             return $record->izinDokumenPks?->tanggal_visitasi ? 'success' : 'gray';
                         })
                         ->schema([
-                            DatePicker::make('tanggal_visitasi')
-                                ->label('Tanggal Visitasi')
-                                // ->native(false)
-                                ->displayFormat('d F Y')
-                                // ->minDate(now()->addDay())
-                                ->helperText(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi ?
-                                    'Jadwal visitasi telah ditetapkan pada '.$record->izinDokumenPks->tanggal_visitasi->translatedFormat('d F Y') :
-                                    'Tetapkan jadwal visitasi untuk pemohon.'),
+                            Grid::make(2)->schema([
+                                Select::make('pic_dokter_id')
+                                    ->label('PIC Dokter Visitasi')
+                                    ->options(fn () => User::role('dokter')->orderBy('name')->pluck('name', 'id'))
+                                    ->searchable()
+                                    ->preload()
+                                    ->required()
+                                    ->helperText(fn ($record) => $record->picDokter ? 'PIC saat ini: '.$record->picDokter->name : 'Pilih dokter yang ditugaskan sebagai PIC visitasi.')
+                                    ->disabled(fn () => auth()->user()->hasRole('dokter') && ! auth()->user()->hasRole('admin')),
+
+                                DatePicker::make('tanggal_visitasi')
+                                    ->label('Tanggal Visitasi')
+                                    // ->native(false)
+                                    ->displayFormat('d F Y')
+                                    // ->minDate(now()->addDay())
+                                    ->helperText(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi ?
+                                        'Jadwal visitasi telah ditetapkan pada '.$record->izinDokumenPks->tanggal_visitasi->translatedFormat('d F Y') :
+                                        'Tetapkan jadwal visitasi untuk pemohon.')
+                                    ->required(),
+                            ]),
 
                             FormActions::make([
                                 FormActions\Action::make('simpan_visitasi')
@@ -470,6 +497,8 @@ class SuratPersetujuan extends Page implements HasTable
                                     ->visible(fn ($record) => true)
                                     ->action(function (Get $get, Set $set, $record) {
                                         $tanggalVisitasi = $get('tanggal_visitasi');
+                                        $picDokterId = $get('pic_dokter_id') ?? $record->pic_dokter_id;
+
                                         if (! $tanggalVisitasi) {
                                             Notification::make()
                                                 ->title('Gagal Menetapkan Jadwal')
@@ -480,6 +509,20 @@ class SuratPersetujuan extends Page implements HasTable
                                             return;
                                         }
 
+                                        if (! $picDokterId) {
+                                            Notification::make()
+                                                ->title('Gagal Menetapkan Jadwal')
+                                                ->danger()
+                                                ->body('PIC Dokter visitasi harus dipilih.')
+                                                ->send();
+
+                                            return;
+                                        }
+
+                                        $record->update([
+                                            'pic_dokter_id' => $picDokterId,
+                                        ]);
+
                                         $record->izinDokumenPks()->updateOrCreate(
                                             ['id_izin' => $record->id],
                                             ['tanggal_visitasi' => $tanggalVisitasi]
@@ -488,6 +531,7 @@ class SuratPersetujuan extends Page implements HasTable
                                         $record = $record->fresh([
                                             'izinDokumenPks',
                                             'user',
+                                            'picDokter',
                                         ]);
 
                                         try {
@@ -530,6 +574,10 @@ class SuratPersetujuan extends Page implements HasTable
                                                 'tanggal_visitasi' => null,
                                             ]);
                                         }
+
+                                        $record->update([
+                                            'pic_dokter_id' => null,
+                                        ]);
 
                                         $record->refresh();
 
