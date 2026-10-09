@@ -42,37 +42,41 @@ class AdminResource extends Resource
             });
     }
 
+    public static function isDokterRole($roleState, ?User $record = null): bool
+    {
+        if ($record && ($record->hasRole('dokter') || ! empty($record->simply_user_id))) {
+            if ($roleState === null) {
+                return true;
+            }
+        }
+
+        if (empty($roleState)) {
+            return false;
+        }
+
+        $dokterRoleId = Role::where('name', 'dokter')->value('id');
+
+        if (is_array($roleState)) {
+            return in_array($dokterRoleId, $roleState);
+        }
+
+        if (is_numeric($roleState)) {
+            return (int) $roleState === (int) $dokterRoleId;
+        }
+
+        if ($roleState instanceof Role) {
+            return $roleState->name === 'dokter';
+        }
+
+        return $roleState === 'dokter';
+    }
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\Section::make('Informasi Admin')
                     ->schema([
-                        Forms\Components\TextInput::make('name')
-                            ->label('Nama Lengkap')
-                            ->required()
-                            ->maxLength(255),
-
-                        Forms\Components\TextInput::make('username')
-                            ->label('Username')
-                            ->required()
-                            ->unique(table: 'users', column: 'username', ignoreRecord: true)
-                            ->maxLength(255),
-
-                        Forms\Components\TextInput::make('email')
-                            ->label('Email')
-                            ->email()
-                            ->required()
-                            ->unique(table: 'users', column: 'email', ignoreRecord: true),
-
-                        Forms\Components\TextInput::make('password')
-                            ->label('Password')
-                            ->password()
-                            ->required(fn ($livewire) => $livewire instanceof Pages\CreateAdmin)
-                            ->dehydrateStateUsing(fn ($state) => filled($state) ? Hash::make($state) : null)
-                            ->dehydrated(fn ($state) => filled($state))
-                            ->minLength(8),
-
                         Forms\Components\Select::make('roles')
                             ->label('Role')
                             ->relationship('roles', 'name')
@@ -81,7 +85,88 @@ class AdminResource extends Resource
                                     ->pluck('name', 'id')
                                     ->toArray();
                             })
-                            ->required(),
+                            ->live()
+                            ->required()
+                            ->columnSpan(2),
+
+                        Forms\Components\Select::make('simply_user_id')
+                            ->label('Pilih Akun Pegawai dari SIMPLY')
+                            ->placeholder('Ketik nama pegawai, NIP, atau username...')
+                            ->helperText('Pilih pegawai dari sistem SIMPLY untuk dijadikan dokter. Data nama, username, email, dan kontak akan terisi otomatis.')
+                            ->searchable()
+                            ->getSearchResultsUsing(function (string $search): array {
+                                return \App\Models\SimplyUser::aktif()
+                                    ->where(function ($q) use ($search) {
+                                        $q->where('nama', 'like', "%{$search}%")
+                                            ->orWhere('username', 'like', "%{$search}%");
+                                    })
+                                    ->limit(20)
+                                    ->get()
+                                    ->mapWithKeys(fn (\App\Models\SimplyUser $user) => [
+                                        $user->id_user => "{$user->nama} (".($user->username ?: 'No NIP/User').')',
+                                    ])
+                                    ->toArray();
+                            })
+                            ->getOptionLabelUsing(function ($value): ?string {
+                                $user = \App\Models\SimplyUser::find($value);
+
+                                return $user ? "{$user->nama} (".($user->username ?: 'No NIP/User').')' : null;
+                            })
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if (! $state) {
+                                    return;
+                                }
+                                $simplyUser = \App\Models\SimplyUser::find($state);
+                                if ($simplyUser) {
+                                    $set('name', $simplyUser->nama);
+                                    $set('username', $simplyUser->username);
+                                    $set('email', filled($simplyUser->email) ? $simplyUser->email : null);
+                                    $set('kontak_pj', $simplyUser->no_telp);
+                                }
+                            })
+                            ->required(fn (callable $get, ?User $record) => self::isDokterRole($get('roles'), $record))
+                            ->visible(fn (callable $get, ?User $record) => self::isDokterRole($get('roles'), $record))
+                            ->columnSpan(2),
+
+                        Forms\Components\TextInput::make('name')
+                            ->label('Nama Lengkap')
+                            ->required()
+                            ->disabled(fn (callable $get, ?User $record) => self::isDokterRole($get('roles'), $record))
+                            ->dehydrated()
+                            ->maxLength(255),
+
+                        Forms\Components\TextInput::make('username')
+                            ->label('Username')
+                            ->required()
+                            ->unique(table: 'users', column: 'username', ignoreRecord: true)
+                            ->disabled(fn (callable $get, ?User $record) => self::isDokterRole($get('roles'), $record))
+                            ->dehydrated()
+                            ->maxLength(255),
+
+                        Forms\Components\TextInput::make('email')
+                            ->label('Email')
+                            ->email()
+                            ->nullable()
+                            ->required(fn (callable $get, ?User $record) => ! self::isDokterRole($get('roles'), $record))
+                            ->unique(table: 'users', column: 'email', ignoreRecord: true)
+                            ->disabled(fn (callable $get, ?User $record) => self::isDokterRole($get('roles'), $record))
+                            ->dehydrated()
+                            ->helperText(fn (callable $get, ?User $record) => self::isDokterRole($get('roles'), $record) ? 'Dikosongkan jika akun SIMPLY tidak memiliki email.' : null),
+
+                        Forms\Components\TextInput::make('password')
+                            ->label('Password')
+                            ->password()
+                            ->visible(fn (callable $get, ?User $record) => ! self::isDokterRole($get('roles'), $record))
+                            ->required(fn ($livewire, callable $get, ?User $record) => $livewire instanceof Pages\CreateAdmin && ! self::isDokterRole($get('roles'), $record))
+                            ->dehydrateStateUsing(fn ($state) => filled($state) ? Hash::make($state) : null)
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->minLength(8),
+
+                        Forms\Components\Placeholder::make('simply_password_notice')
+                            ->label('Informasi Password')
+                            ->content('Akun Dokter terhubung dengan database SIMPLY. Password dikelola langsung di sistem SIMPLY (dokter login menggunakan password SIMPLY miliknya).')
+                            ->visible(fn (callable $get, ?User $record) => self::isDokterRole($get('roles'), $record)),
                     ])
                     ->columns(2),
 
@@ -127,13 +212,26 @@ class AdminResource extends Resource
 
                 Tables\Columns\TextColumn::make('email')
                     ->label('Email')
-                    ->searchable(),
+                    ->searchable()
+                    ->placeholder('-'),
 
                 Tables\Columns\TextColumn::make('roles.name')
                     ->label('Role')
                     ->badge()
                     ->formatStateUsing(fn ($state) => ucfirst($state))
-                    ->color('primary'),
+                    ->color(fn ($state) => match (strtolower($state ?? '')) {
+                        'admin' => 'danger',
+                        'dokter' => 'success',
+                        'verifikator1' => 'info',
+                        'verifikator2' => 'warning',
+                        default => 'primary',
+                    }),
+
+                Tables\Columns\TextColumn::make('simply_user_id')
+                    ->label('Sumber')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state ? 'SIMPLY' : 'Lokal')
+                    ->color(fn ($state) => $state ? 'info' : 'gray'),
 
                 Tables\Columns\TextColumn::make('kontak_pj')
                     ->label('Kontak')

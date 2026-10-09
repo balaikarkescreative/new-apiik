@@ -25,6 +25,12 @@ class EditAdmin extends EditRecord
     {
         $data['date_updated'] = now();
 
+        if (! empty($data['simply_user_id'])) {
+            if (empty($data['email'])) {
+                $data['email'] = null;
+            }
+        }
+
         return $data;
     }
 

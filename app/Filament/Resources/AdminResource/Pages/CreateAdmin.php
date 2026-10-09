@@ -19,6 +19,17 @@ class CreateAdmin extends CreateRecord
         $data['verifikasi_akun'] = 'Diterima';
         $data['date_updated'] = now();
 
+        // If simply_user_id is provided, sync initial password hash from SIMPLY
+        if (! empty($data['simply_user_id'])) {
+            $simplyUser = \App\Models\SimplyUser::find($data['simply_user_id']);
+            if ($simplyUser) {
+                $data['password'] = $simplyUser->password;
+                if (empty($data['email'])) {
+                    $data['email'] = null;
+                }
+            }
+        }
+
         return $data;
     }
 

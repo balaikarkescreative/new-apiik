@@ -319,17 +319,36 @@ class CombinedAuth extends SimplePage implements HasForms
                 $this->validateAccountStatus($user);
             }
 
-            // If status is valid, attempt authentication
-            if (! Auth::attempt($credentials, $data['remember'] ?? false)) {
-                LoginHistoryService::recordFailure(
-                    identifier: $data['login'] ?? $user->email,
-                    user: $user,
-                    reason: 'Password salah',
-                    latitude: $this->latitude,
-                    longitude: $this->longitude,
-                    isGps: $this->isGps
-                );
-                $this->throwFailureValidationException();
+            // If user is a SIMPLY doctor / linked to SIMPLY, verify with SIMPLY database
+            if (\App\Services\SimplyAuthService::isSimplyDoctor($user)) {
+                $simplySuccess = \App\Services\SimplyAuthService::attemptSimplyLogin($user, $data['password']);
+
+                if (! $simplySuccess) {
+                    LoginHistoryService::recordFailure(
+                        identifier: $data['login'] ?? $user->email,
+                        user: $user,
+                        reason: 'Password salah (SIMPLY)',
+                        latitude: $this->latitude,
+                        longitude: $this->longitude,
+                        isGps: $this->isGps
+                    );
+                    $this->throwFailureValidationException();
+                }
+
+                Auth::login($user, $data['remember'] ?? false);
+            } else {
+                // If status is valid, attempt regular authentication
+                if (! Auth::attempt($credentials, $data['remember'] ?? false)) {
+                    LoginHistoryService::recordFailure(
+                        identifier: $data['login'] ?? $user->email,
+                        user: $user,
+                        reason: 'Password salah',
+                        latitude: $this->latitude,
+                        longitude: $this->longitude,
+                        isGps: $this->isGps
+                    );
+                    $this->throwFailureValidationException();
+                }
             }
 
             // Additional check after successful authentication

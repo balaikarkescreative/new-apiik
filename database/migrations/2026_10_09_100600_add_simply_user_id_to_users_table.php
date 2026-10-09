@@ -1,0 +1,41 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+use Spatie\Permission\Models\Role;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            if (! Schema::hasColumn('users', 'simply_user_id')) {
+                $table->unsignedInteger('simply_user_id')->nullable()->after('id')->index();
+            }
+        });
+
+        // Ensure role dokter exists in Spatie Permission
+        Role::firstOrCreate([
+            'name' => 'dokter',
+            'guard_name' => 'web',
+        ]);
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            if (Schema::hasColumn('users', 'simply_user_id')) {
+                $table->dropColumn('simply_user_id');
+            }
+        });
+
+        Role::where('name', 'dokter')->delete();
+    }
+};

@@ -48,6 +48,7 @@ class User extends Authenticatable implements FilamentUser
         'status_akun',
         'is_blocked',
         'date_updated',
+        'simply_user_id',
     ];
 
     /**
@@ -104,5 +105,10 @@ class User extends Authenticatable implements FilamentUser
     public function suratPersetujuanIcv()
     {
         return $this->hasOne(SuratPersetujuanIcv::class, 'id_akun', 'id');
+    }
+
+    public function simplyUser()
+    {
+        return $this->belongsTo(SimplyUser::class, 'simply_user_id', 'id_user');
     }
 }
