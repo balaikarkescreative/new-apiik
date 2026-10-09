@@ -33,7 +33,7 @@ class VaksinatorResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->check() && auth()->user()->hasRole('user') || auth()->user()->hasRole('admin') || auth()->user()->hasRole('verifikator1');
+        return auth()->check() && (auth()->user()->hasRole('user') || auth()->user()->hasRole('admin') || auth()->user()->hasRole('verifikator1') || auth()->user()->hasRole('dokter'));
     }
 
     public static function form(Form $form): Form
@@ -144,7 +144,7 @@ class VaksinatorResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function (Builder $query) {
-                if (! Auth::user()->hasRole('admin') && ! Auth::user()->hasRole('verifikator1')) {
+                if (! Auth::user()->hasRole('admin') && ! Auth::user()->hasRole('verifikator1') && ! Auth::user()->hasRole('dokter')) {
                     $query->join('users', 'tbl_vaksinator.id_akun', '=', 'users.id')
                         ->select('tbl_vaksinator.*', 'users.name as user_name')
                         ->where('tbl_vaksinator.id_akun', Auth::id());
@@ -268,7 +268,7 @@ class VaksinatorResource extends Resource
                 SelectFilter::make('id_akun')
                     ->label('Klinik/RS')
                     ->searchable()
-                    ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('verifikator1'))
+                    ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('dokter'))
                     ->options(function () {
                         $userIds = Vaksinator::distinct()->pluck('id_akun');
 
@@ -337,13 +337,16 @@ class VaksinatorResource extends Resource
                 Tables\Actions\ViewAction::make()
                     ->size('sm'),
                 Tables\Actions\EditAction::make()
-                    ->size('sm'),
+                    ->size('sm')
+                    ->visible(fn () => ! Auth::user()->hasRole('dokter')),
                 Tables\Actions\DeleteAction::make()
-                    ->size('sm'),
+                    ->size('sm')
+                    ->visible(fn () => ! Auth::user()->hasRole('dokter')),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn () => ! Auth::user()->hasRole('dokter')),
                 ]),
             ])
             ->striped()
@@ -367,7 +370,17 @@ class VaksinatorResource extends Resource
 
     public static function canCreate(): bool
     {
-        return true;
+        return ! auth()->user()->hasRole('dokter');
+    }
+
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return ! auth()->user()->hasRole('dokter');
+    }
+
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return ! auth()->user()->hasRole('dokter');
     }
 
     public static function canViewAny(): bool

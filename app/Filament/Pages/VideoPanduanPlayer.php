@@ -22,6 +22,11 @@ class VideoPanduanPlayer extends Page
 
     protected static ?int $navigationSort = 5;
 
+    public static function canAccess(): bool
+    {
+        return auth()->check() && ! auth()->user()->hasRole('dokter');
+    }
+
     public ?Collection $videos = null;
 
     #[Url]

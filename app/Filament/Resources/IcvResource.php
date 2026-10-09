@@ -39,6 +39,11 @@ class IcvResource extends Resource
 
     protected static bool $shouldRegisterNavigation = false;
 
+    public static function canAccess(): bool
+    {
+        return auth()->check() && ! auth()->user()->hasRole('dokter');
+    }
+
     /**
      * Generate custom filename for uploaded documents
      */

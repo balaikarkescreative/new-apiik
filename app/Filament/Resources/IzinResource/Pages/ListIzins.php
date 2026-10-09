@@ -5,7 +5,6 @@ namespace App\Filament\Resources\IzinResource\Pages;
 use App\Filament\Resources\IzinResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
-use Illuminate\Support\Facades\Storage;
 
 class ListIzins extends ListRecords
 {
@@ -14,6 +13,11 @@ class ListIzins extends ListRecords
     protected static ?string $title = 'Kelola Pengajuan Izin';
 
     protected static ?string $slug = 'izin';
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return auth()->check() && auth()->user()->hasRole('admin');
+    }
 
     public function mountCanAuthorizeAccess(): void
     {

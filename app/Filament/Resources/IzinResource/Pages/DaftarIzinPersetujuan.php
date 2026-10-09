@@ -4,8 +4,8 @@ namespace App\Filament\Resources\IzinResource\Pages;
 
 use App\Filament\Resources\IzinResource;
 use App\Models\Izin;
-use Filament\Tables\Actions\Action;
 use Filament\Resources\Pages\Page;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -23,6 +23,11 @@ class DaftarIzinPersetujuan extends Page implements HasTable
 
     protected static string $resource = IzinResource::class;
 
+    public static function canAccess(array $parameters = []): bool
+    {
+        return auth()->check() && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('verifikator1') || auth()->user()->hasRole('user'));
+    }
+
     protected static string $view = 'filament.resources.izin-resource.pages.daftar-izin-persetujuan';
 
     protected static ?string $title = 'File Surat Persetujuan ICV';
@@ -39,7 +44,7 @@ class DaftarIzinPersetujuan extends Page implements HasTable
                     ->with(['user', 'izinPersetujuan', 'izinDokumenPks'])
                     ->join('tbl_izin_persetujuan', 'tbl_izin.id', '=', 'tbl_izin_persetujuan.id_izin')
                     ->whereNotNull('tbl_izin_persetujuan.file_persetujuan')
-                    ->when(auth('web')->user()?->hasRole('user'), fn($query) => $query->where('user_id', auth('web')->id()))
+                    ->when(auth('web')->user()?->hasRole('user'), fn ($query) => $query->where('user_id', auth('web')->id()))
                     ->select('tbl_izin.*')
             )
             ->columns([
@@ -49,9 +54,9 @@ class DaftarIzinPersetujuan extends Page implements HasTable
                         $klinik = Str::limit($record->user?->name ?? 'N/A', 30);
                         $lokasi = $record->user?->kotakab ?? 'N/A';
 
-                        return '<div>' .
-                            '<div class="font-medium text-sm">' . e($klinik) . '</div>' .
-                            '<div class="text-xs text-gray-500">' . e($lokasi) . '</div>' .
+                        return '<div>'.
+                            '<div class="font-medium text-sm">'.e($klinik).'</div>'.
+                            '<div class="text-xs text-gray-500">'.e($lokasi).'</div>'.
                             '</div>';
                     })
                     ->html()
@@ -71,7 +76,7 @@ class DaftarIzinPersetujuan extends Page implements HasTable
                     ->label('Kategori Izin')
                     ->badge()
                     ->color(
-                        fn($state) => match ($state) {
+                        fn ($state) => match ($state) {
                             'Izin Baru' => 'success',
                             'Perpanjang Izin' => 'warning',
                             default => 'gray',
@@ -83,13 +88,13 @@ class DaftarIzinPersetujuan extends Page implements HasTable
                 TextColumn::make('izinPersetujuan.date_updated')
                     ->label('Tanggal Persetujuan')
                     ->date('d M Y')
-                    ->sortable(query: fn(Builder $query, string $direction): Builder => $query->orderBy('tbl_izin_persetujuan.date_updated', $direction)),
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => $query->orderBy('tbl_izin_persetujuan.date_updated', $direction)),
 
                 TextColumn::make('izinPersetujuan.status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn($state) => $state === 1 ? 'Disetujui' : 'Draft')
-                    ->color(fn($state) => $state === 1 ? 'success' : 'warning'),
+                    ->formatStateUsing(fn ($state) => $state === 1 ? 'Disetujui' : 'Draft')
+                    ->color(fn ($state) => $state === 1 ? 'success' : 'warning'),
             ])
             ->filters([
                 DateRangeFilter::make('tanggal_persetujuan')
@@ -112,7 +117,7 @@ class DaftarIzinPersetujuan extends Page implements HasTable
                     ->label('Pemohon/Klinik')
                     ->searchable()
                     ->preload()
-                    ->visible(fn() => ! auth('web')->user()?->hasRole('user'))
+                    ->visible(fn () => ! auth('web')->user()?->hasRole('user'))
                     ->options(function () {
                         $userQuery = \App\Models\User::query()
                             ->whereHas('izins', function ($query) {
@@ -131,7 +136,7 @@ class DaftarIzinPersetujuan extends Page implements HasTable
                             ->mapWithKeys(function ($user) {
                                 $kotakab = $user->kotakab ? " ({$user->kotakab})" : '';
 
-                                return [$user->id => $user->name . $kotakab];
+                                return [$user->id => $user->name.$kotakab];
                             });
                     })
                     ->query(function (Builder $query, array $data): Builder {
@@ -145,7 +150,7 @@ class DaftarIzinPersetujuan extends Page implements HasTable
                 SelectFilter::make('kotakab')
                     ->label('Kota/Kabupaten')
                     ->searchable()
-                    ->visible(fn() => ! auth('web')->user()?->hasRole('user'))
+                    ->visible(fn () => ! auth('web')->user()?->hasRole('user'))
                     ->options(function () {
                         $userQuery = \App\Models\User::query()
                             ->whereHas('izins', function ($query) {
@@ -188,9 +193,9 @@ class DaftarIzinPersetujuan extends Page implements HasTable
                         return match ($data['value']) {
                             'belum_pks' => $query->where(function ($q) {
                                 $q->whereDoesntHave('izinDokumenPks')
-                                    ->orWhereHas('izinDokumenPks', fn($sub) => $sub->whereNull('dokumen_pks_bkk'));
+                                    ->orWhereHas('izinDokumenPks', fn ($sub) => $sub->whereNull('dokumen_pks_bkk'));
                             }),
-                            'selesai' => $query->whereHas('izinDokumenPks', fn($q) => $q->whereNotNull('dokumen_pks_bkk')),
+                            'selesai' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('dokumen_pks_bkk')),
                             default => $query,
                         };
                     }),
@@ -200,9 +205,9 @@ class DaftarIzinPersetujuan extends Page implements HasTable
                     ->label('Download')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('primary')
-                    ->url(fn($record) => $record->izinPersetujuan?->file_persetujuan ? Storage::disk('public')->url($record->izinPersetujuan->file_persetujuan) : null)
+                    ->url(fn ($record) => $record->izinPersetujuan?->file_persetujuan ? Storage::disk('public')->url($record->izinPersetujuan->file_persetujuan) : null)
                     ->openUrlInNewTab()
-                    ->visible(fn($record) => filled($record->izinPersetujuan?->file_persetujuan)),
+                    ->visible(fn ($record) => filled($record->izinPersetujuan?->file_persetujuan)),
             ])
             ->persistFiltersInSession()
             ->defaultSort('tbl_izin_persetujuan.date_updated', 'desc')

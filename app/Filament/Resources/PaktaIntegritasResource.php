@@ -29,6 +29,26 @@ class PaktaIntegritasResource extends Resource
 
     protected static ?int $navigationSort = 5;
 
+    public static function canAccess(): bool
+    {
+        return auth()->check() && (auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2', 'user', 'dokter']));
+    }
+
+    public static function canCreate(): bool
+    {
+        return ! auth()->user()->hasRole('dokter');
+    }
+
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return ! auth()->user()->hasRole('dokter');
+    }
+
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return ! auth()->user()->hasRole('dokter');
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -59,7 +79,7 @@ class PaktaIntegritasResource extends Resource
                     ->hiddenOn('edit') // Hide on edit, as the user should not change
                     // You only need `disabled`. If a user doesn't have the role, the field will be visible but not editable.
                     // The previous `visible` check was redundant with this logic.
-                    ->visible(fn () => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
+                    ->visible(fn () => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2', 'dokter'])),
 
                 Forms\Components\FileUpload::make('file')
                     ->label('File Pakta Integritas')
@@ -81,7 +101,7 @@ class PaktaIntegritasResource extends Resource
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Klinik/RS')
                     ->searchable()
-                    ->visible(fn () => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
+                    ->visible(fn () => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2', 'dokter'])),
                 Tables\Columns\TextColumn::make('file')
                     ->label('File Pakta Integritas')
                     ->formatStateUsing(fn ($state) => $state ? basename($state) : 'Tidak ada file')
@@ -93,19 +113,21 @@ class PaktaIntegritasResource extends Resource
                     ->sortable(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn () => ! auth()->user()->hasRole('dokter')),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn () => ! auth()->user()->hasRole('dokter')),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('user_id')
                     ->label('Klinik/RS')
                     ->relationship('user', 'name')
                     ->searchable()
-                    ->visible(fn () => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])),
+                    ->visible(fn () => auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2', 'dokter'])),
                 // ...
             ], FiltersLayout::AboveContent)
             ->modifyQueryUsing(function ($query) {
-                if (! auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])) {
+                if (! auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2', 'dokter'])) {
                     $query->where('user_id', auth()->id());
                 }
             });

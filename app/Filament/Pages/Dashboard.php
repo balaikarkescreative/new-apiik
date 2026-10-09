@@ -37,7 +37,7 @@ class Dashboard extends BaseDashboard
     {
         $user = auth()->user();
 
-        if ($user->hasRole('admin') || $user->hasRole('verifikator1') || $user->hasRole('verifikator2') || $user->hasRole('pos')) {
+        if ($user->hasRole('admin') || $user->hasRole('verifikator1') || $user->hasRole('verifikator2') || $user->hasRole('pos') || $user->hasRole('dokter')) {
             return [
                 AdminStatsWidget::class,
                 AdminPnbpChartWidget::class, // Chart pendapatan PNBP

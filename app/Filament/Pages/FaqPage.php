@@ -21,6 +21,11 @@ class FaqPage extends Page
 
     protected static ?int $navigationSort = 99;
 
+    public static function canAccess(): bool
+    {
+        return auth()->check() && ! auth()->user()->hasRole('dokter');
+    }
+
     // Jika ingin menempatkan di group tertentu
     // protected static ?string $navigationGroup = 'Help';
 

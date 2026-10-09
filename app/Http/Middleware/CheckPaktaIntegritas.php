@@ -18,12 +18,11 @@ class CheckPaktaIntegritas
     public function handle(Request $request, Closure $next): Response
     {
         if (auth()->check()) {
-            if (auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2'])) {
+            if (auth()->user()->hasRole(['admin', 'verifikator1', 'verifikator2', 'dokter', 'pos']) || ! auth()->user()->hasRole('user')) {
                 return $next($request);
             }
         } else {
             return $next($request);
-
         }
 
         // Skip check for pakta integritas related routes to prevent redirect loop

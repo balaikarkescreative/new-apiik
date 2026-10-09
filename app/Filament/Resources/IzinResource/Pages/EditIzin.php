@@ -4,12 +4,17 @@ namespace App\Filament\Resources\IzinResource\Pages;
 
 use App\Filament\Resources\IzinResource;
 use App\Models\IzinDokumen;
-use Filament\Resources\Pages\EditRecord;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
 
 class EditIzin extends EditRecord
 {
     protected static string $resource = IzinResource::class;
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return auth()->check() && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('user'));
+    }
 
     protected function afterSave(): void
     {

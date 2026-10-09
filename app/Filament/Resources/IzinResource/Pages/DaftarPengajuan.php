@@ -5,7 +5,6 @@ namespace App\Filament\Resources\IzinResource\Pages;
 use App\Filament\Resources\IzinResource;
 use App\FileLabels;
 use App\Models\Izin;
-use Filament\Actions\Action as PageAction;
 use Filament\Infolists\Components\Section as InfoSection;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Infolists\Concerns\InteractsWithInfolists;
@@ -18,7 +17,6 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Storage;
 
 class DaftarPengajuan extends Page implements HasInfolists, HasTable
 {
@@ -35,7 +33,10 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
 
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
 
-    protected static ?int $navigationSort = 3;
+    public static function canAccess(array $parameters = []): bool
+    {
+        return auth()->check() && auth()->user()->hasRole('user');
+    }
 
     public function mountCanAuthorizeAccess(): void
     {
@@ -63,7 +64,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
             ->columns([
                 TextColumn::make('tanggal_pengajuan')
                     ->label('Tanggal Pengajuan')
-                    ->description(fn($record) => $record->nomor_surat)
+                    ->description(fn ($record) => $record->nomor_surat)
                     ->date('d F Y')
                     ->sortable()
                     ->searchable(),
@@ -187,7 +188,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             $progress += 10;
                         }
 
-                        return $progress . '%';
+                        return $progress.'%';
                     })
                     ->badge()
                     ->color(function ($state) {
@@ -224,26 +225,26 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                         }
 
                         return match ($data['value']) {
-                            'menunggu_verifikasi' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 0)),
+                            'menunggu_verifikasi' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 0)),
                             'perbaikan' => $query
                                 ->whereNotNull('tanggal_perbaikan')
                                 ->where(function ($q) {
                                     $q->whereDoesntHave('izinDokumen')
-                                        ->orWhereHas('izinDokumen', fn($q2) => $q2->where('hasil', 2));
+                                        ->orWhereHas('izinDokumen', fn ($q2) => $q2->where('hasil', 2));
                                 }),
-                            'berkas_lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 1)),
-                            'berkas_tidak_lengkap' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 2)),
-                            'ditolak' => $query->whereHas('izinDokumen', fn($q) => $q->where('hasil', 3)),
-                            'visitasi_dijadwalkan' => $query->whereHas('izinDokumenPks', fn($q) => $q->whereNotNull('tanggal_visitasi'))
+                            'berkas_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 1)),
+                            'berkas_tidak_lengkap' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 2)),
+                            'ditolak' => $query->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 3)),
+                            'visitasi_dijadwalkan' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('tanggal_visitasi'))
                                 ->where(function ($q) {
                                     $q->whereDoesntHave('izinVisitasi')
-                                        ->orWhereHas('izinVisitasi', fn($subq) => $subq->whereNull('status'));
+                                        ->orWhereHas('izinVisitasi', fn ($subq) => $subq->whereNull('status'));
                                 }),
-                            'visitasi_memenuhi' => $query->whereHas('izinVisitasi', fn($q) => $q->where('status', 'Memenuhi syarat')),
-                            'visitasi_revisi' => $query->whereHas('izinVisitasi', fn($q) => $q->where('status', 'Tidak memenuhi syarat sementara')),
-                            'visitasi_ditolak' => $query->whereHas('izinVisitasi', fn($q) => $q->where('status', 'Tidak memenuhi syarat')),
-                            'disetujui' => $query->whereHas('izinPersetujuan', fn($q) => $q->where('status', 1)),
-                            'selesai' => $query->whereHas('izinDokumenPks', fn($q) => $q->whereNotNull('dokumen_pks_bkk')),
+                            'visitasi_memenuhi' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Memenuhi syarat')),
+                            'visitasi_revisi' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Tidak memenuhi syarat sementara')),
+                            'visitasi_ditolak' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Tidak memenuhi syarat')),
+                            'disetujui' => $query->whereHas('izinPersetujuan', fn ($q) => $q->where('status', 1)),
+                            'selesai' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('dokumen_pks_bkk')),
                             default => $query,
                         };
                     }),
@@ -266,7 +267,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             ->schema([
                                 TextEntry::make('step1')
                                     ->label('1. Pengajuan Dokumen')
-                                    ->getStateUsing(fn($record) => '✅ ' . $record->tanggal_pengajuan->translatedFormat('d F Y')),
+                                    ->getStateUsing(fn ($record) => '✅ '.$record->tanggal_pengajuan->translatedFormat('d F Y')),
 
                                 TextEntry::make('step2')
                                     ->label('2. Verifikasi Dokumen')
@@ -279,9 +280,9 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                                 default => '⏳ Menunggu Verifikasi'
                                             };
                                             $dateText = $record->izinDokumen->date_updated ?
-                                                ' - ' . $record->izinDokumen->date_updated->translatedFormat('d F Y') : '';
+                                                ' - '.$record->izinDokumen->date_updated->translatedFormat('d F Y') : '';
 
-                                            return $status . $dateText;
+                                            return $status.$dateText;
                                         }
 
                                         return '⏳ Menunggu Verifikasi';
@@ -296,13 +297,13 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
 
                                         return 'Tidak ada catatan';
                                     })
-                                    ->visible(fn($record) => $record->izinDokumen && $record->izinDokumen->hasil > 0 && $record->izinDokumen->catatan),
+                                    ->visible(fn ($record) => $record->izinDokumen && $record->izinDokumen->hasil > 0 && $record->izinDokumen->catatan),
 
                                 TextEntry::make('step3')
                                     ->label('3. Penjadwalan Visitasi')
                                     ->getStateUsing(function ($record) {
                                         if ($record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi) {
-                                            return '✅ Dijadwalkan - ' . $record->izinDokumenPks->tanggal_visitasi->translatedFormat('d F Y');
+                                            return '✅ Dijadwalkan - '.$record->izinDokumenPks->tanggal_visitasi->translatedFormat('d F Y');
                                         }
 
                                         return '⏳ Belum Dijadwalkan';
@@ -319,9 +320,9 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                                 default => '⏳ Belum Dinilai'
                                             };
                                             $dateText = $record->izinVisitasi->date_updated ?
-                                                ' - ' . $record->izinVisitasi->date_updated->translatedFormat('d F Y') : '';
+                                                ' - '.$record->izinVisitasi->date_updated->translatedFormat('d F Y') : '';
 
-                                            return $status . $dateText;
+                                            return $status.$dateText;
                                         }
 
                                         return '⏳ Belum Dinilai';
@@ -336,7 +337,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
 
                                         return 'Tidak ada catatan';
                                     })
-                                    ->visible(fn($record) => $record->izinVisitasi && $record->izinVisitasi->catatan),
+                                    ->visible(fn ($record) => $record->izinVisitasi && $record->izinVisitasi->catatan),
 
                                 TextEntry::make('bukti_perbaikan_visitasi')
                                     ->label('Bukti Perbaikan Visitasi')
@@ -349,7 +350,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     })
                                     ->url(function ($record) {
                                         if ($record->izinVisitasi && $record->izinVisitasi->bukti_perbaikan) {
-                                            return asset('storage/' . $record->izinVisitasi->bukti_perbaikan);
+                                            return asset('storage/'.$record->izinVisitasi->bukti_perbaikan);
                                         }
 
                                         return null;
@@ -359,16 +360,16 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     ->color(function ($record) {
                                         return ($record->izinVisitasi && $record->izinVisitasi->bukti_perbaikan) ? 'success' : 'gray';
                                     })
-                                    ->visible(fn($record) => $record->izinVisitasi && $record->izinVisitasi->status === 'Tidak memenuhi syarat sementara'),
+                                    ->visible(fn ($record) => $record->izinVisitasi && $record->izinVisitasi->status === 'Tidak memenuhi syarat sementara'),
 
                                 TextEntry::make('step5')
                                     ->label('5. Persetujuan')
                                     ->getStateUsing(function ($record) {
                                         if ($record->izinPersetujuan && $record->izinPersetujuan->status == 1) {
                                             $dateText = $record->izinPersetujuan->date_updated ?
-                                                ' - ' . $record->izinPersetujuan->date_updated->translatedFormat('d F Y') : '';
+                                                ' - '.$record->izinPersetujuan->date_updated->translatedFormat('d F Y') : '';
 
-                                            return '✅ Disetujui' . $dateText;
+                                            return '✅ Disetujui'.$dateText;
                                         }
 
                                         return '⏳ Belum Disetujui';
@@ -385,7 +386,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     })
                                     ->url(function ($record) {
                                         if ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) {
-                                            return asset('storage/' . $record->izinPersetujuan->file_persetujuan);
+                                            return asset('storage/'.$record->izinPersetujuan->file_persetujuan);
                                         }
 
                                         return null;
@@ -395,7 +396,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     ->color(function ($record) {
                                         return ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) ? 'success' : 'gray';
                                     })
-                                    ->visible(fn($record) => $record->izinPersetujuan && $record->izinPersetujuan->status == 1),
+                                    ->visible(fn ($record) => $record->izinPersetujuan && $record->izinPersetujuan->status == 1),
 
                                 TextEntry::make('step6')
                                     ->label('6. Perjanjian Kerjasama')
@@ -418,7 +419,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     })
                                     ->url(function ($record) {
                                         if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
-                                            return asset('storage/' . $record->izinDokumenPks->dokumen_pks_bkk);
+                                            return asset('storage/'.$record->izinDokumenPks->dokumen_pks_bkk);
                                         }
 
                                         return null;
@@ -428,7 +429,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     ->color(function ($record) {
                                         return ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) ? 'success' : 'gray';
                                     })
-                                    ->visible(fn($record) => $record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk),
+                                    ->visible(fn ($record) => $record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk),
                             ])
                             ->columns(1),
                     ])
@@ -464,7 +465,8 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             ->directory('bukti-perbaikan-visitasi')
                             ->getUploadedFileNameForStorageUsing(function ($file, $record) {
                                 $extension = $file->getClientOriginalExtension();
-                                return "Bukti Perbaikan Visitasi - " . $record->user->name . " [" . date("dmyHis") . "]." . $extension;
+
+                                return 'Bukti Perbaikan Visitasi - '.$record->user->name.' ['.date('dmyHis').'].'.$extension;
                             })
                             ->openable()
                             ->downloadable()
@@ -490,7 +492,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->color('secondary')
                     ->visible(function ($record) {
                         // Tampilkan jika ada riwayat perbaikan atau riwayat visitasi
-                        return ! empty($record->riwayat_perbaikan) || ($record->izinVisitasi && !empty($record->izinVisitasi->riwayat_visitasi));
+                        return ! empty($record->riwayat_perbaikan) || ($record->izinVisitasi && ! empty($record->izinVisitasi->riwayat_visitasi));
                     })
                     ->modalHeading('Riwayat Perbaikan & Visitasi')
                     ->modalWidth('3xl')
@@ -498,7 +500,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                         $sections = [];
 
                         // Section untuk riwayat perbaikan dokumen
-                        if (!empty($record->riwayat_perbaikan)) {
+                        if (! empty($record->riwayat_perbaikan)) {
                             $sections[] = InfoSection::make('Riwayat Perbaikan Dokumen')
                                 ->description('Riwayat perbaikan berkas yang diajukan')
                                 ->schema($this->getRiwayatPerbaikanSchema($record->riwayat_perbaikan ?? []))
@@ -519,8 +521,8 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                 $currentTanggal = $record->izinVisitasi->date_updated?->translatedFormat('d/m/Y H:i') ?? '-';
 
                                 $visitasiEntries[] = \Filament\Infolists\Components\TextEntry::make('current_status')
-                                    ->label('Status Terkini (#' . $totalEntries . ')')
-                                    ->state($currentStatus . ' • ' . $currentTanggal)
+                                    ->label('Status Terkini (#'.$totalEntries.')')
+                                    ->state($currentStatus.' • '.$currentTanggal)
                                     ->badge()
                                     ->color(match ($currentStatus) {
                                         'Memenuhi syarat' => 'success',
@@ -544,9 +546,9 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                 $tanggal = \Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d/m/Y H:i');
                                 $admin = $item['admin'];
 
-                                $visitasiEntries[] = \Filament\Infolists\Components\TextEntry::make('status_' . $index)
-                                    ->label('Perubahan #' . $entryNumber)
-                                    ->state($status . ' • ' . $tanggal . ' • ' . $admin)
+                                $visitasiEntries[] = \Filament\Infolists\Components\TextEntry::make('status_'.$index)
+                                    ->label('Perubahan #'.$entryNumber)
+                                    ->state($status.' • '.$tanggal.' • '.$admin)
                                     ->badge()
                                     ->color(match ($status) {
                                         'Memenuhi syarat' => 'success',
@@ -555,14 +557,14 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         default => 'gray',
                                     });
 
-                                $visitasiEntries[] = \Filament\Infolists\Components\TextEntry::make('catatan_' . $index)
+                                $visitasiEntries[] = \Filament\Infolists\Components\TextEntry::make('catatan_'.$index)
                                     ->label('Catatan')
                                     ->state($catatan)
                                     ->color('gray');
                             }
 
                             // Tampilkan section riwayat visitasi jika ada data
-                            if (!empty($visitasiEntries)) {
+                            if (! empty($visitasiEntries)) {
                                 $sections[] = InfoSection::make('Riwayat Hasil Visitasi')
                                     ->description('Riwayat perubahan hasil visitasi')
                                     ->schema($visitasiEntries)
@@ -596,7 +598,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             ->description('Semua dokumen yang diupload saat pengajuan (format PDF)')
                             ->schema([
                                 TextEntry::make('file1_display')
-                                    ->label('1. ' . $this->getIzinLabel('file1'))
+                                    ->label('1. '.$this->getIzinLabel('file1'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file1) {
                                             $filename = basename($record->file1);
@@ -607,12 +609,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file1 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file1 ? asset('storage/' . $record->file1) : null)
+                                    ->color(fn ($record) => $record->file1 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file1 ? asset('storage/'.$record->file1) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file2_display')
-                                    ->label('2. ' . $this->getIzinLabel('file2'))
+                                    ->label('2. '.$this->getIzinLabel('file2'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file2) {
                                             $filename = basename($record->file2);
@@ -623,12 +625,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file2 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file2 ? asset('storage/' . $record->file2) : null)
+                                    ->color(fn ($record) => $record->file2 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file2 ? asset('storage/'.$record->file2) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file3_display')
-                                    ->label('3. ' . $this->getIzinLabel('file3'))
+                                    ->label('3. '.$this->getIzinLabel('file3'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file3) {
                                             $filename = basename($record->file3);
@@ -639,12 +641,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file3 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file3 ? asset('storage/' . $record->file3) : null)
+                                    ->color(fn ($record) => $record->file3 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file3 ? asset('storage/'.$record->file3) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file4_display')
-                                    ->label('4. ' . $this->getIzinLabel('file4'))
+                                    ->label('4. '.$this->getIzinLabel('file4'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file4) {
                                             $filename = basename($record->file4);
@@ -655,12 +657,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file4 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file4 ? asset('storage/' . $record->file4) : null)
+                                    ->color(fn ($record) => $record->file4 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file4 ? asset('storage/'.$record->file4) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file5_display')
-                                    ->label('5. ' . $this->getIzinLabel('file5'))
+                                    ->label('5. '.$this->getIzinLabel('file5'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file5) {
                                             $filename = basename($record->file5);
@@ -671,12 +673,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file5 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file5 ? asset('storage/' . $record->file5) : null)
+                                    ->color(fn ($record) => $record->file5 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file5 ? asset('storage/'.$record->file5) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file6_display')
-                                    ->label('6. ' . $this->getIzinLabel('file6'))
+                                    ->label('6. '.$this->getIzinLabel('file6'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file6) {
                                             $filename = basename($record->file6);
@@ -687,12 +689,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file6 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file6 ? asset('storage/' . $record->file6) : null)
+                                    ->color(fn ($record) => $record->file6 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file6 ? asset('storage/'.$record->file6) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file7_display')
-                                    ->label('7. ' . $this->getIzinLabel('file7'))
+                                    ->label('7. '.$this->getIzinLabel('file7'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file7) {
                                             $filename = basename($record->file7);
@@ -703,12 +705,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file7 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file7 ? asset('storage/' . $record->file7) : null)
+                                    ->color(fn ($record) => $record->file7 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file7 ? asset('storage/'.$record->file7) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file8_display')
-                                    ->label('8. ' . $this->getIzinLabel('file8'))
+                                    ->label('8. '.$this->getIzinLabel('file8'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file8) {
                                             $filename = basename($record->file8);
@@ -719,12 +721,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file8 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file8 ? asset('storage/' . $record->file8) : null)
+                                    ->color(fn ($record) => $record->file8 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file8 ? asset('storage/'.$record->file8) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file9_display')
-                                    ->label('9. ' . $this->getIzinLabel('file9'))
+                                    ->label('9. '.$this->getIzinLabel('file9'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file9) {
                                             $filename = basename($record->file9);
@@ -735,12 +737,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file9 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file9 ? asset('storage/' . $record->file9) : null)
+                                    ->color(fn ($record) => $record->file9 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file9 ? asset('storage/'.$record->file9) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file10_display')
-                                    ->label('10. ' . $this->getIzinLabel('file10'))
+                                    ->label('10. '.$this->getIzinLabel('file10'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file10) {
                                             $filename = basename($record->file10);
@@ -751,12 +753,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file10 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file10 ? asset('storage/' . $record->file10) : null)
+                                    ->color(fn ($record) => $record->file10 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file10 ? asset('storage/'.$record->file10) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file11_display')
-                                    ->label('11. ' . $this->getIzinLabel('file11'))
+                                    ->label('11. '.$this->getIzinLabel('file11'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file11) {
                                             $filename = basename($record->file11);
@@ -767,12 +769,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file11 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file11 ? asset('storage/' . $record->file11) : null)
+                                    ->color(fn ($record) => $record->file11 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file11 ? asset('storage/'.$record->file11) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file12_display')
-                                    ->label('12. ' . $this->getIzinLabel('file12'))
+                                    ->label('12. '.$this->getIzinLabel('file12'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file12) {
                                             $filename = basename($record->file12);
@@ -783,12 +785,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file12 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file12 ? asset('storage/' . $record->file12) : null)
+                                    ->color(fn ($record) => $record->file12 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file12 ? asset('storage/'.$record->file12) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file13_display')
-                                    ->label('13. ' . $this->getIzinLabel('file13'))
+                                    ->label('13. '.$this->getIzinLabel('file13'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file13) {
                                             $filename = basename($record->file13);
@@ -799,12 +801,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file13 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file13 ? asset('storage/' . $record->file13) : null)
+                                    ->color(fn ($record) => $record->file13 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file13 ? asset('storage/'.$record->file13) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file14_display')
-                                    ->label('14. ' . $this->getIzinLabel('file14'))
+                                    ->label('14. '.$this->getIzinLabel('file14'))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file14) {
                                             $filename = basename($record->file14);
@@ -815,12 +817,12 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file14 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file14 ? asset('storage/' . $record->file14) : null)
+                                    ->color(fn ($record) => $record->file14 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file14 ? asset('storage/'.$record->file14) : null)
                                     ->openUrlInNewTab(),
 
                                 TextEntry::make('file15_display')
-                                    ->label(fn($record) => '15. ' . $this->getIzinLabel('file15', $record))
+                                    ->label(fn ($record) => '15. '.$this->getIzinLabel('file15', $record))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file15) {
                                             $filename = basename($record->file15);
@@ -831,13 +833,13 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file15 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file15 ? asset('storage/' . $record->file15) : null)
+                                    ->color(fn ($record) => $record->file15 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file15 ? asset('storage/'.$record->file15) : null)
                                     ->openUrlInNewTab()
-                                    ->visible(fn($record) => $record->use_new_labels),
+                                    ->visible(fn ($record) => $record->use_new_labels),
 
                                 TextEntry::make('file16_display')
-                                    ->label(fn($record) => '16. ' . $this->getIzinLabel('file16', $record))
+                                    ->label(fn ($record) => '16. '.$this->getIzinLabel('file16', $record))
                                     ->getStateUsing(function ($record) {
                                         if ($record->file16) {
                                             $filename = basename($record->file16);
@@ -848,10 +850,10 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
-                                    ->color(fn($record) => $record->file16 ? 'success' : 'gray')
-                                    ->url(fn($record) => $record->file16 ? asset('storage/' . $record->file16) : null)
+                                    ->color(fn ($record) => $record->file16 ? 'success' : 'gray')
+                                    ->url(fn ($record) => $record->file16 ? asset('storage/'.$record->file16) : null)
                                     ->openUrlInNewTab()
-                                    ->visible(fn($record) => $record->use_new_labels),
+                                    ->visible(fn ($record) => $record->use_new_labels),
 
                             ])
                             ->columns(1),
@@ -882,7 +884,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             ->exists();
                     })
                     ->action(function () {
-                        return redirect()->to(IzinResource::getUrl('create') . '?type=baru');
+                        return redirect()->to(IzinResource::getUrl('create').'?type=baru');
                     }),
 
                 Action::make('perpanjang_izin')
@@ -910,7 +912,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             $latestIzin->izinDokumenPks->dokumen_pks_bkk;
                     })
                     ->action(function () {
-                        return redirect()->to(IzinResource::getUrl('create') . '?type=perpanjang');
+                        return redirect()->to(IzinResource::getUrl('create').'?type=perpanjang');
                     }),
 
             ])
@@ -919,9 +921,9 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                     ->label('Buat Pengajuan Izin Pertama')
                     ->icon('heroicon-o-plus-circle')
                     ->color('primary')
-                    ->visible(fn() => !auth('web')->user()->is_blocked)
+                    ->visible(fn () => ! auth('web')->user()->is_blocked)
                     ->action(function () {
-                        return redirect()->to(IzinResource::getUrl('create') . '?type=baru');
+                        return redirect()->to(IzinResource::getUrl('create').'?type=baru');
                     }),
             ])
             ->emptyStateDescription('Anda belum memiliki pengajuan izin. Mulai dengan membuat pengajuan izin baru.')
@@ -931,7 +933,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
 
     private function getRiwayatPerbaikanSchema(array $riwayat): array
     {
-        error_log('Riwayat Perbaikan: ' . json_encode($riwayat));
+        error_log('Riwayat Perbaikan: '.json_encode($riwayat));
         $schema = [];
         foreach ($riwayat as $index => $item) {
             $schema[] = TextEntry::make("riwayat_{$index}")

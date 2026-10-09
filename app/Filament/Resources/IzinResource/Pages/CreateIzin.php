@@ -9,7 +9,6 @@ use App\Filament\Resources\VaksinatorResource;
 use App\Models\Izin;
 use App\Models\SuratPersetujuanIcv;
 use App\Models\Vaksinator;
-use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 
@@ -20,6 +19,11 @@ class CreateIzin extends CreateRecord
     protected static string $resource = IzinResource::class;
 
     protected static bool $canCreateAnother = false;
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        return auth()->check() && (auth()->user()->hasRole('admin') || auth()->user()->hasRole('user'));
+    }
 
     public function mount(): void
     {
@@ -88,7 +92,7 @@ class CreateIzin extends CreateRecord
         // }
 
         // Cek jika ada izin yang masih diproses (untuk non-admin)
-        if (!auth()->user()->hasRole('admin')) {
+        if (! auth()->user()->hasRole('admin')) {
             $this->checkExistingActivePermits(auth()->id());
         }
 
@@ -166,9 +170,9 @@ class CreateIzin extends CreateRecord
         if (! $suratPersetujuan->masa_berlaku) {
             $errors[] = '• Masa berlaku surat persetujuan ICV belum diisi';
         } elseif ($suratPersetujuan->masa_berlaku < now()) {
-            $errors[] = '• Surat persetujuan ICV sudah kadaluarsa (' . $suratPersetujuan->masa_berlaku->format('d/m/Y') . ')';
+            $errors[] = '• Surat persetujuan ICV sudah kadaluarsa ('.$suratPersetujuan->masa_berlaku->format('d/m/Y').')';
         } elseif ($suratPersetujuan->masa_berlaku <= now()->addDays(30)) {
-            $warnings[] = '• Surat persetujuan ICV akan habis dalam 30 hari (' . $suratPersetujuan->masa_berlaku->format('d/m/Y') . ')';
+            $warnings[] = '• Surat persetujuan ICV akan habis dalam 30 hari ('.$suratPersetujuan->masa_berlaku->format('d/m/Y').')';
         }
 
         // Validasi nomor surat
@@ -183,7 +187,7 @@ class CreateIzin extends CreateRecord
 
         // Jika ada error, blokir pembuatan izin
         if (! empty($errors)) {
-            $errorMessage = "Surat persetujuan ICV Anda tidak valid untuk mengajukan izin:\n\n" . implode("\n", $errors) . "\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.";
+            $errorMessage = "Surat persetujuan ICV Anda tidak valid untuk mengajukan izin:\n\n".implode("\n", $errors)."\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.";
 
             Notification::make()
                 ->title('Surat Persetujuan ICV Tidak Valid')
@@ -205,7 +209,7 @@ class CreateIzin extends CreateRecord
 
         // Jika ada warning, tampilkan peringatan tapi tetap izinkan
         if (! empty($warnings)) {
-            $warningMessage = "Peringatan mengenai surat persetujuan ICV Anda:\n\n" . implode("\n", $warnings) . "\n\nDisarankan untuk memperbarui surat persetujuan ICV segera.";
+            $warningMessage = "Peringatan mengenai surat persetujuan ICV Anda:\n\n".implode("\n", $warnings)."\n\nDisarankan untuk memperbarui surat persetujuan ICV segera.";
 
             Notification::make()
                 ->title('Peringatan Surat Persetujuan ICV')
@@ -264,9 +268,9 @@ class CreateIzin extends CreateRecord
         if (! $vaksinator->masa_aktif_izin_praktek) {
             $errors[] = '• Masa aktif izin praktek belum diisi';
         } elseif ($vaksinator->masa_aktif_izin_praktek < now()) {
-            $errors[] = '• Izin praktek sudah kadaluarsa (' . $vaksinator->masa_aktif_izin_praktek->format('d/m/Y') . ')';
+            $errors[] = '• Izin praktek sudah kadaluarsa ('.$vaksinator->masa_aktif_izin_praktek->format('d/m/Y').')';
         } elseif ($vaksinator->masa_aktif_izin_praktek <= now()->addDays(30)) {
-            $warnings[] = '• Izin praktek akan habis dalam 30 hari (' . $vaksinator->masa_aktif_izin_praktek->format('d/m/Y') . ')';
+            $warnings[] = '• Izin praktek akan habis dalam 30 hari ('.$vaksinator->masa_aktif_izin_praktek->format('d/m/Y').')';
         }
 
         // Cek dokumen izin praktek
@@ -278,9 +282,9 @@ class CreateIzin extends CreateRecord
         if (! $vaksinator->masa_aktif_sertifikat) {
             $errors[] = '• Masa aktif sertifikat vaksinator belum diisi';
         } elseif ($vaksinator->masa_aktif_sertifikat < now()) {
-            $errors[] = '• Sertifikat vaksinator sudah kadaluarsa (' . $vaksinator->masa_aktif_sertifikat->format('d/m/Y') . ')';
+            $errors[] = '• Sertifikat vaksinator sudah kadaluarsa ('.$vaksinator->masa_aktif_sertifikat->format('d/m/Y').')';
         } elseif ($vaksinator->masa_aktif_sertifikat <= now()->addDays(30)) {
-            $warnings[] = '• Sertifikat vaksinator akan habis dalam 30 hari (' . $vaksinator->masa_aktif_sertifikat->format('d/m/Y') . ')';
+            $warnings[] = '• Sertifikat vaksinator akan habis dalam 30 hari ('.$vaksinator->masa_aktif_sertifikat->format('d/m/Y').')';
         }
 
         // Cek dokumen sertifikat vaksinator
@@ -290,7 +294,7 @@ class CreateIzin extends CreateRecord
 
         // Jika ada error, blokir pembuatan izin
         if (! empty($errors)) {
-            $errorMessage = "Data vaksinator Anda tidak valid untuk mengajukan izin:\n\n" . implode("\n", $errors) . "\n\nSilakan perbarui data vaksinator terlebih dahulu.";
+            $errorMessage = "Data vaksinator Anda tidak valid untuk mengajukan izin:\n\n".implode("\n", $errors)."\n\nSilakan perbarui data vaksinator terlebih dahulu.";
 
             Notification::make()
                 ->title('Data Vaksinator Tidak Valid')
@@ -312,7 +316,7 @@ class CreateIzin extends CreateRecord
 
         // Jika ada warning, tampilkan peringatan tapi tetap izinkan
         if (! empty($warnings)) {
-            $warningMessage = "Peringatan mengenai data vaksinator Anda:\n\n" . implode("\n", $warnings) . "\n\nDisarankan untuk memperbarui data vaksinator segera.";
+            $warningMessage = "Peringatan mengenai data vaksinator Anda:\n\n".implode("\n", $warnings)."\n\nDisarankan untuk memperbarui data vaksinator segera.";
 
             Notification::make()
                 ->title('Peringatan Data Vaksinator')
@@ -377,6 +381,7 @@ class CreateIzin extends CreateRecord
         if ($activePermits->isNotEmpty()) {
             $permitDetails = $activePermits->map(function ($permit) {
                 $status = $this->getPermitStatus($permit);
+
                 return "• {$permit->kategori_izin} - {$status} (Pengajuan: {$permit->tanggal_pengajuan->format('d/m/Y')})";
             })->join("\n");
 
@@ -515,7 +520,7 @@ class CreateIzin extends CreateRecord
 
             Notification::make()
                 ->title('Surat Persetujuan ICV Tidak Valid')
-                ->body("{$userName} memiliki masalah dengan surat persetujuan ICV:\n• " . implode("\n• ", $errors) . "\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.")
+                ->body("{$userName} memiliki masalah dengan surat persetujuan ICV:\n• ".implode("\n• ", $errors)."\n\nSilakan lengkapi atau perbarui surat persetujuan ICV terlebih dahulu.")
                 ->danger()
                 ->persistent()
                 ->send();
@@ -570,7 +575,7 @@ class CreateIzin extends CreateRecord
 
             Notification::make()
                 ->title('Data Vaksinator Tidak Valid')
-                ->body("{$userName} memiliki masalah dengan data vaksinator:\n• " . implode("\n• ", $errors) . "\n\nSilakan perbarui data vaksinator terlebih dahulu.")
+                ->body("{$userName} memiliki masalah dengan data vaksinator:\n• ".implode("\n• ", $errors)."\n\nSilakan perbarui data vaksinator terlebih dahulu.")
                 ->danger()
                 ->persistent()
                 ->send();

@@ -30,6 +30,11 @@ class EditProfil extends Page implements HasForms
 
     public static ?string $title = 'Edit Profil';
 
+    public static function canAccess(): bool
+    {
+        return auth()->check() && ! auth()->user()->hasRole('dokter');
+    }
+
     public ?array $data = [];
 
     public function mount(): void

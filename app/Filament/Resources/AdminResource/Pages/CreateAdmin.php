@@ -17,6 +17,8 @@ class CreateAdmin extends CreateRecord
     {
         // Pastikan field yang dibutuhkan ada
         $data['verifikasi_akun'] = 'Diterima';
+        $data['status_akun'] = 'Aktif';
+        $data['is_blocked'] = false;
         $data['date_updated'] = now();
 
         // If simply_user_id is provided, sync initial password hash from SIMPLY

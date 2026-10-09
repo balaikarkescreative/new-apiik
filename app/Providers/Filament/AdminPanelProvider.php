@@ -61,7 +61,8 @@ class AdminPanelProvider extends PanelProvider
                     MenuItem::make()
                         ->url(fn () => EditProfil::getUrl())
                         ->icon('heroicon-o-user-circle')
-                        ->label('Edit Profil'),
+                        ->label('Edit Profil')
+                        ->visible(fn () => Auth::check() && ! Auth::user()->hasRole('dokter')),
                 ]
             )
             ->navigationItems([
@@ -120,7 +121,7 @@ class AdminPanelProvider extends PanelProvider
                     ->group('Izin')
                     ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.izin.verifikasi'))
                     ->url(fn () => IzinResource::getUrl('verifikasi'))
-                    ->visible(fn () => Auth::user()->hasRole('admin')),
+                    ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('dokter')),
                 NavigationItem::make('Surat Persetujuan')
                     ->icon('heroicon-o-document-text')
                     ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.izin.surat-persetujuan'))
@@ -188,6 +189,10 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-arrow-down-tray')
                     ->sort(100)
                     ->visible(function () {
+                        if (Auth::user()->hasRole('dokter')) {
+                            return false;
+                        }
+
                         if (! Auth::user()->hasRole('user')) {
                             return true;
                         }
