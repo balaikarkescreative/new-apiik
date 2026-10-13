@@ -99,12 +99,14 @@ class SuratPersetujuan extends Page implements HasTable
             ->columns([
                 TextColumn::make('tanggal_pengajuan')
                     ->label('Tanggal Pengajuan')
-                    ->description(fn ($record) => $record->nomor_surat)
-                    ->formatStateUsing(fn ($state): string => $state->translatedFormat('d F Y'))
+                    ->date('d M Y')
+                    ->description(fn ($record) => 'PIC: '.($record->picDokter?->name ?? '-'))
                     ->sortable()
                     ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->where('tanggal_pengajuan', 'like', "%{$search}%")
-                            ->orWhere('nomor_surat', 'like', "%{$search}%");
+                        return $query->where('tbl_izin.tanggal_pengajuan', 'like', "%{$search}%")
+                            ->orWhereHas('picDokter', function (Builder $query) use ($search) {
+                                $query->where('name', 'like', "%{$search}%");
+                            });
                     }),
 
                 Tables\Columns\TextColumn::make('klinik_info')
@@ -113,9 +115,9 @@ class SuratPersetujuan extends Page implements HasTable
                         $klinik = $record->user?->name ?? 'N/A';
                         $lokasi = $record->user?->kotakab ?? 'N/A';
 
-                        return '<div>'.
-                            '<div class="font-medium text-sm">'.e($klinik).'</div>'.
-                            '<div class="text-xs text-gray-500">'.e($lokasi).'</div>'.
+                        return '<div class="max-w-[220px]">'.
+                            '<div class="font-medium text-sm truncate" title="'.e($klinik).'">'.e($klinik).'</div>'.
+                            '<div class="text-xs text-gray-500 truncate" title="'.e($lokasi).'">'.e($lokasi).'</div>'.
                             '</div>';
                     })
                     ->html()
@@ -155,12 +157,6 @@ class SuratPersetujuan extends Page implements HasTable
                         END '.$direction)
                             ->select('tbl_izin.*');
                     }),
-
-                TextColumn::make('picDokter.name')
-                    ->label('PIC Dokter')
-                    ->placeholder('-')
-                    ->searchable()
-                    ->sortable(),
             ])
             ->actions([
                 Action::make('proses_persetujuan')
