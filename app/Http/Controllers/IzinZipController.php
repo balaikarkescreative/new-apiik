@@ -14,12 +14,16 @@ class IzinZipController extends Controller
     {
         $user = auth()->user();
 
-        // Verifikasi hak akses: admin atau pemilik permohonan
-        if (!$user) {
+        // Verifikasi hak akses: admin, pemilik permohonan, atau dokter PIC yang ditugaskan
+        if (! $user) {
             abort(401);
         }
 
-        if (!$user->hasRole(['admin']) && $user->id !== $record->user_id) {
+        $isAdmin = $user->hasRole('admin');
+        $isOwner = $user->id === $record->user_id;
+        $isAssignedDoctor = $user->hasRole('dokter') && (int) $record->pic_dokter_id === (int) $user->id;
+
+        if (! $isAdmin && ! $isOwner && ! $isAssignedDoctor) {
             abort(403, 'Akses ditolak.');
         }
 

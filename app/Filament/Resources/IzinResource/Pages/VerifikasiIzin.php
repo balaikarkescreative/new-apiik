@@ -294,7 +294,6 @@ class VerifikasiIzin extends Page implements HasTable
             ->filters([
                 // Date Range Filter
                 DateRangeFilter::make('tanggal_pengajuan')
-                    ->defaultLast7Days()
                     ->label('Tanggal Pengajuan'),
 
                 // Klinik/RS Filter
