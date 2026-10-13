@@ -30,6 +30,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class SuratPersetujuan extends Page implements HasTable
@@ -100,7 +101,16 @@ class SuratPersetujuan extends Page implements HasTable
                 TextColumn::make('tanggal_pengajuan')
                     ->label('Tanggal Pengajuan')
                     ->date('d M Y')
-                    ->description(fn ($record) => 'PIC: '.($record->picDokter?->name ?? '-'))
+                    ->description(function ($record) {
+                        $nama = $record->picDokter?->name;
+                        if (! $nama) {
+                            return 'PIC: -';
+                        }
+
+                        return new HtmlString(
+                            '<span class="inline-block max-w-[180px] truncate align-bottom" title="PIC: '.e($nama).'">PIC: '.e($nama).'</span>'
+                        );
+                    })
                     ->sortable()
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->where('tbl_izin.tanggal_pengajuan', 'like', "%{$search}%")
