@@ -472,7 +472,23 @@ class VerifikasiIzin extends Page implements HasTable
                 SelectFilter::make('pic_dokter_id')
                     ->label('PIC Dokter')
                     ->searchable()
-                    ->options(fn () => User::role('dokter')->orderBy('name')->pluck('name', 'id'))
+                    ->options(function () {
+                        $options = ['belum_ditentukan' => 'Belum Ditentukan'];
+                        $dokters = User::role('dokter')->orderBy('name')->pluck('name', 'id')->toArray();
+
+                        return $options + $dokters;
+                    })
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (! $data['value']) {
+                            return $query;
+                        }
+
+                        if ($data['value'] === 'belum_ditentukan') {
+                            return $query->whereNull('tbl_izin.pic_dokter_id');
+                        }
+
+                        return $query->where('tbl_izin.pic_dokter_id', $data['value']);
+                    })
                     ->visible(fn () => ! (auth()->user()->hasRole('dokter') && ! auth()->user()->hasRole('admin'))),
             ], FiltersLayout::AboveContent)
             ->persistFiltersInSession()
@@ -883,11 +899,11 @@ class VerifikasiIzin extends Page implements HasTable
 
                                 Select::make('pic_dokter_id')
                                     ->label('PIC Dokter')
+                                    ->placeholder('Pilih PIC Dokter (Opsional)')
                                     ->options(fn () => User::role('dokter')->orderBy('name')->pluck('name', 'id'))
                                     ->searchable()
                                     ->preload()
                                     ->visible(fn (Get $get): bool => (string) $get('hasil') === '1')
-                                    ->required(fn (Get $get): bool => (string) $get('hasil') === '1')
                                     ->disabled(fn () => auth()->user()->hasRole('dokter') && ! auth()->user()->hasRole('admin')),
                             ]),
 
@@ -932,16 +948,7 @@ class VerifikasiIzin extends Page implements HasTable
                                             return;
                                         }
 
-                                        $picDokterId = (string) $hasil === '1' ? ($get('pic_dokter_id') ?? $record->pic_dokter_id) : null;
-                                        if ((string) $hasil === '1' && ! $picDokterId) {
-                                            Notification::make()
-                                                ->title('Gagal Verifikasi')
-                                                ->danger()
-                                                ->body('PIC Dokter wajib dipilih jika berkas lengkap.')
-                                                ->send();
-
-                                            return;
-                                        }
+                                        $picDokterId = (string) $hasil === '1' ? ($get('pic_dokter_id') ?: null) : null;
 
                                         $catatan = $get('catatan');
                                         if (($hasil == '2' || $hasil == '3') && ! $catatan) {

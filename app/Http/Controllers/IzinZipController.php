@@ -21,7 +21,7 @@ class IzinZipController extends Controller
 
         $isAdmin = $user->hasRole('admin');
         $isOwner = $user->id === $record->user_id;
-        $isAssignedDoctor = $user->hasRole('dokter') && (int) $record->pic_dokter_id === (int) $user->id;
+        $isAssignedDoctor = $user->hasRole('dokter') && ! empty($record->pic_dokter_id) && (int) $record->pic_dokter_id === (int) $user->id;
 
         if (! $isAdmin && ! $isOwner && ! $isAssignedDoctor) {
             abort(403, 'Akses ditolak.');

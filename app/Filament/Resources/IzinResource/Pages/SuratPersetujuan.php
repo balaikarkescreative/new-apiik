@@ -353,7 +353,23 @@ class SuratPersetujuan extends Page implements HasTable
                 Tables\Filters\SelectFilter::make('pic_dokter_id')
                     ->label('PIC Dokter')
                     ->searchable()
-                    ->options(fn () => User::role('dokter')->orderBy('name')->pluck('name', 'id')),
+                    ->options(function () {
+                        $options = ['belum_ditentukan' => 'Belum Ditentukan'];
+                        $dokters = User::role('dokter')->orderBy('name')->pluck('name', 'id')->toArray();
+
+                        return $options + $dokters;
+                    })
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (! $data['value']) {
+                            return $query;
+                        }
+
+                        if ($data['value'] === 'belum_ditentukan') {
+                            return $query->whereNull('tbl_izin.pic_dokter_id');
+                        }
+
+                        return $query->where('tbl_izin.pic_dokter_id', $data['value']);
+                    }),
             ], FiltersLayout::AboveContent);
     }
 
