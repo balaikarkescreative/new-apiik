@@ -1,3 +1,10 @@
+@php
+    $record = $record ?? (isset($getRecord) ? $getRecord() : ($entry?->getRecord() ?? null));
+@endphp
+
+@if (! $record)
+    <div class="text-sm text-gray-500 py-4 text-center">Data faskes tidak ditemukan.</div>
+@else
 <div class="space-y-4">
     <div class="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-700">
         <div>
@@ -80,3 +87,4 @@
         </div>
     @endif
 </div>
+@endif

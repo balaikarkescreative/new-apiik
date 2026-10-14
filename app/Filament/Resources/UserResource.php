@@ -896,7 +896,8 @@ class UserResource extends Resource
                             ->schema([
                                 \Filament\Infolists\Components\ViewEntry::make('riwayat_blokir_view')
                                     ->label('')
-                                    ->view('filament.modals.riwayat-blokir-faskes'),
+                                    ->view('filament.modals.riwayat-blokir-faskes')
+                                    ->viewData(fn (User $record) => ['record' => $record]),
                             ])
                             ->collapsed()
                             ->collapsible(),
