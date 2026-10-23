@@ -204,18 +204,6 @@ class VerifikasiIzin extends Page implements HasTable
                 // Current Step
                 TextColumn::make('current_step')
                     ->label('Tahap Saat Ini')
-                    ->suffix(function ($record) {
-                        // Jika ada tanggal_perbaikan dan (belum ada izinDokumen atau hasil terakhir = 2), tampilkan (Perbaikan)
-                        if ($record->tanggal_perbaikan) {
-                            if (
-                                ! $record->izinDokumen
-                            ) {
-                                return ' (Perbaikan)';
-                            }
-                        }
-
-                        return '';
-                    })
                     ->getStateUsing(function ($record) {
                         return $this->getCurrentStep($record);
                     })
@@ -351,14 +339,15 @@ class VerifikasiIzin extends Page implements HasTable
                     ->label('Status Progress')
                     ->options([
                         'verifikasi_dokumen' => 'Verifikasi Dokumen',
-                        'perbaikan' => 'Perbaikan',
-                        'perbaikan_dokumen' => 'Perbaikan Dokumen',
+                        'perlu_perbaikan_dokumen' => 'Perlu Perbaikan Dokumen',
+                        'perbaikan_dokumen_diupload' => 'Perbaikan Dokumen Diupload',
+                        'ditolak' => 'Ditolak',
                         'jadwal_visitasi' => 'Jadwal Visitasi',
-                        'hasil_visitasi' => 'Hasil Visitasi',
-                        'visitasi_memenuhi_syarat' => 'Visitasi - Memenuhi Syarat',
-                        'visitasi_revisi' => 'Visitasi - Revisi (Sementara)',
-                        'perbaikan_visitasi' => 'Visitasi - Perbaikan Diupload',
-                        'visitasi_ditolak' => 'Visitasi - Ditolak',
+                        'hasil_visitasi' => 'Input Hasil Visitasi',
+                        'visitasi_memenuhi_syarat' => 'Visitasi Memenuhi Syarat',
+                        'visitasi_revisi' => 'Perlu Perbaikan Visitasi',
+                        'perbaikan_visitasi' => 'Perbaikan Visitasi Diupload',
+                        'visitasi_ditolak' => 'Visitasi Ditolak',
                         'proses_persetujuan' => 'Proses Persetujuan',
                         'upload_pks' => 'Upload PKS',
                         'selesai' => 'Selesai',
@@ -379,18 +368,17 @@ class VerifikasiIzin extends Page implements HasTable
                                         });
                                 });
 
-                            case 'perbaikan':
-                                // Filter: ada tanggal_perbaikan dan (belum ada izinDokumen atau hasil terakhir = 2)
+                            case 'perlu_perbaikan_dokumen':
+                                return $query->whereHas('izinDokumen', function ($q) {
+                                    $q->where('hasil', 2);
+                                })->whereNull('tanggal_perbaikan');
+
+                            case 'perbaikan_dokumen_diupload':
                                 return $query->whereNotNull('tanggal_perbaikan')
                                     ->where(function ($q) {
                                         $q->whereDoesntHave('izinDokumen')
                                             ->orWhereHas('izinDokumen', fn ($q2) => $q2->where('hasil', 2));
                                     });
-
-                            case 'perbaikan_dokumen':
-                                return $query->whereHas('izinDokumen', function ($q) {
-                                    $q->where('hasil', 2);
-                                });
 
                             case 'ditolak':
                                 return $query->whereHas('izinDokumen', function ($q) {
@@ -624,6 +612,10 @@ class VerifikasiIzin extends Page implements HasTable
     {
         // Tab 1: Verifikasi Dokumen
         if (! $record->izinDokumen || ! $record->izinDokumen->hasil) {
+            if ($record->tanggal_perbaikan) {
+                return 'Perbaikan Dokumen Diupload';
+            }
+
             return 'Verifikasi Dokumen';
         }
 
@@ -632,7 +624,11 @@ class VerifikasiIzin extends Page implements HasTable
         }
 
         if ($record->izinDokumen->hasil == 2) {
-            return 'Perbaikan Dokumen';
+            if ($record->tanggal_perbaikan) {
+                return 'Perbaikan Dokumen Diupload';
+            }
+
+            return 'Perlu Perbaikan Dokumen';
         }
 
         // Tab 2: Jadwal Visitasi
@@ -642,19 +638,19 @@ class VerifikasiIzin extends Page implements HasTable
 
         // Tab 3: Hasil Visitasi
         if (! $record->izinVisitasi || ! $record->izinVisitasi->status) {
-            return 'Hasil Visitasi';
+            return 'Input Hasil Visitasi';
         }
 
         // Handle status visitasi
         if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara') {
             if ($record->izinVisitasi->bukti_perbaikan) {
-                return 'Perbaikan Visitasi';
+                return 'Perbaikan Visitasi Diupload';
             }
 
-            return 'Revisi Visitasi';
+            return 'Perlu Perbaikan Visitasi';
         }
         if ($record->izinVisitasi->status === 'Tidak memenuhi syarat') {
-            return 'Ditolak';
+            return 'Visitasi Ditolak';
         }
 
         // Tab 4: PKS (hanya jika memenuhi syarat)
@@ -676,12 +672,15 @@ class VerifikasiIzin extends Page implements HasTable
 
         return match ($state) {
             'Selesai' => 'success',
-            'Perbaikan Dokumen' => 'danger',
-            'Ditolak' => 'danger',
-            'Revisi Visitasi' => 'warning',
-            'Perbaikan Visitasi' => 'info',
+            'Perlu Perbaikan Dokumen' => 'danger',
+            'Perbaikan Dokumen Diupload' => 'info',
+            'Ditolak', 'Visitasi Ditolak' => 'danger',
+            'Perlu Perbaikan Visitasi' => 'warning',
+            'Perbaikan Visitasi Diupload' => 'info',
             'Jadwal Visitasi' => 'warning',
-            'Hasil Visitasi' => 'info',
+            'Input Hasil Visitasi' => 'info',
+            'Proses Persetujuan' => 'info',
+            'Upload PKS' => 'info',
             default => 'info'
         };
     }

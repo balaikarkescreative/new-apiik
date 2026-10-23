@@ -107,7 +107,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             }
                             if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara') {
                                 if ($record->izinVisitasi->bukti_perbaikan) {
-                                    return 'Perbaikan Visitasi';
+                                    return 'Perbaikan Visitasi Diupload';
                                 }
 
                                 return 'Perlu Perbaikan Visitasi';
@@ -145,7 +145,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             'Visitasi Memenuhi Syarat' => 'success',
                             'Visitasi Dijadwalkan' => 'warning',
                             'Perlu Perbaikan Visitasi' => 'warning',
-                            'Perbaikan Visitasi' => 'info',
+                            'Perbaikan Visitasi Diupload' => 'info',
                             'Visitasi Ditolak' => 'danger',
                             'Berkas Lengkap' => 'success',
                             'Berkas Tidak Lengkap' => 'danger',
@@ -221,7 +221,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                         'visitasi_dijadwalkan' => 'Visitasi Dijadwalkan',
                         'visitasi_memenuhi' => 'Visitasi Memenuhi Syarat',
                         'visitasi_revisi' => 'Perlu Perbaikan Visitasi',
-                        'perbaikan_visitasi' => 'Perbaikan Visitasi',
+                        'perbaikan_visitasi' => 'Perbaikan Visitasi Diupload',
                         'visitasi_ditolak' => 'Visitasi Ditolak',
                         'disetujui' => 'Disetujui',
                         'selesai' => 'Selesai',

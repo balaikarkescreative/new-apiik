@@ -294,10 +294,10 @@ class SuratPersetujuan extends Page implements HasTable
                     ->label('Status Persetujuan')
                     ->options([
                         'belum_visitasi' => 'Perlu Jadwal Visitasi',
-                        'belum_hasil_visitasi' => 'Perlu Hasil Visitasi',
+                        'belum_hasil_visitasi' => 'Input Hasil Visitasi',
                         'visitasi_memenuhi' => 'Visitasi Memenuhi Syarat',
-                        'visitasi_revisi' => 'Visitasi Revisi',
-                        'perbaikan_visitasi' => 'Perbaikan Visitasi',
+                        'visitasi_revisi' => 'Perlu Perbaikan Visitasi',
+                        'perbaikan_visitasi' => 'Perbaikan Visitasi Diupload',
                         'visitasi_ditolak' => 'Visitasi Ditolak',
                         'belum_persetujuan' => 'Perlu Upload Persetujuan',
                         'belum_pks' => 'Perlu Upload PKS',
@@ -403,23 +403,23 @@ class SuratPersetujuan extends Page implements HasTable
             return 'Perlu Jadwal Visitasi';
         }
         if (! $record->izinVisitasi || ! $record->izinVisitasi->status) {
-            return 'Perlu Hasil Visitasi';
+            return 'Input Hasil Visitasi';
         }
         if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara') {
             if ($record->izinVisitasi->bukti_perbaikan) {
-                return 'Perbaikan Visitasi';
+                return 'Perbaikan Visitasi Diupload';
             }
 
-            return 'Revisi Visitasi';
+            return 'Perlu Perbaikan Visitasi';
         }
         if ($record->izinVisitasi->status === 'Tidak memenuhi syarat') {
-            return 'Ditolak';
+            return 'Visitasi Ditolak';
         }
         if (! $record->izinDokumenPks?->dokumen_pks_bkk) {
-            return 'Perlu Upload PKS';
+            return 'Upload PKS';
         }
         if (! $record->izinPersetujuan) {
-            return 'Perlu Upload Persetujuan';
+            return 'Proses Persetujuan';
         }
 
         return 'Selesai';
@@ -431,10 +431,13 @@ class SuratPersetujuan extends Page implements HasTable
 
         return match ($state) {
             'Selesai' => 'success',
-            'Ditolak' => 'danger',
-            'Revisi Visitasi' => 'warning',
-            'Perbaikan Visitasi' => 'info',
+            'Visitasi Ditolak', 'Ditolak' => 'danger',
+            'Perlu Perbaikan Visitasi' => 'warning',
+            'Perbaikan Visitasi Diupload' => 'info',
             'Perlu Jadwal Visitasi' => 'warning',
+            'Input Hasil Visitasi' => 'info',
+            'Upload PKS' => 'info',
+            'Proses Persetujuan' => 'info',
             default => 'info'
         };
     }
