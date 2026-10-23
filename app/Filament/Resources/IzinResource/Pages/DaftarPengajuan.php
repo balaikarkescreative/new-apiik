@@ -17,6 +17,7 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\HtmlString;
 
 class DaftarPengajuan extends Page implements HasInfolists, HasTable
 {
@@ -105,6 +106,10 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                 return 'Visitasi Ditolak';
                             }
                             if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara') {
+                                if ($record->izinVisitasi->bukti_perbaikan) {
+                                    return 'Perbaikan Visitasi';
+                                }
+
                                 return 'Perlu Perbaikan Visitasi';
                             }
                             if ($record->izinVisitasi->status === 'Memenuhi syarat') {
@@ -140,6 +145,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                             'Visitasi Memenuhi Syarat' => 'success',
                             'Visitasi Dijadwalkan' => 'warning',
                             'Perlu Perbaikan Visitasi' => 'warning',
+                            'Perbaikan Visitasi' => 'info',
                             'Visitasi Ditolak' => 'danger',
                             'Berkas Lengkap' => 'success',
                             'Berkas Tidak Lengkap' => 'danger',
@@ -215,6 +221,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                         'visitasi_dijadwalkan' => 'Visitasi Dijadwalkan',
                         'visitasi_memenuhi' => 'Visitasi Memenuhi Syarat',
                         'visitasi_revisi' => 'Perlu Perbaikan Visitasi',
+                        'perbaikan_visitasi' => 'Perbaikan Visitasi',
                         'visitasi_ditolak' => 'Visitasi Ditolak',
                         'disetujui' => 'Disetujui',
                         'selesai' => 'Selesai',
@@ -241,7 +248,8 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         ->orWhereHas('izinVisitasi', fn ($subq) => $subq->whereNull('status'));
                                 }),
                             'visitasi_memenuhi' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Memenuhi syarat')),
-                            'visitasi_revisi' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Tidak memenuhi syarat sementara')),
+                            'visitasi_revisi' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Tidak memenuhi syarat sementara')->whereNull('bukti_perbaikan')),
+                            'perbaikan_visitasi' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Tidak memenuhi syarat sementara')->whereNotNull('bukti_perbaikan')),
                             'visitasi_ditolak' => $query->whereHas('izinVisitasi', fn ($q) => $q->where('status', 'Tidak memenuhi syarat')),
                             'disetujui' => $query->whereHas('izinPersetujuan', fn ($q) => $q->where('status', 1)),
                             'selesai' => $query->whereHas('izinDokumenPks', fn ($q) => $q->whereNotNull('dokumen_pks_bkk')),
@@ -361,6 +369,37 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                         return ($record->izinVisitasi && $record->izinVisitasi->bukti_perbaikan) ? 'success' : 'gray';
                                     })
                                     ->visible(fn ($record) => $record->izinVisitasi && $record->izinVisitasi->status === 'Tidak memenuhi syarat sementara'),
+
+                                TextEntry::make('riwayat_visitasi_display')
+                                    ->label('Riwayat Evaluasi Visitasi Sebelumnya')
+                                    ->getStateUsing(function ($record) {
+                                        $riwayat = $record->izinVisitasi?->riwayat_visitasi ?? [];
+                                        if (empty($riwayat)) {
+                                            return null;
+                                        }
+
+                                        $items = [];
+                                        foreach (array_reverse($riwayat) as $idx => $item) {
+                                            $no = count($riwayat) - $idx;
+                                            $tgl = ! empty($item['tanggal']) ? \Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d F Y H:i') : '-';
+                                            $status = $item['status'] ?? '-';
+                                            $catatan = $item['catatan'] ?? 'Tidak ada catatan';
+                                            $fileInfo = ! empty($item['bukti_perbaikan']) ? '<span class="text-xs text-gray-500"> • Bukti: '.e(basename($item['bukti_perbaikan'])).'</span>' : '';
+
+                                            $items[] = '<div class="p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 space-y-1">'.
+                                                '<div class="flex items-center justify-between text-xs font-semibold text-gray-800 dark:text-gray-200">'.
+                                                    '<span>Evaluasi #'.$no.' ('.$status.')</span>'.
+                                                    '<span class="text-gray-400 font-normal">'.$tgl.'</span>'.
+                                                '</div>'.
+                                                '<div class="text-xs text-gray-600 dark:text-gray-300">Catatan: '.e($catatan).$fileInfo.'</div>'.
+                                            '</div>';
+                                        }
+
+                                        return new HtmlString('<div class="space-y-2 mt-1">'.implode('', $items).'</div>');
+                                    })
+                                    ->html()
+                                    ->columnSpanFull()
+                                    ->visible(fn ($record) => ! empty($record->izinVisitasi?->riwayat_visitasi)),
 
                                 TextEntry::make('step5')
                                     ->label('5. Persetujuan')

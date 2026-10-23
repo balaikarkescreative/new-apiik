@@ -12,6 +12,7 @@ use Filament\Forms\Components\Actions as FormActions;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Tabs;
@@ -187,8 +188,9 @@ class SuratPersetujuan extends Page implements HasTable
                             // Tab fields
                             'tanggal_visitasi' => $record->izinDokumenPks?->tanggal_visitasi,
                             'pic_dokter_id' => $record->pic_dokter_id,
-                            'status_visitasi' => $record->izinVisitasi?->status ?? null,
-                            'catatan_visitasi' => $record->izinVisitasi?->catatan ?? null,
+                            // Jika ada bukti perbaikan yang baru diupload faskes, reset status_visitasi & catatan_visitasi agar verifikator menilai ulang seperti flow verifikasi dokumen
+                            'status_visitasi' => ($record->izinVisitasi?->bukti_perbaikan) ? null : ($record->izinVisitasi?->status ?? null),
+                            'catatan_visitasi' => ($record->izinVisitasi?->bukti_perbaikan) ? null : ($record->izinVisitasi?->catatan ?? null),
                             'tanggal_persetujuan' => $record->izinPersetujuan?->date_updated ?? now(),
                             'file_persetujuan' => $record->izinPersetujuan?->file_persetujuan,
                             'nomor_surat' => SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->nomor_surat ?? '',
@@ -295,6 +297,7 @@ class SuratPersetujuan extends Page implements HasTable
                         'belum_hasil_visitasi' => 'Perlu Hasil Visitasi',
                         'visitasi_memenuhi' => 'Visitasi Memenuhi Syarat',
                         'visitasi_revisi' => 'Visitasi Revisi',
+                        'perbaikan_visitasi' => 'Perbaikan Visitasi',
                         'visitasi_ditolak' => 'Visitasi Ditolak',
                         'belum_persetujuan' => 'Perlu Upload Persetujuan',
                         'belum_pks' => 'Perlu Upload PKS',
@@ -325,7 +328,14 @@ class SuratPersetujuan extends Page implements HasTable
                         )->when(
                             $data['value'] === 'visitasi_revisi',
                             fn ($q) => $q->whereHas('izinVisitasi', function ($subq) {
-                                $subq->where('status', 'Tidak memenuhi syarat sementara');
+                                $subq->where('status', 'Tidak memenuhi syarat sementara')
+                                    ->whereNull('bukti_perbaikan');
+                            })
+                        )->when(
+                            $data['value'] === 'perbaikan_visitasi',
+                            fn ($q) => $q->whereHas('izinVisitasi', function ($subq) {
+                                $subq->where('status', 'Tidak memenuhi syarat sementara')
+                                    ->whereNotNull('bukti_perbaikan');
                             })
                         )->when(
                             $data['value'] === 'visitasi_ditolak',
@@ -396,6 +406,10 @@ class SuratPersetujuan extends Page implements HasTable
             return 'Perlu Hasil Visitasi';
         }
         if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara') {
+            if ($record->izinVisitasi->bukti_perbaikan) {
+                return 'Perbaikan Visitasi';
+            }
+
             return 'Revisi Visitasi';
         }
         if ($record->izinVisitasi->status === 'Tidak memenuhi syarat') {
@@ -419,6 +433,7 @@ class SuratPersetujuan extends Page implements HasTable
             'Selesai' => 'success',
             'Ditolak' => 'danger',
             'Revisi Visitasi' => 'warning',
+            'Perbaikan Visitasi' => 'info',
             'Perlu Jadwal Visitasi' => 'warning',
             default => 'info'
         };
@@ -600,11 +615,23 @@ class SuratPersetujuan extends Page implements HasTable
                             return ! $record->izinDokumenPks || ! $record->izinDokumenPks->tanggal_visitasi;
                         })
                         ->badge(function ($record) {
-                            return $record->izinVisitasi && $record->izinVisitasi->status ? '✓' : '';
+                            if (! $record->izinVisitasi || ! $record->izinVisitasi->status) {
+                                return '';
+                            }
+                            // Jika ada bukti perbaikan yang baru diupload faskes dan menunggu penilaian ulang
+                            if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara' && $record->izinVisitasi->bukti_perbaikan) {
+                                return 'Perbaikan';
+                            }
+
+                            return '✓';
                         })
                         ->badgeColor(function ($record) {
                             if (! $record->izinVisitasi || ! $record->izinVisitasi->status) {
                                 return 'gray';
+                            }
+
+                            if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara' && $record->izinVisitasi->bukti_perbaikan) {
+                                return 'info';
                             }
 
                             return match ($record->izinVisitasi->status) {
@@ -628,6 +655,13 @@ class SuratPersetujuan extends Page implements HasTable
                                     ->formatStateUsing(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi?->translatedFormat('d F Y') ?? '-')
                                     ->dehydrated(false),
                             ])->visible(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi !== null),
+
+                            Section::make('Riwayat Catatan Visitasi')
+                                ->collapsible()
+                                ->visible(fn ($record) => ($record->izinVisitasi && ($record->izinVisitasi->catatan || ! empty($record->izinVisitasi->riwayat_visitasi))))
+                                ->schema(function ($record) {
+                                    return $this->getRiwayatVisitasiSchema($record->izinVisitasi);
+                                }),
 
                             \Filament\Forms\Components\Select::make('status_visitasi')
                                 ->label('Hasil Visitasi')
@@ -713,6 +747,16 @@ class SuratPersetujuan extends Page implements HasTable
                                                     ->label('Catatan')
                                                     ->state($currentCatatan)
                                                     ->color('gray');
+
+                                                if ($record->izinVisitasi->bukti_perbaikan) {
+                                                    $entries[] = \Filament\Infolists\Components\TextEntry::make('current_bukti')
+                                                        ->label('Bukti Perbaikan yang Diupload')
+                                                        ->state(basename($record->izinVisitasi->bukti_perbaikan))
+                                                        ->badge()
+                                                        ->color('info')
+                                                        ->url(\Illuminate\Support\Facades\Storage::url($record->izinVisitasi->bukti_perbaikan))
+                                                        ->openUrlInNewTab();
+                                                }
                                             }
 
                                             // Tambahkan riwayat perubahan sebelumnya
@@ -752,6 +796,18 @@ class SuratPersetujuan extends Page implements HasTable
                                                     ->label('Catatan')
                                                     ->state($catatan)
                                                     ->color('gray');
+
+                                                if (! empty($item['bukti_perbaikan'])) {
+                                                    $fileName = basename($item['bukti_perbaikan']);
+                                                    $fileUrl = \Illuminate\Support\Facades\Storage::url($item['bukti_perbaikan']);
+                                                    $entries[] = \Filament\Infolists\Components\TextEntry::make('bukti_'.$index)
+                                                        ->label('Bukti Perbaikan Terdahulu')
+                                                        ->state($fileName)
+                                                        ->badge()
+                                                        ->color('gray')
+                                                        ->url($fileUrl)
+                                                        ->openUrlInNewTab();
+                                                }
                                             }
 
                                             return $entries;
@@ -801,6 +857,8 @@ class SuratPersetujuan extends Page implements HasTable
                                                 'catatan' => $existingVisitasi->catatan,
                                                 'tanggal' => $existingVisitasi->date_updated?->toDateTimeString() ?? now()->toDateTimeString(),
                                                 'admin' => auth()->user()->name,
+                                                'bukti_perbaikan' => $existingVisitasi->bukti_perbaikan,
+                                                'tanggal_perbaikan' => $existingVisitasi->tanggal_perbaikan_visitasi?->toDateTimeString(),
                                             ];
                                         }
 
@@ -1269,5 +1327,53 @@ class SuratPersetujuan extends Page implements HasTable
                         ]),
                 ]),
         ];
+    }
+
+    private function getRiwayatVisitasiSchema($izinVisitasi): array
+    {
+        if (! $izinVisitasi) {
+            return [];
+        }
+
+        $riwayat = $izinVisitasi->riwayat_visitasi ?? [];
+        $entries = [];
+
+        // 1. Jika ada visitasi aktif / catatan saat ini
+        if ($izinVisitasi->catatan) {
+            $tgl = $izinVisitasi->date_updated ? $izinVisitasi->date_updated->translatedFormat('d F Y H:i') : now()->translatedFormat('d F Y H:i');
+            $catatan = e($izinVisitasi->catatan);
+            $buktiHtml = '';
+
+            if (! empty($izinVisitasi->bukti_perbaikan)) {
+                $buktiUrl = asset('storage/'.$izinVisitasi->bukti_perbaikan);
+                $buktiName = e(basename($izinVisitasi->bukti_perbaikan));
+                $tglUpload = $izinVisitasi->tanggal_perbaikan_visitasi ? ' (Upload: '.$izinVisitasi->tanggal_perbaikan_visitasi->translatedFormat('d/m/Y H:i').')' : '';
+                $buktiHtml = '<div class="mt-1 text-xs"><span class="text-gray-500">Bukti Perbaikan:</span> <a href="'.$buktiUrl.'" target="_blank" class="text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700">'.$buktiName.'</a>'.$tglUpload.'</div>';
+            }
+
+            $entries[] = Placeholder::make('riwayat_visitasi_current')
+                ->label($tgl)
+                ->content(new HtmlString('<div class="text-sm">'.$catatan.$buktiHtml.'</div>'));
+        }
+
+        // 2. Riwayat evaluasi sebelumnya
+        foreach (array_reverse($riwayat) as $index => $item) {
+            $tgl = ! empty($item['tanggal']) ? \Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d F Y H:i') : '-';
+            $catatan = e($item['catatan'] ?? 'Tidak ada catatan');
+            $buktiHtml = '';
+
+            if (! empty($item['bukti_perbaikan'])) {
+                $buktiUrl = asset('storage/'.$item['bukti_perbaikan']);
+                $buktiName = e(basename($item['bukti_perbaikan']));
+                $tglUpload = ! empty($item['tanggal_perbaikan']) ? ' (Upload: '.\Carbon\Carbon::parse($item['tanggal_perbaikan'])->translatedFormat('d/m/Y H:i').')' : '';
+                $buktiHtml = '<div class="mt-1 text-xs"><span class="text-gray-500">Bukti Perbaikan:</span> <a href="'.$buktiUrl.'" target="_blank" class="text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700">'.$buktiName.'</a>'.$tglUpload.'</div>';
+            }
+
+            $entries[] = Placeholder::make("riwayat_visitasi_{$index}")
+                ->label($tgl)
+                ->content(new HtmlString('<div class="text-sm">'.$catatan.$buktiHtml.'</div>'));
+        }
+
+        return $entries;
     }
 }

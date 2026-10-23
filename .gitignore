@@ -28,3 +28,5 @@ copy.sh
 credentials.json
 update_commit.py
 storage/framework/maintenance.json
+
+/graphify-out
