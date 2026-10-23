@@ -30,3 +30,4 @@ update_commit.py
 storage/framework/maintenance.json
 
 /graphify-out
+deploy.sh
