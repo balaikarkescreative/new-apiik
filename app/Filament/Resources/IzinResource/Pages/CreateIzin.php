@@ -337,70 +337,49 @@ class CreateIzin extends CreateRecord
      */
     private function checkExistingActivePermits(int $userId): void
     {
-        // Cek pengajuan terakhir user
+        // Cek pengajuan terakhir user (berdasarkan tanggal_pengajuan dan id terbaru)
         $latestPermit = Izin::where('user_id', $userId)
-            ->with(['izinPersetujuan'])
+            ->with(['izinPersetujuan', 'izinVisitasi', 'izinDokumen', 'izinDokumenPks'])
             ->latest('tanggal_pengajuan')
+            ->latest('id')
             ->first();
 
-        // Jika pengajuan terakhir sudah memiliki persetujuan, izinkan perpanjangan
-        if ($latestPermit && $latestPermit->izinPersetujuan && $latestPermit->izinPersetujuan->file_persetujuan) {
-            // User bisa mengajukan perpanjangan karena izin terakhir sudah selesai
+        // Jika belum ada pengajuan sama sekali, izinkan
+        if (! $latestPermit) {
             return;
         }
 
-        // Jika belum, cek apakah ada pengajuan yang masih aktif/belum selesai
-        $activePermits = Izin::where('user_id', $userId)
-            ->with(['izinPersetujuan', 'izinVisitasi', 'izinDokumen'])
-            ->where(function ($query) {
-                // Izin yang belum memiliki Persetujuan atau Persetujuan belum selesai
-                $query->whereDoesntHave('izinPersetujuan')
-                    ->orWhereHas('izinPersetujuan', function ($subQuery) {
-                        $subQuery->whereNull('file_persetujuan');
-                    });
-            })
-            // Exclude permits with permanently rejected visitasi or verification
-            ->where(function ($query) {
-                $query->where(function ($subQuery) {
-                    // Exclude rejected documents (hasil = 3)
-                    $subQuery->whereDoesntHave('izinDokumen')
-                        ->orWhereHas('izinDokumen', function ($dokQuery) {
-                            $dokQuery->where('hasil', '!=', 3);
-                        });
-                })
-                    ->where(function ($subQuery) {
-                        // Exclude permanently rejected visitasi
-                        $subQuery->whereDoesntHave('izinVisitasi')
-                            ->orWhereHas('izinVisitasi', function ($visQuery) {
-                                $visQuery->where('status', '!=', 'Tidak memenuhi syarat');
-                            });
-                    });
-            })
-            ->get();
-
-        if ($activePermits->isNotEmpty()) {
-            $permitDetails = $activePermits->map(function ($permit) {
-                $status = $this->getPermitStatus($permit);
-
-                return "• {$permit->kategori_izin} - {$status} (Pengajuan: {$permit->tanggal_pengajuan->format('d/m/Y')})";
-            })->join("\n");
-
-            Notification::make()
-                ->title('Tidak Dapat Mengajukan Izin Baru')
-                ->body("Anda masih memiliki pengajuan izin yang belum selesai:\n\n{$permitDetails}\n\nSilakan selesaikan pengajuan yang ada terlebih dahulu sebelum mengajukan izin baru.")
-                ->danger()
-                ->persistent()
-                ->actions([
-                    \Filament\Notifications\Actions\Action::make('lihat_pengajuan')
-                        ->label('Lihat Pengajuan')
-                        ->url(IzinResource::getUrl('daftar-pengajuan'))
-                        ->button(),
-                ])
-                ->send();
-
-            // Redirect ke halaman daftar pengajuan
-            redirect()->to(IzinResource::getUrl('daftar-pengajuan'));
+        // Jika pengajuan terakhir sudah memiliki persetujuan (100% selesai), izinkan pengajuan baru/perpanjangan
+        if ($latestPermit->izinPersetujuan && ($latestPermit->izinPersetujuan->file_persetujuan || $latestPermit->izinPersetujuan->status == 1)) {
+            return;
         }
+
+        // Jika pengajuan terakhir ditolak permanen, izinkan pengajuan baru
+        $isRejectedDokumen = $latestPermit->izinDokumen && $latestPermit->izinDokumen->hasil == 3;
+        $isRejectedVisitasi = $latestPermit->izinVisitasi && $latestPermit->izinVisitasi->status === 'Tidak memenuhi syarat';
+        if ($isRejectedDokumen || $isRejectedVisitasi) {
+            return;
+        }
+
+        // Jika pengajuan terakhir masih aktif/berjalan (belum selesai & belum ditolak)
+        $status = $this->getPermitStatus($latestPermit);
+        $tglPengajuan = $latestPermit->tanggal_pengajuan ? $latestPermit->tanggal_pengajuan->format('d/m/Y') : '-';
+
+        Notification::make()
+            ->title('Tidak Dapat Mengajukan Izin Baru')
+            ->body("Anda masih memiliki pengajuan izin yang belum selesai:\n\n• {$latestPermit->kategori_izin} - {$status} (Pengajuan: {$tglPengajuan})\n\nSilakan selesaikan pengajuan yang ada terlebih dahulu sebelum mengajukan izin baru.")
+            ->danger()
+            ->persistent()
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('lihat_pengajuan')
+                    ->label('Lihat Pengajuan')
+                    ->url(IzinResource::getUrl('daftar-pengajuan'))
+                    ->button(),
+            ])
+            ->send();
+
+        // Redirect ke halaman daftar pengajuan
+        redirect()->to(IzinResource::getUrl('daftar-pengajuan'));
     }
 
     /**
@@ -408,9 +387,26 @@ class CreateIzin extends CreateRecord
      */
     private function getPermitStatus($permit): string
     {
+        // Cek apakah sudah disetujui (100% selesai)
+        if ($permit->izinPersetujuan && ($permit->izinPersetujuan->file_persetujuan || $permit->izinPersetujuan->status == 1)) {
+            return 'Selesai';
+        }
+
         // Cek apakah sudah ada PKS
         if ($permit->izinDokumenPks && $permit->izinDokumenPks->dokumen_pks_bkk) {
             return 'PKS Tersedia - Menunggu Persetujuan';
+        }
+
+        // Cek status visitasi
+        if ($permit->izinVisitasi && $permit->izinVisitasi->status) {
+            if ($permit->izinVisitasi->status === 'Tidak memenuhi syarat sementara') {
+                return $permit->izinVisitasi->bukti_perbaikan ? 'Perbaikan Visitasi Diupload' : 'Perlu Perbaikan Visitasi';
+            }
+            if ($permit->izinVisitasi->status === 'Memenuhi syarat') {
+                return 'Visitasi Memenuhi Syarat';
+            }
+
+            return $permit->izinVisitasi->status;
         }
 
         // Cek apakah sudah dijadwalkan visitasi
@@ -423,6 +419,7 @@ class CreateIzin extends CreateRecord
             return match ($permit->izinDokumen->hasil) {
                 1 => 'Berkas Lengkap',
                 2 => 'Berkas Tidak Lengkap',
+                3 => 'Ditolak',
                 default => 'Menunggu Verifikasi'
             };
         }
@@ -589,51 +586,47 @@ class CreateIzin extends CreateRecord
      */
     private function validateNoActivePermits(int $userId): void
     {
-        $existingActivePermit = Izin::where('user_id', $userId)
-            ->with(['izinPersetujuan', 'izinVisitasi', 'izinDokumen'])
-            ->where(function ($query) {
-                $query->whereDoesntHave('izinPersetujuan')
-                    ->orWhereHas('izinPersetujuan', function ($subQuery) {
-                        $subQuery->whereNull('file_persetujuan');
-                    });
-            })
-            // Exclude permits with permanently rejected visitasi or verification
-            ->where(function ($query) {
-                $query->where(function ($subQuery) {
-                    // Exclude rejected documents (hasil = 3)
-                    $subQuery->whereDoesntHave('izinDokumen')
-                        ->orWhereHas('izinDokumen', function ($dokQuery) {
-                            $dokQuery->where('hasil', '!=', 3);
-                        });
-                })
-                    ->where(function ($subQuery) {
-                        // Exclude permanently rejected visitasi
-                        $subQuery->whereDoesntHave('izinVisitasi')
-                            ->orWhereHas('izinVisitasi', function ($visQuery) {
-                                $visQuery->where('status', '!=', 'Tidak memenuhi syarat');
-                            });
-                    });
-            })
+        // Cek pengajuan terakhir user (berdasarkan tanggal_pengajuan dan id terbaru)
+        $latestPermit = Izin::where('user_id', $userId)
+            ->with(['izinPersetujuan', 'izinVisitasi', 'izinDokumen', 'izinDokumenPks'])
+            ->latest('tanggal_pengajuan')
+            ->latest('id')
             ->first();
 
-        if ($existingActivePermit) {
-            $status = $this->getPermitStatus($existingActivePermit);
-
-            Notification::make()
-                ->title('Gagal Membuat Izin')
-                ->body("User masih memiliki pengajuan izin yang belum selesai:\n{$existingActivePermit->kategori_izin} - {$status}\n\nSilakan selesaikan pengajuan yang ada terlebih dahulu.")
-                ->danger()
-                ->persistent()
-                ->actions([
-                    \Filament\Notifications\Actions\Action::make('lihat_pengajuan')
-                        ->label('Lihat Pengajuan')
-                        ->url(IzinResource::getUrl('daftar-pengajuan'))
-                        ->button(),
-                ])
-                ->send();
-
-            $this->halt();
+        // Jika belum ada pengajuan sama sekali, izinkan
+        if (! $latestPermit) {
+            return;
         }
+
+        // Jika pengajuan terakhir sudah memiliki persetujuan (100% selesai), izinkan pengajuan baru/perpanjangan
+        if ($latestPermit->izinPersetujuan && ($latestPermit->izinPersetujuan->file_persetujuan || $latestPermit->izinPersetujuan->status == 1)) {
+            return;
+        }
+
+        // Jika pengajuan terakhir ditolak permanen, izinkan pengajuan baru
+        $isRejectedDokumen = $latestPermit->izinDokumen && $latestPermit->izinDokumen->hasil == 3;
+        $isRejectedVisitasi = $latestPermit->izinVisitasi && $latestPermit->izinVisitasi->status === 'Tidak memenuhi syarat';
+        if ($isRejectedDokumen || $isRejectedVisitasi) {
+            return;
+        }
+
+        // Pengajuan terakhir masih aktif/berjalan (belum selesai & belum ditolak)
+        $status = $this->getPermitStatus($latestPermit);
+
+        Notification::make()
+            ->title('Gagal Membuat Izin')
+            ->body("User masih memiliki pengajuan izin yang belum selesai:\n{$latestPermit->kategori_izin} - {$status}\n\nSilakan selesaikan pengajuan yang ada terlebih dahulu.")
+            ->danger()
+            ->persistent()
+            ->actions([
+                \Filament\Notifications\Actions\Action::make('lihat_pengajuan')
+                    ->label('Lihat Pengajuan')
+                    ->url(IzinResource::getUrl('daftar-pengajuan'))
+                    ->button(),
+            ])
+            ->send();
+
+        $this->halt();
     }
 
     /**
