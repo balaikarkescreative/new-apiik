@@ -15,7 +15,7 @@
                     <div class="ml-3">
                         <h3 class="text-sm font-medium text-red-800 dark:text-red-300">Perhatian: Akun Diblokir</h3>
                         <div class="mt-2 text-sm text-red-700 dark:text-red-200">
-                            <p>Akun faskes Anda saat ini diblokir karena belum melakukan pengisian laporan harian, yang merupakan pelanggaran terhadap komitmen pada Nota Kesepahaman (MoU) yang telah disepakati. Selama akun diblokir, Anda tidak dapat membuat pengajuan Izin maupun ICV baru. Silakan lengkapi laporan atau hubungi Admin untuk bantuan lebih lanjut.</p>
+                            <p>Akun faskes Anda saat ini diblokir karena belum melakukan pengisian laporan harian, yang merupakan pelanggaran terhadap komitmen pada Nota Kesepahaman (MoU) yang telah disepakati. Selama akun diblokir, Anda tidak dapat membuat pengajuan Izin maupun ICV baru. Silakan lengkapi laporan terlebih dahulu.</p>
                         </div>
                     </div>
                 </div>
