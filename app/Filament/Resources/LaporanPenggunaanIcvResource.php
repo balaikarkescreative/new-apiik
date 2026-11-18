@@ -171,9 +171,9 @@ class LaporanPenggunaanIcvResource extends Resource
                             ->label('Filter User')
                             ->searchable()
                             ->options(function () {
-                                $userIds = LaporanPenggunaanIcv::distinct()->pluck('id_user');
-                                $options = \App\Models\User::whereIn('id', $userIds)
-                                    ->pluck('name', 'id'); // key adalah id, value adalah name
+                                $options = \App\Models\User::whereHas('roles', fn ($q) => $q->where('name', 'user'))
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id');
 
                                 // Tambahkan opsi "Semua User" di awal
                                 return ['semua' => 'Semua User'] + $options->toArray();
@@ -267,12 +267,9 @@ class LaporanPenggunaanIcvResource extends Resource
                         return Auth::user()?->hasRole('admin') || Auth::user()?->hasRole('verifikator2');
                     })
                     ->searchable()
-                    ->options(function () {
-                        $userIds = LaporanPenggunaanIcv::distinct()->pluck('id_user');
-
-                        return \App\Models\User::whereIn('id', $userIds)
-                            ->pluck('name', 'id');
-                    }),
+                    ->options(fn () => \App\Models\User::whereHas('roles', fn ($q) => $q->where('name', 'user'))
+                        ->orderBy('name')
+                        ->pluck('name', 'id')),
 
                 // Jenis Vaksin Filter
                 SelectFilter::make('id_jenis_vaksin')
@@ -281,6 +278,8 @@ class LaporanPenggunaanIcvResource extends Resource
                     ->options(\App\Models\Vaksin::pluck('jenis_vaksin', 'id')),
             ], layout: FiltersLayout::AboveContent)
             ->defaultSort('tgl_pelaporan', 'desc')
+            ->paginated([15, 30, 50, 100])
+            ->defaultPaginationPageOption(15)
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\ViewAction::make(),
