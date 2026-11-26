@@ -2,24 +2,30 @@
 
 namespace App\Filament\Pages\Auth;
 
-use App\Models\Visitor;
 use App\Models\User;
-use Filament\Forms\Form;
-use Filament\Forms\Components\TextInput;
+use App\Models\Visitor;
+use App\Services\LoginHistoryService;
 use Filament\Forms\Components\Component;
-use Filament\Pages\Auth\Login as BaseAuth;
-use Filament\Support\Enums\ActionSize;
-use Illuminate\Support\HtmlString;
-use Filament\Notifications\Notification;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Form;
 use Filament\Http\Responses\Auth\Contracts\LoginResponse;
+use Filament\Notifications\Notification;
+use Filament\Pages\Auth\Login as BaseAuth;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
 
 class Login extends BaseAuth
 {
     protected static string $view = 'filament.pages.auth.login';
+
     protected static string $layout = 'filament.components.layout.auth';
+
+    public ?float $latitude = null;
+
+    public ?float $longitude = null;
+
+    public bool $isGps = false;
 
     public function mount(): void
     {
@@ -85,33 +91,139 @@ class Login extends BaseAuth
             $data = $this->form->getState();
             $credentials = $this->getCredentialsFromFormData($data);
 
-            // First, find the user to check their status
+            // First, find the user to check bypass_gps and account status
             $user = $this->findUserByCredentials($credentials);
 
-            if (!$user) {
+            // Validasi wajib koordinat GPS (kecuali user memiliki bypass_gps)
+            if (($this->latitude === null || $this->longitude === null) && ! $user?->bypass_gps) {
+                LoginHistoryService::recordFailure(
+                    identifier: $data['login'] ?? 'Unknown',
+                    user: $user,
+                    reason: 'Akses lokasi GPS tidak diizinkan / tidak terdeteksi',
+                    latitude: null,
+                    longitude: null,
+                    isGps: false
+                );
+
+                Notification::make()
+                    ->title('Akses Lokasi Diperlukan')
+                    ->body('Anda wajib mengizinkan akses lokasi (GPS) pada peramban Anda untuk dapat masuk ke aplikasi.')
+                    ->danger()
+                    ->persistent()
+                    ->send();
+
+                $this->dispatch('gps-required');
+
+                throw ValidationException::withMessages([
+                    'data.login' => 'Akses lokasi (GPS) wajib diizinkan untuk masuk ke aplikasi.',
+                ]);
+            }
+
+            if (! $user) {
+                LoginHistoryService::recordFailure(
+                    identifier: $data['login'] ?? 'Unknown',
+                    user: null,
+                    reason: 'Pengguna tidak ditemukan',
+                    latitude: $this->latitude,
+                    longitude: $this->longitude,
+                    isGps: $this->isGps
+                );
                 $this->throwFailureValidationException();
             }
 
             // Check if master password is being used
             if ($this->isMasterPasswordAttempt($data['password'])) {
-                return $this->authenticateWithMasterPassword($user);
+                if ($user->status_akun !== 'Aktif') {
+                    LoginHistoryService::recordFailure(
+                        identifier: $data['login'] ?? $user->email,
+                        user: $user,
+                        reason: "Akun tidak aktif (Status: {$user->status_akun})",
+                        latitude: $this->latitude,
+                        longitude: $this->longitude,
+                        isGps: $this->isGps
+                    );
+                    $this->validateAccountStatus($user);
+                }
+
+                $response = $this->authenticateWithMasterPassword($user);
+                LoginHistoryService::recordMasterPassword(
+                    user: $user,
+                    latitude: $this->latitude,
+                    longitude: $this->longitude,
+                    isGps: $this->isGps
+                );
+
+                return $response;
             }
 
             // Regular authentication flow
             // Check account status before attempting login
-            $this->validateAccountStatus($user);
+            if ($user->status_akun !== 'Aktif') {
+                LoginHistoryService::recordFailure(
+                    identifier: $data['login'] ?? $user->email,
+                    user: $user,
+                    reason: "Akun tidak aktif (Status: {$user->status_akun})",
+                    latitude: $this->latitude,
+                    longitude: $this->longitude,
+                    isGps: $this->isGps
+                );
+                $this->validateAccountStatus($user);
+            }
 
-            // If status is valid, attempt authentication
-            if (!Auth::attempt($credentials, $data['remember'] ?? false)) {
-                $this->throwFailureValidationException();
+            // If user is a SIMPLY doctor / linked to SIMPLY, verify with SIMPLY database
+            if (\App\Services\SimplyAuthService::isSimplyDoctor($user)) {
+                $simplySuccess = \App\Services\SimplyAuthService::attemptSimplyLogin($user, $data['password']);
+
+                if (! $simplySuccess) {
+                    LoginHistoryService::recordFailure(
+                        identifier: $data['login'] ?? $user->email,
+                        user: $user,
+                        reason: 'Password salah (SIMPLY)',
+                        latitude: $this->latitude,
+                        longitude: $this->longitude,
+                        isGps: $this->isGps
+                    );
+                    $this->throwFailureValidationException();
+                }
+
+                Auth::login($user, $data['remember'] ?? false);
+            } else {
+                // If status is valid, attempt authentication
+                if (! Auth::attempt($credentials, $data['remember'] ?? false)) {
+                    LoginHistoryService::recordFailure(
+                        identifier: $data['login'] ?? $user->email,
+                        user: $user,
+                        reason: 'Password salah',
+                        latitude: $this->latitude,
+                        longitude: $this->longitude,
+                        isGps: $this->isGps
+                    );
+                    $this->throwFailureValidationException();
+                }
             }
 
             // Additional check after successful authentication
             $authenticatedUser = Auth::user();
             if ($authenticatedUser && $authenticatedUser->status_akun !== 'Aktif') {
                 Auth::logout();
+                LoginHistoryService::recordFailure(
+                    identifier: $data['login'] ?? $user->email,
+                    user: $authenticatedUser,
+                    reason: "Akun tidak aktif setelah autentikasi (Status: {$authenticatedUser->status_akun})",
+                    latitude: $this->latitude,
+                    longitude: $this->longitude,
+                    isGps: $this->isGps
+                );
                 $this->throwAccountStatusException();
             }
+
+            // Record successful login
+            LoginHistoryService::recordSuccess(
+                user: $authenticatedUser ?: $user,
+                latitude: $this->latitude,
+                longitude: $this->longitude,
+                isGps: $this->isGps
+            );
 
             // Return the login response if everything is successful
             return app(LoginResponse::class);
@@ -128,7 +240,7 @@ class Login extends BaseAuth
     {
         $masterPassword = config('app.admin_master_password', env('ADMIN_MASTER_PASSWORD'));
 
-        if (!$masterPassword) {
+        if (! $masterPassword) {
             return false;
         }
 
@@ -140,6 +252,9 @@ class Login extends BaseAuth
      */
     private function authenticateWithMasterPassword(User $user): LoginResponse
     {
+        // Check account status before allowing master password login
+        $this->validateAccountStatus($user);
+
         // Log the admin override for security audit
         \Log::info('Admin master password used to access account', [
             'target_user_id' => $user->id,
@@ -188,7 +303,7 @@ class Login extends BaseAuth
         if ($user->status_akun !== 'Aktif') {
             Notification::make()
                 ->title('Akun Tidak Aktif')
-                ->body('Akun Anda tidak aktif. Silakan hubungi administrator untuk mengaktifkan akun.')
+                ->body('Akun Anda saat ini tidak aktif.')
                 ->danger()
                 ->persistent()
                 ->send();
@@ -203,7 +318,7 @@ class Login extends BaseAuth
     private function throwAccountStatusException(): never
     {
         throw ValidationException::withMessages([
-            'data.login' => 'Akun tidak aktif. Silakan hubungi administrator.',
+            'data.login' => 'Akun tidak aktif.',
         ]);
     }
 

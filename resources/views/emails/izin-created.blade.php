@@ -59,9 +59,6 @@
             <li>Anda akan mendapat notifikasi untuk setiap perubahan status</li>
         </ol>
 
-
-        <p>Jika ada pertanyaan, silakan hubungi admin.</p>
-
         <p>Terima kasih atas kepercayaan Anda.</p>
     </div>
 

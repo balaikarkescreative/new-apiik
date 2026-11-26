@@ -3,30 +3,29 @@
 namespace App\Filament\Resources\IcvResource\Pages;
 
 use App\Filament\Resources\IcvResource;
+use App\Mail\IcvJadwalNotification;
 use App\Models\Icv;
+use Carbon\Carbon;
 use Filament\Forms\Components\Actions;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Actions\Action;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\Actions\Action as FormAction;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\IcvJadwalNotification;
-use Carbon\Carbon;
-use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-
-use Filament\Forms\Get;
-use Filament\Forms\Set;
+use Illuminate\Support\Facades\Mail;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class JadwalDistribusiIcv extends Page implements HasTable
 {
@@ -36,7 +35,7 @@ class JadwalDistribusiIcv extends Page implements HasTable
 
     protected static string $view = 'filament.resources.icv-resource.pages.jadwal-distribusi-icv';
 
-    protected static ?string $title = 'Jadwal Distribusi ICV';
+    protected static ?string $title = 'Jadwal Distribusi e-ICV';
 
     protected static ?string $navigationLabel = 'Jadwal Distribusi';
 
@@ -49,7 +48,7 @@ class JadwalDistribusiIcv extends Page implements HasTable
         parent::mountCanAuthorizeAccess();
 
         // Cek apakah user memiliki peran yang sesuai
-        if (!auth()->user()->hasRole(['verifikator1', 'pos'])) {
+        if (! auth()->user()->hasRole(['verifikator1', 'pos'])) {
             // abort(403, 'Akses ditolak. Hanya verifikator dan petugas POS yang dapat mengelola jadwal distribusi ICV.');
             redirect()->to('/');
 
@@ -69,7 +68,7 @@ class JadwalDistribusiIcv extends Page implements HasTable
                     ])
                     // Tampilkan yang pembayaran sudah diverifikasi (baik yang sudah ada jadwal maupun belum)
                     ->whereHas('icvBuktiBayar', function (Builder $query) {
-                        $query->whereNotNull('distribusi_icv');
+                        $query->whereNotNull('file_bukti_bayar');
                     })
                     // Custom ordering: yang belum dijadwalkan di atas
                     ->leftJoin('tbl_icv_jadwal', 'tbl_icv.id', '=', 'tbl_icv_jadwal.id_icv')
@@ -90,42 +89,34 @@ class JadwalDistribusiIcv extends Page implements HasTable
                     ->sortable()
                     ->searchable(),
 
-                // Enhanced Klinik/RS & Lokasi column (consistent with other pages)
                 TextColumn::make('klinik_info')
                     ->label('Klinik/RS & Lokasi')
                     ->getStateUsing(function ($record) {
                         $klinik = $record->user?->name ?? 'N/A';
                         $lokasi = $record->user?->kotakab ?? 'N/A';
 
-                        return '<div>' .
-                            '<div class="font-medium text-sm">' . e($klinik) . '</div>' .
-                            '<div class="text-xs text-gray-500">' . e($lokasi) . '</div>' .
+                        return '<div>'.
+                            '<div class="font-medium text-sm">'.e($klinik).'</div>'.
+                            '<div class="text-xs text-gray-500">'.e($lokasi).'</div>'.
                             '</div>';
                     })
                     ->html()
                     ->searchable(query: function (Builder $query, string $search): Builder {
                         return $query->whereHas('user', function (Builder $query) use ($search) {
                             $query->where('name', 'like', "%{$search}%")
-                                  ->orWhere('kotakab', 'like', "%{$search}%");
+                                ->orWhere('kotakab', 'like', "%{$search}%");
                         });
                     })
                     ->sortable(query: function (Builder $query, string $direction): Builder {
                         return $query->join('users', 'tbl_icv.user_id', '=', 'users.id')
-                                    ->orderBy('users.name', $direction)
-                                    ->select('tbl_icv.*');
+                            ->orderBy('users.name', $direction)
+                            ->select('tbl_icv.*');
                     }),
 
                 TextColumn::make('icvAlokasi.icv_disetujui')
-                    ->label('Jumlah ICV')
+                    ->label('Jumlah e-ICV')
                     ->numeric()
                     ->sortable(),
-
-                TextColumn::make('icvBuktiBayar.distribusi_icv')
-                    ->label('Metode Distribusi')
-                    ->badge()
-                    ->color(function ($record) {
-                        return $record->icvBuktiBayar?->distribusi_icv === 'Diambil' ? 'info' : 'success';
-                    }),
 
                 TextColumn::make('jadwal_distribusi')
                     ->label('Jadwal Distribusi')
@@ -133,11 +124,12 @@ class JadwalDistribusiIcv extends Page implements HasTable
                         if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
                             return $record->icvJadwal->jadwal_pengambilan->translatedFormat('d F Y');
                         }
+
                         return 'Belum Dijadwalkan';
                     })
                     ->badge()
                     ->color(function ($record) {
-                        if (!$record->icvJadwal || !$record->icvJadwal->jadwal_pengambilan) {
+                        if (! $record->icvJadwal || ! $record->icvJadwal->jadwal_pengambilan) {
                             return 'danger';
                         }
 
@@ -164,7 +156,7 @@ class JadwalDistribusiIcv extends Page implements HasTable
                     ->label('Status')
                     ->badge()
                     ->getStateUsing(function ($record) {
-                        if (!$record->icvJadwal || !$record->icvJadwal->jadwal_pengambilan) {
+                        if (! $record->icvJadwal || ! $record->icvJadwal->jadwal_pengambilan) {
                             return 'Belum Dijadwalkan';
                         }
 
@@ -182,7 +174,7 @@ class JadwalDistribusiIcv extends Page implements HasTable
                         }
                     })
                     ->color(function ($record) {
-                        if (!$record->icvJadwal || !$record->icvJadwal->jadwal_pengambilan) {
+                        if (! $record->icvJadwal || ! $record->icvJadwal->jadwal_pengambilan) {
                             return 'danger';
                         }
 
@@ -204,7 +196,7 @@ class JadwalDistribusiIcv extends Page implements HasTable
                             ->orderByRaw('CASE
                             WHEN jd2.jadwal_pengambilan IS NULL THEN 0
                             ELSE 1
-                        END ' . $direction)
+                        END '.$direction)
                             ->select('tbl_icv.*');
                     }),
             ])
@@ -214,11 +206,12 @@ class JadwalDistribusiIcv extends Page implements HasTable
                         if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
                             return 'Edit Jadwal';
                         }
+
                         return 'Jadwalkan';
                     })
                     ->icon('heroicon-o-calendar')
                     ->color('primary')
-                    ->modalHeading(fn($record) => 'Jadwal Distribusi ICV - ' . $record->user->name)
+                    ->modalHeading(fn ($record) => 'Jadwal Distribusi e-ICV - '.$record->user->name)
                     ->modalWidth('xl')
                     ->modalSubmitAction(false)
                     ->form(function ($record) {
@@ -240,34 +233,23 @@ class JadwalDistribusiIcv extends Page implements HasTable
                                             ->dehydrated(false),
 
                                         TextInput::make('jumlah_icv')
-                                            ->label('Jumlah ICV')
+                                            ->label('Jumlah e-ICV')
                                             ->default($record->icvAlokasi?->icv_disetujui ?? 0)
                                             ->disabled()
                                             ->dehydrated(false),
                                     ]),
 
-                                    Grid::make(2)->schema([
-                                        TextInput::make('metode_distribusi')
-                                            ->label('Metode Distribusi')
-                                            ->default($record->icvBuktiBayar?->distribusi_icv)
-                                            ->disabled()
-                                            ->dehydrated(false),
-
-                                        TextInput::make('tanggal_verifikasi')
-                                            ->label('Tanggal Verifikasi Pembayaran')
-                                            ->default($record->icvBuktiBayar?->date_updated?->translatedFormat('d F Y'))
-                                            ->disabled()
-                                            ->dehydrated(false),
-                                    ]),
+                                    Placeholder::make('distribusi_icv')
+                                        ->label('Distribusi e-ICV')
+                                        ->content('Distribusi e-ICV melalui aplikasi Sinkarkes'),
                                 ])
                                 ->collapsible(),
 
                             // Jadwal distribusi form
-                            Section::make('Jadwal Distribusi ICV')
-                                ->description('Tentukan jadwal untuk ' . ($record->icvBuktiBayar?->distribusi_icv === 'Diambil' ? 'pengambilan' : 'pengiriman') . ' ICV')
+                            Section::make('Jadwal Distribusi e-ICV')
                                 ->schema([
                                     DatePicker::make('jadwal_pengambilan')
-                                        ->label('Tanggal ' . ($record->icvBuktiBayar?->distribusi_icv === 'Diambil' ? 'Pengambilan' : 'Pengiriman'))
+                                        ->label('Tanggal Distribusi e-ICV')
                                         ->native(false)
                                         ->displayFormat('d F Y')
                                         ->minDate(now()->addDay())
@@ -282,12 +264,13 @@ class JadwalDistribusiIcv extends Page implements HasTable
                                             ->action(function (Get $get, Set $set, $record) {
                                                 $jadwalPengambilan = $get('jadwal_pengambilan');
 
-                                                if (!$jadwalPengambilan) {
+                                                if (! $jadwalPengambilan) {
                                                     Notification::make()
                                                         ->title('Gagal Menetapkan Jadwal')
                                                         ->danger()
                                                         ->body('Tanggal harus diisi.')
                                                         ->send();
+
                                                     return;
                                                 }
 
@@ -321,7 +304,7 @@ class JadwalDistribusiIcv extends Page implements HasTable
                                                         $emailStatus = ' Email tidak dapat dikirim (email user tidak valid).';
                                                     }
                                                 } catch (\Exception $e) {
-                                                    error_log('Gagal mengirim email jadwal ICV: ' . $e->getMessage());
+                                                    error_log('Gagal mengirim email jadwal e-ICV: '.$e->getMessage());
                                                     $emailStatus = ' Email gagal dikirim.';
                                                 }
 
@@ -329,15 +312,15 @@ class JadwalDistribusiIcv extends Page implements HasTable
                                                 $actionText = $isUpdate ? 'diperbarui' : 'ditetapkan';
 
                                                 Notification::make()
-                                                    ->title('Jadwal Berhasil ' . ucfirst($actionText))
+                                                    ->title('Jadwal Berhasil '.ucfirst($actionText))
                                                     ->success()
-                                                    ->body('Jadwal distribusi telah berhasil ' . $actionText . ' pada ' .
-                                                        $jadwalPengambilan->translatedFormat('d F Y') . $emailStatus)
+                                                    ->body('Jadwal distribusi telah berhasil '.$actionText.' pada '.
+                                                        $jadwalPengambilan->translatedFormat('d F Y').$emailStatus)
                                                     ->send();
 
                                                 // Refresh halaman setelah simpan
                                                 $this->redirect(JadwalDistribusiIcv::getUrl());
-                                            })
+                                            }),
                                     ]),
                                 ]),
                         ];
@@ -359,20 +342,23 @@ class JadwalDistribusiIcv extends Page implements HasTable
                         return \App\Models\User::whereHas('roles', function ($query) {
                             $query->where('name', 'user');
                         })
-                        ->whereHas('icvs', function ($query) {
-                            $query->whereHas('icvBuktiBayar', function ($q) {
-                                $q->whereNotNull('distribusi_icv');
+                            ->whereHas('icvs', function ($query) {
+                                $query->whereHas('icvBuktiBayar', function ($q) {
+                                    $q->whereNotNull('distribusi_icv');
+                                });
+                            })
+                            ->orderBy('name')
+                            ->get()
+                            ->mapWithKeys(function ($user) {
+                                $kotakab = $user->kotakab ? " ({$user->kotakab})" : '';
+
+                                return [$user->id => $user->name.$kotakab];
                             });
-                        })
-                        ->orderBy('name')
-                        ->get()
-                        ->mapWithKeys(function ($user) {
-                            $kotakab = $user->kotakab ? " ({$user->kotakab})" : '';
-                            return [$user->id => $user->name . $kotakab];
-                        });
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+                        if (! $data['value']) {
+                            return $query;
+                        }
 
                         return $query->where('user_id', $data['value']);
                     }),
@@ -386,18 +372,20 @@ class JadwalDistribusiIcv extends Page implements HasTable
                         return \App\Models\User::whereHas('roles', function ($query) {
                             $query->where('name', 'user');
                         })
-                        ->whereHas('icvs', function ($query) {
-                            $query->whereHas('icvBuktiBayar', function ($q) {
-                                $q->whereNotNull('distribusi_icv');
-                            });
-                        })
-                        ->whereNotNull('kotakab')
-                        ->distinct()
-                        ->orderBy('kotakab')
-                        ->pluck('kotakab', 'kotakab');
+                            ->whereHas('icvs', function ($query) {
+                                $query->whereHas('icvBuktiBayar', function ($q) {
+                                    $q->whereNotNull('distribusi_icv');
+                                });
+                            })
+                            ->whereNotNull('kotakab')
+                            ->distinct()
+                            ->orderBy('kotakab')
+                            ->pluck('kotakab', 'kotakab');
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+                        if (! $data['value']) {
+                            return $query;
+                        }
 
                         return $query->whereHas('user', function (Builder $query) use ($data) {
                             $query->where('kotakab', $data['value']);
@@ -418,64 +406,51 @@ class JadwalDistribusiIcv extends Page implements HasTable
                     ->query(function (Builder $query, array $data): Builder {
                         return $query->when(
                             $data['value'] === 'belum_dijadwalkan',
-                            fn(Builder $query): Builder => $query->whereDoesntHave('icvJadwal')
+                            fn (Builder $query): Builder => $query->whereDoesntHave('icvJadwal')
                                 ->orWhereHas('icvJadwal', function (Builder $subquery) {
                                     $subquery->whereNull('jadwal_pengambilan');
                                 })
                         )->when(
                             $data['value'] === 'sudah_dijadwalkan',
-                            fn(Builder $query): Builder => $query->whereHas('icvJadwal', function (Builder $subquery) {
+                            fn (Builder $query): Builder => $query->whereHas('icvJadwal', function (Builder $subquery) {
                                 $subquery->whereNotNull('jadwal_pengambilan');
                             })
                         )->when(
                             $data['value'] === 'hari_ini',
-                            fn(Builder $query): Builder => $query->whereHas('icvJadwal', function (Builder $subquery) {
+                            fn (Builder $query): Builder => $query->whereHas('icvJadwal', function (Builder $subquery) {
                                 $subquery->whereDate('jadwal_pengambilan', now()->toDateString());
                             })
                         )->when(
                             $data['value'] === 'besok',
-                            fn(Builder $query): Builder => $query->whereHas('icvJadwal', function (Builder $subquery) {
+                            fn (Builder $query): Builder => $query->whereHas('icvJadwal', function (Builder $subquery) {
                                 $subquery->whereDate('jadwal_pengambilan', now()->addDay()->toDateString());
                             })
                         )->when(
                             $data['value'] === 'akan_datang',
-                            fn(Builder $query): Builder => $query->whereHas('icvJadwal', function (Builder $subquery) {
+                            fn (Builder $query): Builder => $query->whereHas('icvJadwal', function (Builder $subquery) {
                                 $subquery->where('jadwal_pengambilan', '>', now()->addDay()->endOfDay());
                             })
                         )->when(
                             $data['value'] === 'sudah_lewat',
-                            fn(Builder $query): Builder => $query->whereHas('icvJadwal', function (Builder $subquery) {
+                            fn (Builder $query): Builder => $query->whereHas('icvJadwal', function (Builder $subquery) {
                                 $subquery->where('jadwal_pengambilan', '<', now()->startOfDay());
                             })
                         );
                     }),
 
-                // Filter berdasarkan Metode Distribusi
-                SelectFilter::make('metode_distribusi')
-                    ->label('Metode Distribusi')
-                    ->options([
-                        'Dikirim' => 'Dikirim',
-                        'Diambil' => 'Diambil',
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
-
-                        return $query->whereHas('icvBuktiBayar', function (Builder $query) use ($data) {
-                            $query->where('distribusi_icv', $data['value']);
-                        });
-                    }),
-
                 // Filter berdasarkan Range ICV Disetujui
                 SelectFilter::make('icv_range')
-                    ->label('Range ICV Disetujui')
+                    ->label('Range e-ICV Disetujui')
                     ->options([
-                        '1-50' => '1 - 50 ICV',
-                        '51-100' => '51 - 100 ICV',
-                        '101-200' => '101 - 200 ICV',
-                        '201+' => '200+ ICV',
+                        '1-50' => '1 - 50 e-ICV',
+                        '51-100' => '51 - 100 e-ICV',
+                        '101-200' => '101 - 200 e-ICV',
+                        '201+' => '200+ e-ICV',
                     ])
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value']) return $query;
+                        if (! $data['value']) {
+                            return $query;
+                        }
 
                         return $query->whereHas('icvAlokasi', function (Builder $query) use ($data) {
                             switch ($data['value']) {
@@ -497,7 +472,7 @@ class JadwalDistribusiIcv extends Page implements HasTable
 
                 // Filter berdasarkan Rentang Jadwal
                 DateRangeFilter::make('jadwal_pengambilan')
-                    ->label('Jadwal Distribusi')
+                    ->label('Jadwal Distribusi'),
 
             ], FiltersLayout::AboveContent);
     }

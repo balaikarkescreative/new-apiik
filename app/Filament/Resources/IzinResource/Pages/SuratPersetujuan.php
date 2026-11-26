@@ -3,34 +3,36 @@
 namespace App\Filament\Resources\IzinResource\Pages;
 
 use App\Filament\Resources\IzinResource;
+use App\Mail\IzinPksNotification;
+use App\Mail\IzinVisitasiNotification;
 use App\Models\Izin;
+use App\Models\SuratPersetujuanIcv;
+use App\Models\User;
+use Filament\Forms\Components\Actions as FormActions;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Section;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Tabs;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Filament\Tables;
-use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Table;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
-use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Tabs;
-use Filament\Forms\Components\Actions as FormActions;
-use Filament\Forms\Get;
-use Filament\Forms\Set;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
-use App\Mail\IzinVisitasiNotification;
-use App\Mail\IzinPersetujuanNotification;
-use App\Mail\IzinPksNotification;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Exceptions;
-use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\HtmlString;
+use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class SuratPersetujuan extends Page implements HasTable
 {
@@ -46,17 +48,17 @@ class SuratPersetujuan extends Page implements HasTable
 
     protected static ?string $navigationIcon = 'heroicon-o-document-check';
 
-    // public static function shouldRegisterNavigation(): bool
-    // {
-    //     return auth()->user()?->hasRole('verifaktor1');
-    // }
+    public static function canAccess(array $parameters = []): bool
+    {
+        return auth()->check() && auth()->user()->hasRole('verifikator1');
+    }
 
     public function mountCanAuthorizeAccess(): void
     {
         parent::mountCanAuthorizeAccess();
 
         // Cek apakah user memiliki peran yang sesuai
-        if (!auth()->user()->hasRole(['verifikator1'])) {
+        if (! auth()->user()->hasRole(['verifikator1'])) {
             // abort(403, 'Akses ditolak. Hanya verifikator 1 yang dapat mengelola surat persetujuan.');
             redirect()->to('/');
 
@@ -72,9 +74,11 @@ class SuratPersetujuan extends Page implements HasTable
                         'user',
                         'izinDokumen',
                         'izinDokumenPks',
-                        'izinPersetujuan'
+                        'izinVisitasi',
+                        'izinPersetujuan',
+                        'picDokter',
                     ])
-                    ->whereHas('izinDokumen', fn($q) => $q->where('hasil', 1))
+                    ->whereHas('izinDokumen', fn ($q) => $q->where('hasil', 1))
                     // Custom ordering: yang belum ada jadwal visitasi di atas
                     ->leftJoin('tbl_izin_dokumen_pks', 'tbl_izin.id', '=', 'tbl_izin_dokumen_pks.id_izin')
                     ->orderByRaw('CASE
@@ -97,12 +101,23 @@ class SuratPersetujuan extends Page implements HasTable
             ->columns([
                 TextColumn::make('tanggal_pengajuan')
                     ->label('Tanggal Pengajuan')
-                    ->description(fn($record) => $record->nomor_surat)
-                    ->formatStateUsing(fn($state): string => $state->translatedFormat('d F Y'))
+                    ->date('d M Y')
+                    ->description(function ($record) {
+                        $nama = $record->picDokter?->name;
+                        if (! $nama) {
+                            return 'PIC: -';
+                        }
+
+                        return new HtmlString(
+                            '<span class="inline-block max-w-[180px] truncate align-bottom" title="PIC: '.e($nama).'">PIC: '.e($nama).'</span>'
+                        );
+                    })
                     ->sortable()
                     ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->where('tanggal_pengajuan', 'like', "%{$search}%")
-                            ->orWhere('nomor_surat', 'like', "%{$search}%");
+                        return $query->where('tbl_izin.tanggal_pengajuan', 'like', "%{$search}%")
+                            ->orWhereHas('picDokter', function (Builder $query) use ($search) {
+                                $query->where('name', 'like', "%{$search}%");
+                            });
                     }),
 
                 Tables\Columns\TextColumn::make('klinik_info')
@@ -111,9 +126,9 @@ class SuratPersetujuan extends Page implements HasTable
                         $klinik = $record->user?->name ?? 'N/A';
                         $lokasi = $record->user?->kotakab ?? 'N/A';
 
-                        return '<div>' .
-                            '<div class="font-medium text-sm">' . e($klinik) . '</div>' .
-                            '<div class="text-xs text-gray-500">' . e($lokasi) . '</div>' .
+                        return '<div class="max-w-[220px]">'.
+                            '<div class="font-medium text-sm truncate" title="'.e($klinik).'">'.e($klinik).'</div>'.
+                            '<div class="text-xs text-gray-500 truncate" title="'.e($lokasi).'">'.e($lokasi).'</div>'.
                             '</div>';
                     })
                     ->html()
@@ -150,7 +165,7 @@ class SuratPersetujuan extends Page implements HasTable
                             WHEN dp.tanggal_visitasi IS NOT NULL AND ip.file_persetujuan IS NULL THEN 1
                             WHEN ip.file_persetujuan IS NOT NULL AND dp.dokumen_pks_bkk IS NULL THEN 2
                             ELSE 3
-                        END ' . $direction)
+                        END '.$direction)
                             ->select('tbl_izin.*');
                     }),
             ])
@@ -159,7 +174,7 @@ class SuratPersetujuan extends Page implements HasTable
                     ->label('Proses')
                     ->icon('heroicon-o-pencil-square')
                     ->color('primary')
-                    ->modalHeading(fn($record) => 'Proses Surat Persetujuan - ' . $record->user->name)
+                    ->modalHeading(fn ($record) => 'Proses Surat Persetujuan - '.$record->user->name)
                     ->modalWidth('5xl')
                     ->modalSubmitAction(false) // Tidak menampilkan tombol submit modal
                     ->form($this->getPersetujuanForm())
@@ -172,11 +187,17 @@ class SuratPersetujuan extends Page implements HasTable
 
                             // Tab fields
                             'tanggal_visitasi' => $record->izinDokumenPks?->tanggal_visitasi,
+                            'pic_dokter_id' => $record->pic_dokter_id,
+                            // Jika ada bukti perbaikan yang baru diupload faskes, reset status_visitasi & catatan_visitasi agar verifikator menilai ulang seperti flow verifikasi dokumen
+                            'status_visitasi' => ($record->izinVisitasi?->bukti_perbaikan) ? null : ($record->izinVisitasi?->status ?? null),
+                            'catatan_visitasi' => ($record->izinVisitasi?->bukti_perbaikan) ? null : ($record->izinVisitasi?->catatan ?? null),
                             'tanggal_persetujuan' => $record->izinPersetujuan?->date_updated ?? now(),
                             'file_persetujuan' => $record->izinPersetujuan?->file_persetujuan,
+                            'nomor_surat' => SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->nomor_surat ?? '',
+                            'masa_berlaku' => SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->masa_berlaku ?? '',
                             'dokumen_pks_bkk' => $record->izinDokumenPks?->dokumen_pks_bkk,
                         ];
-                    })
+                    }),
             ])
             ->striped()
             ->filters([
@@ -202,8 +223,9 @@ class SuratPersetujuan extends Page implements HasTable
                             ->sort(); // Sort alphabetically
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return $query->where('kategori_izin', $data['value']);
                     }),
@@ -226,12 +248,14 @@ class SuratPersetujuan extends Page implements HasTable
                             ->get()
                             ->mapWithKeys(function ($user) {
                                 $kotakab = $user->kotakab ? " ({$user->kotakab})" : '';
-                                return [$user->id => $user->name . $kotakab];
+
+                                return [$user->id => $user->name.$kotakab];
                             });
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return $query->where('user_id', $data['value']);
                     }),
@@ -256,8 +280,9 @@ class SuratPersetujuan extends Page implements HasTable
                             ->pluck('kotakab', 'kotakab');
                     })
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!$data['value'])
+                        if (! $data['value']) {
                             return $query;
+                        }
 
                         return $query->whereHas('user', function (Builder $query) use ($data) {
                             $query->where('kotakab', $data['value']);
@@ -269,6 +294,11 @@ class SuratPersetujuan extends Page implements HasTable
                     ->label('Status Persetujuan')
                     ->options([
                         'belum_visitasi' => 'Perlu Jadwal Visitasi',
+                        'belum_hasil_visitasi' => 'Input Hasil Visitasi',
+                        'visitasi_memenuhi' => 'Visitasi Memenuhi Syarat',
+                        'visitasi_revisi' => 'Perlu Perbaikan Visitasi',
+                        'perbaikan_visitasi' => 'Perbaikan Visitasi Diupload',
+                        'visitasi_ditolak' => 'Visitasi Ditolak',
                         'belum_persetujuan' => 'Perlu Upload Persetujuan',
                         'belum_pks' => 'Perlu Upload PKS',
                         'selesai' => 'Selesai',
@@ -276,33 +306,85 @@ class SuratPersetujuan extends Page implements HasTable
                     ->query(function ($query, array $data) {
                         return $query->when(
                             $data['value'] === 'belum_visitasi',
-                            fn($q) => $q->whereDoesntHave('izinDokumenPks')
+                            fn ($q) => $q->whereDoesntHave('izinDokumenPks')
                                 ->orWhereHas('izinDokumenPks', function ($subq) {
                                     $subq->whereNull('tanggal_visitasi');
                                 })
                         )->when(
-                                $data['value'] === 'belum_persetujuan',
-                                fn($q) => $q->whereHas('izinDokumenPks', function ($subq) {
-                                    $subq->whereNotNull('tanggal_visitasi');
+                            $data['value'] === 'belum_hasil_visitasi',
+                            fn ($q) => $q->whereHas('izinDokumenPks', function ($subq) {
+                                $subq->whereNotNull('tanggal_visitasi');
+                            })->where(function ($subq) {
+                                $subq->whereDoesntHave('izinVisitasi')
+                                    ->orWhereHas('izinVisitasi', function ($subsubq) {
+                                        $subsubq->whereNull('status');
+                                    });
+                            })
+                        )->when(
+                            $data['value'] === 'visitasi_memenuhi',
+                            fn ($q) => $q->whereHas('izinVisitasi', function ($subq) {
+                                $subq->where('status', 'Memenuhi syarat');
+                            })
+                        )->when(
+                            $data['value'] === 'visitasi_revisi',
+                            fn ($q) => $q->whereHas('izinVisitasi', function ($subq) {
+                                $subq->where('status', 'Tidak memenuhi syarat sementara')
+                                    ->whereNull('bukti_perbaikan');
+                            })
+                        )->when(
+                            $data['value'] === 'perbaikan_visitasi',
+                            fn ($q) => $q->whereHas('izinVisitasi', function ($subq) {
+                                $subq->where('status', 'Tidak memenuhi syarat sementara')
+                                    ->whereNotNull('bukti_perbaikan');
+                            })
+                        )->when(
+                            $data['value'] === 'visitasi_ditolak',
+                            fn ($q) => $q->whereHas('izinVisitasi', function ($subq) {
+                                $subq->where('status', 'Tidak memenuhi syarat');
+                            })
+                        )->when(
+                            $data['value'] === 'belum_persetujuan',
+                            fn ($q) => $q->whereHas('izinVisitasi', function ($subq) {
+                                $subq->where('status', 'Memenuhi syarat');
+                            })->whereDoesntHave('izinPersetujuan')
+                        )->when(
+                            $data['value'] === 'belum_pks',
+                            fn ($q) => $q->whereHas('izinPersetujuan', function ($subq) {
+                                $subq->whereNotNull('file_persetujuan');
+                            })
+                                ->whereHas('izinDokumenPks', function ($subq) {
+                                    $subq->whereNull('dokumen_pks_bkk');
                                 })
-                                    ->whereDoesntHave('izinPersetujuan')
-                            )->when(
-                                $data['value'] === 'belum_pks',
-                                fn($q) => $q->whereHas('izinPersetujuan', function ($subq) {
-                                    $subq->whereNotNull('file_persetujuan');
+                        )->when(
+                            $data['value'] === 'selesai',
+                            fn ($q) => $q->whereHas('izinPersetujuan', function ($subq) {
+                                $subq->whereNotNull('file_persetujuan');
+                            })
+                                ->whereHas('izinDokumenPks', function ($subq) {
+                                    $subq->whereNotNull('dokumen_pks_bkk');
                                 })
-                                    ->whereHas('izinDokumenPks', function ($subq) {
-                                        $subq->whereNull('dokumen_pks_bkk');
-                                    })
-                            )->when(
-                                $data['value'] === 'selesai',
-                                fn($q) => $q->whereHas('izinPersetujuan', function ($subq) {
-                                    $subq->whereNotNull('file_persetujuan');
-                                })
-                                    ->whereHas('izinDokumenPks', function ($subq) {
-                                        $subq->whereNotNull('dokumen_pks_bkk');
-                                    })
-                            );
+                        );
+                    }),
+
+                Tables\Filters\SelectFilter::make('pic_dokter_id')
+                    ->label('PIC Dokter')
+                    ->searchable()
+                    ->options(function () {
+                        $options = ['belum_ditentukan' => 'Belum Ditentukan'];
+                        $dokters = User::role('dokter')->orderBy('name')->pluck('name', 'id')->toArray();
+
+                        return $options + $dokters;
+                    })
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (! $data['value']) {
+                            return $query;
+                        }
+
+                        if ($data['value'] === 'belum_ditentukan') {
+                            return $query->whereNull('tbl_izin.pic_dokter_id');
+                        }
+
+                        return $query->where('tbl_izin.pic_dokter_id', $data['value']);
                     }),
             ], FiltersLayout::AboveContent);
     }
@@ -317,15 +399,29 @@ class SuratPersetujuan extends Page implements HasTable
 
     private function getCurrentStep($record): string
     {
-        if (!$record->izinDokumenPks?->tanggal_visitasi) {
+        if (! $record->izinDokumenPks?->tanggal_visitasi) {
             return 'Perlu Jadwal Visitasi';
         }
-        if (!$record->izinPersetujuan) {
-            return 'Perlu Upload Persetujuan';
+        if (! $record->izinVisitasi || ! $record->izinVisitasi->status) {
+            return 'Input Hasil Visitasi';
         }
-        if (!$record->izinDokumenPks?->dokumen_pks_bkk) {
-            return 'Perlu Upload PKS';
+        if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara') {
+            if ($record->izinVisitasi->bukti_perbaikan) {
+                return 'Perbaikan Visitasi Diupload';
+            }
+
+            return 'Perlu Perbaikan Visitasi';
         }
+        if ($record->izinVisitasi->status === 'Tidak memenuhi syarat') {
+            return 'Visitasi Ditolak';
+        }
+        if (! $record->izinDokumenPks?->dokumen_pks_bkk) {
+            return 'Upload PKS';
+        }
+        if (! $record->izinPersetujuan) {
+            return 'Proses Persetujuan';
+        }
+
         return 'Selesai';
     }
 
@@ -335,22 +431,35 @@ class SuratPersetujuan extends Page implements HasTable
 
         return match ($state) {
             'Selesai' => 'success',
+            'Visitasi Ditolak', 'Ditolak' => 'danger',
+            'Perlu Perbaikan Visitasi' => 'warning',
+            'Perbaikan Visitasi Diupload' => 'info',
             'Perlu Jadwal Visitasi' => 'warning',
+            'Input Hasil Visitasi' => 'info',
+            'Upload PKS' => 'info',
+            'Proses Persetujuan' => 'info',
             default => 'info'
         };
     }
 
     private function getActiveTab($record): string
     {
-        if (!$record->izinDokumenPks?->tanggal_visitasi) {
+        if (! $record->izinDokumenPks?->tanggal_visitasi) {
             return 1;
         }
-        if (!$record->izinPersetujuan) {
+        if (! $record->izinVisitasi || ! $record->izinVisitasi->status) {
             return 2;
         }
-        if (!$record->izinDokumenPks?->dokumen_pks_bkk) {
+        if ($record->izinVisitasi->status !== 'Memenuhi syarat') {
+            return 2;
+        }
+        if (! $record->izinDokumenPks?->dokumen_pks_bkk) {
             return 3;
         }
+        if (! $record->izinPersetujuan) {
+            return 4;
+        }
+
         return 1;
     }
 
@@ -398,30 +507,41 @@ class SuratPersetujuan extends Page implements HasTable
                             return $record->izinDokumenPks?->tanggal_visitasi ? 'success' : 'gray';
                         })
                         ->schema([
-                            DatePicker::make('tanggal_visitasi')
-                                ->label('Tanggal Visitasi')
-                                ->native(false)
-                                ->displayFormat('d F Y')
-                                ->minDate(now()->addDay())
-                                ->disabled(fn($record) => $record->izinDokumenPks?->tanggal_visitasi !== null)
-                                ->helperText(fn($record) => $record->izinDokumenPks?->tanggal_visitasi ?
-                                    'Jadwal visitasi telah ditetapkan pada ' . $record->izinDokumenPks->tanggal_visitasi->translatedFormat('d F Y') :
-                                    'Tetapkan jadwal visitasi untuk pemohon.'),
+                            Grid::make(2)->schema([
+                                TextInput::make('pic_dokter_info')
+                                    ->label('PIC Dokter')
+                                    ->disabled()
+                                    ->formatStateUsing(fn ($record) => $record->picDokter?->name ?? 'Belum ditentukan')
+                                    ->dehydrated(false),
+
+                                DatePicker::make('tanggal_visitasi')
+                                    ->label('Tanggal Visitasi')
+                                    // ->native(false)
+                                    ->displayFormat('d F Y')
+                                    // ->minDate(now()->addDay())
+                                    ->helperText(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi ?
+                                        'Jadwal visitasi telah ditetapkan pada '.$record->izinDokumenPks->tanggal_visitasi->translatedFormat('d F Y') :
+                                        'Tetapkan jadwal visitasi untuk pemohon.')
+                                    ->required(),
+                            ]),
 
                             FormActions::make([
                                 FormActions\Action::make('simpan_visitasi')
-                                    ->label('Simpan Jadwal')
+                                    ->label('Simpan/Update Jadwal')
                                     ->icon('heroicon-o-check')
                                     ->color('success')
-                                    ->visible(fn($record) => !$record->izinDokumenPks?->tanggal_visitasi)
+                                    // Selalu tampilkan tombol simpan
+                                    ->visible(fn ($record) => true)
                                     ->action(function (Get $get, Set $set, $record) {
                                         $tanggalVisitasi = $get('tanggal_visitasi');
-                                        if (!$tanggalVisitasi) {
+
+                                        if (! $tanggalVisitasi) {
                                             Notification::make()
                                                 ->title('Gagal Menetapkan Jadwal')
                                                 ->danger()
                                                 ->body('Tanggal visitasi harus dipilih.')
                                                 ->send();
+
                                             return;
                                         }
 
@@ -432,7 +552,8 @@ class SuratPersetujuan extends Page implements HasTable
 
                                         $record = $record->fresh([
                                             'izinDokumenPks',
-                                            'user'
+                                            'user',
+                                            'picDokter',
                                         ]);
 
                                         try {
@@ -445,139 +566,368 @@ class SuratPersetujuan extends Page implements HasTable
                                                 $emailStatus = ' Email tidak dikirim (user tidak memiliki email).';
                                             }
                                         } catch (\Exception $e) {
-                                            error_log('Failed to send visitasi email: ' . $e->getMessage());
+                                            error_log('Failed to send visitasi email: '.$e->getMessage());
                                             $emailStatus = ' Email gagal dikirim.';
                                         }
 
                                         Notification::make()
                                             ->title('Visitasi Berhasil Dijadwalkan')
                                             ->success()
-                                            ->body('Tanggal visitasi telah ditetapkan.' . $emailStatus)
+                                            ->body('Tanggal visitasi telah ditetapkan.'.$emailStatus)
                                             ->send();
 
                                         // Refresh record
                                         $this->redirect(SuratPersetujuan::getUrl());
-                                    })
+                                    }),
+
+                                FormActions\Action::make('hapus_visitasi')
+                                    ->label('Hapus Jadwal')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->visible(fn ($record) => $record->izinDokumenPks && $record->izinDokumenPks->tanggal_visitasi)
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Jadwal Visitasi')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus jadwal visitasi ini? Tindakan ini tidak dapat dibatalkan.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record) {
+                                        if ($record->izinDokumenPks) {
+                                            // Hapus hanya tanggal visitasi, bukan seluruh record
+                                            $record->izinDokumenPks->update([
+                                                'tanggal_visitasi' => null,
+                                            ]);
+                                        }
+
+                                        $record->refresh();
+
+                                        Notification::make()
+                                            ->title('Jadwal Visitasi Berhasil Dihapus')
+                                            ->success()
+                                            ->body('Jadwal visitasi telah dihapus.')
+                                            ->send();
+
+                                        $this->redirect(SuratPersetujuan::getUrl());
+                                    }),
                             ]),
                         ]),
 
-                    // Tab 2: Upload Persetujuan
-                    Tabs\Tab::make('persetujuan')
-                        ->label('2. Upload Persetujuan')
-                        ->icon('heroicon-o-check-circle')
+                    // Tab 2: Hasil Visitasi
+                    Tabs\Tab::make('hasil_visitasi')
+                        ->label('2. Hasil Visitasi')
+                        ->icon('heroicon-o-clipboard-document-check')
                         ->disabled(function ($record) {
-                            return !$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi;
+                            return ! $record->izinDokumenPks || ! $record->izinDokumenPks->tanggal_visitasi;
                         })
                         ->badge(function ($record) {
-                            return $record->izinPersetujuan ? '✓' : '';
+                            if (! $record->izinVisitasi || ! $record->izinVisitasi->status) {
+                                return '';
+                            }
+                            // Jika ada bukti perbaikan yang baru diupload faskes dan menunggu penilaian ulang
+                            if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara' && $record->izinVisitasi->bukti_perbaikan) {
+                                return 'Perbaikan';
+                            }
+
+                            return '✓';
                         })
                         ->badgeColor(function ($record) {
-                            return $record->izinPersetujuan ? 'success' : 'gray';
+                            if (! $record->izinVisitasi || ! $record->izinVisitasi->status) {
+                                return 'gray';
+                            }
+
+                            if ($record->izinVisitasi->status === 'Tidak memenuhi syarat sementara' && $record->izinVisitasi->bukti_perbaikan) {
+                                return 'info';
+                            }
+
+                            return match ($record->izinVisitasi->status) {
+                                'Memenuhi syarat' => 'success',
+                                'Tidak memenuhi syarat sementara' => 'warning',
+                                'Tidak memenuhi syarat' => 'danger',
+                                default => 'gray'
+                            };
                         })
                         ->schema([
-                            \Filament\Forms\Components\Placeholder::make('persetujuan_disabled_notice')
+                            \Filament\Forms\Components\Placeholder::make('hasil_visitasi_disabled_notice')
                                 ->content('⚠️ Tab ini akan aktif setelah jadwal visitasi ditetapkan.')
                                 ->visible(function ($record) {
-                                    return !$record->izinDokumenPks || !$record->izinDokumenPks->tanggal_visitasi;
+                                    return ! $record->izinDokumenPks || ! $record->izinDokumenPks->tanggal_visitasi;
                                 }),
 
                             Grid::make(2)->schema([
-                                TextInput::make('visitasi_info')
+                                TextInput::make('jadwal_visitasi_info')
                                     ->label('Tanggal Visitasi')
                                     ->disabled()
-                                    ->formatStateUsing(fn($record) => $record->izinDokumenPks?->tanggal_visitasi?->translatedFormat('d F Y') ?? 'Belum dijadwalkan')
+                                    ->formatStateUsing(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi?->translatedFormat('d F Y') ?? '-')
                                     ->dehydrated(false),
-                            ])->visible(fn($record) => $record->izinDokumenPks?->tanggal_visitasi !== null),
+                            ])->visible(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi !== null),
 
-                            DatePicker::make('tanggal_persetujuan')
-                                ->label('Tanggal Persetujuan')
-                                ->native(false)
-                                ->displayFormat('d F Y')
-                                ->default(now())
-                                ->disabled(fn($record) => $record->izinPersetujuan !== null),
+                            Section::make('Riwayat Catatan Visitasi')
+                                ->collapsible()
+                                ->visible(fn ($record) => ($record->izinVisitasi && ($record->izinVisitasi->catatan || ! empty($record->izinVisitasi->riwayat_visitasi))))
+                                ->schema(function ($record) {
+                                    return $this->getRiwayatVisitasiSchema($record->izinVisitasi);
+                                }),
 
-                            FileUpload::make('file_persetujuan')
-                                ->label('Surat Persetujuan')
-                                ->acceptedFileTypes(['application/pdf'])
-                                ->maxSize(3 * 1024) // Maksimal 3MB
-                                ->directory('surat-persetujuan')
-                                ->getUploadedFileNameForStorageUsing(function ($file) {
-                                    $extension = $file->getClientOriginalExtension();
-                                    return "Surat Persetujuan [" . date("dmyHis") . "]." . $extension;
+                            \Filament\Forms\Components\Select::make('status_visitasi')
+                                ->label('Hasil Visitasi')
+                                ->options([
+                                    'Memenuhi syarat' => 'Memenuhi syarat',
+                                    'Tidak memenuhi syarat sementara' => 'Tidak memenuhi syarat sementara',
+                                    'Tidak memenuhi syarat' => 'Tidak memenuhi syarat',
+                                ])
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated(function (Get $get, Set $set) {
+                                    if ($get('status_visitasi') === 'Memenuhi syarat') {
+                                        $set('catatan_visitasi', '');
+                                    }
                                 })
-                                ->openable()
-                                ->downloadable()
-                                ->disabled(fn($record) => $record->izinPersetujuan !== null)
-                                ->helperText(fn($record) => $record->izinPersetujuan ?
-                                    'Surat persetujuan telah diupload.' :
-                                    'Upload file surat persetujuan dalam format PDF (Maksimal 3MB)'),
+                                ->helperText('Pilih hasil visitasi setelah pelaksanaan visitasi.'),
+
+                            \Filament\Forms\Components\Textarea::make('catatan_visitasi')
+                                ->label('Catatan')
+                                ->rows(4)
+                                ->visible(fn (Get $get): bool => in_array($get('status_visitasi'), ['Tidak memenuhi syarat sementara', 'Tidak memenuhi syarat']))
+                                ->required(fn (Get $get): bool => in_array($get('status_visitasi'), ['Tidak memenuhi syarat sementara', 'Tidak memenuhi syarat']))
+                                ->helperText('Jelaskan alasan dan detail yang perlu diperbaiki.'),
+
+                            TextInput::make('bukti_perbaikan_display')
+                                ->label('Bukti Perbaikan')
+                                ->formatStateUsing(fn ($record) => $record->izinVisitasi?->bukti_perbaikan ? basename($record->izinVisitasi->bukti_perbaikan) : 'Belum ada bukti perbaikan')
+                                ->disabled()
+                                ->dehydrated(false)
+                                ->visible(fn ($record) => $record->izinVisitasi?->status === 'Tidak memenuhi syarat sementara')
+                                ->suffixAction(
+                                    \Filament\Forms\Components\Actions\Action::make('download_bukti')
+                                        ->icon('heroicon-o-arrow-down-tray')
+                                        ->label('Download')
+                                        ->url(fn ($record) => $record->izinVisitasi?->bukti_perbaikan ? \Storage::url($record->izinVisitasi->bukti_perbaikan) : null)
+                                        ->openUrlInNewTab()
+                                        ->visible(fn ($record) => $record->izinVisitasi?->bukti_perbaikan)
+                                )
+                                ->helperText('Bukti perbaikan yang diupload oleh klinik.'),
+
+                            TextInput::make('tanggal_perbaikan_display')
+                                ->label('Tanggal Upload Bukti Perbaikan')
+                                ->disabled()
+                                ->formatStateUsing(fn ($record) => $record->izinVisitasi?->tanggal_perbaikan_visitasi?->translatedFormat('d F Y H:i') ?? '-')
+                                ->dehydrated(false)
+                                ->visible(fn ($record) => $record->izinVisitasi?->status === 'Tidak memenuhi syarat sementara' && $record->izinVisitasi?->bukti_perbaikan),
+
+                            TextInput::make('hasil_visitasi_date')
+                                ->label('Tanggal Input Hasil')
+                                ->disabled()
+                                ->formatStateUsing(fn ($record) => $record->izinVisitasi?->date_updated?->translatedFormat('d F Y H:i') ?? now()->translatedFormat('d F Y H:i'))
+                                ->dehydrated(false)
+                                ->suffixAction(
+                                    \Filament\Forms\Components\Actions\Action::make('lihat_riwayat')
+                                        ->icon('heroicon-o-clock')
+                                        ->label('Riwayat')
+                                        ->modalHeading('Riwayat Hasil Visitasi')
+                                        ->modalWidth('2xl')
+                                        ->infolist(function ($record) {
+                                            $riwayat = $record->izinVisitasi?->riwayat_visitasi ?? [];
+
+                                            $entries = [];
+
+                                            // Tambahkan status aktif saat ini sebagai entry terbaru
+                                            if ($record->izinVisitasi && $record->izinVisitasi->status) {
+                                                $totalEntries = count($riwayat) + 1;
+                                                $currentStatus = $record->izinVisitasi->status;
+                                                $currentCatatan = $record->izinVisitasi->catatan ?? 'Tidak ada catatan';
+                                                $currentTanggal = $record->izinVisitasi->date_updated?->translatedFormat('d/m/Y H:i') ?? '-';
+
+                                                $entries[] = \Filament\Infolists\Components\TextEntry::make('current_status')
+                                                    ->label('Status Terkini (#'.$totalEntries.')')
+                                                    ->state($currentStatus.' • '.$currentTanggal)
+                                                    ->badge()
+                                                    ->color(match ($currentStatus) {
+                                                        'Memenuhi syarat' => 'success',
+                                                        'Tidak memenuhi syarat sementara' => 'warning',
+                                                        'Tidak memenuhi syarat' => 'danger',
+                                                        default => 'gray',
+                                                    });
+
+                                                $entries[] = \Filament\Infolists\Components\TextEntry::make('current_catatan')
+                                                    ->label('Catatan')
+                                                    ->state($currentCatatan)
+                                                    ->color('gray');
+
+                                                if ($record->izinVisitasi->bukti_perbaikan) {
+                                                    $entries[] = \Filament\Infolists\Components\TextEntry::make('current_bukti')
+                                                        ->label('Bukti Perbaikan yang Diupload')
+                                                        ->state(basename($record->izinVisitasi->bukti_perbaikan))
+                                                        ->badge()
+                                                        ->color('info')
+                                                        ->url(\Illuminate\Support\Facades\Storage::url($record->izinVisitasi->bukti_perbaikan))
+                                                        ->openUrlInNewTab();
+                                                }
+                                            }
+
+                                            // Tambahkan riwayat perubahan sebelumnya
+                                            if (empty($riwayat)) {
+                                                // Jika tidak ada riwayat tapi ada status current, kembalikan entries
+                                                if (! empty($entries)) {
+                                                    return $entries;
+                                                }
+
+                                                return [
+                                                    \Filament\Infolists\Components\TextEntry::make('no_history')
+                                                        ->label('')
+                                                        ->state('Belum ada riwayat perubahan')
+                                                        ->color('gray'),
+                                                ];
+                                            }
+
+                                            foreach (array_reverse($riwayat) as $index => $item) {
+                                                $entryNumber = count($riwayat) - $index;
+                                                $status = $item['status'];
+                                                $catatan = $item['catatan'] ?? 'Tidak ada catatan';
+                                                $tanggal = \Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d/m/Y H:i');
+                                                $admin = $item['admin'];
+
+                                                $entries[] = \Filament\Infolists\Components\TextEntry::make('status_'.$index)
+                                                    ->label('Perubahan #'.$entryNumber)
+                                                    ->state($status.' • '.$tanggal.' • '.$admin)
+                                                    ->badge()
+                                                    ->color(match ($status) {
+                                                        'Memenuhi syarat' => 'success',
+                                                        'Tidak memenuhi syarat sementara' => 'warning',
+                                                        'Tidak memenuhi syarat' => 'danger',
+                                                        default => 'gray',
+                                                    });
+
+                                                $entries[] = \Filament\Infolists\Components\TextEntry::make('catatan_'.$index)
+                                                    ->label('Catatan')
+                                                    ->state($catatan)
+                                                    ->color('gray');
+
+                                                if (! empty($item['bukti_perbaikan'])) {
+                                                    $fileName = basename($item['bukti_perbaikan']);
+                                                    $fileUrl = \Illuminate\Support\Facades\Storage::url($item['bukti_perbaikan']);
+                                                    $entries[] = \Filament\Infolists\Components\TextEntry::make('bukti_'.$index)
+                                                        ->label('Bukti Perbaikan Terdahulu')
+                                                        ->state($fileName)
+                                                        ->badge()
+                                                        ->color('gray')
+                                                        ->url($fileUrl)
+                                                        ->openUrlInNewTab();
+                                                }
+                                            }
+
+                                            return $entries;
+                                        })
+                                        ->modalSubmitAction(false)
+                                        ->modalCancelActionLabel('Tutup')
+                                        ->visible(fn ($record) => $record->izinVisitasi && $record->izinVisitasi->status)
+                                ),
 
                             FormActions::make([
-                                FormActions\Action::make('simpan_persetujuan')
-                                    ->label('Simpan Persetujuan')
+                                FormActions\Action::make('simpan_hasil_visitasi')
+                                    ->label('Simpan Hasil Visitasi')
                                     ->icon('heroicon-o-check')
                                     ->color('success')
-                                    ->visible(fn($record) => !$record->izinPersetujuan)
                                     ->action(function (Get $get, Set $set, $record) {
-                                        $filePersetujuan = $get('file_persetujuan');
-                                        $tanggalPersetujuan = $get('tanggal_persetujuan');
-
-                                        if (!$filePersetujuan) {
+                                        $statusVisitasi = $get('status_visitasi');
+                                        if (! $statusVisitasi) {
                                             Notification::make()
-                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->title('Gagal Menyimpan')
                                                 ->danger()
-                                                ->body('File surat persetujuan harus diupload.')
+                                                ->body('Hasil visitasi harus dipilih.')
                                                 ->send();
+
                                             return;
                                         }
 
-                                        $file_uuid = array_key_first($filePersetujuan);
-                                        $filePersetujuan = $filePersetujuan[$file_uuid];
+                                        $catatanVisitasi = $get('catatan_visitasi');
+                                        if (in_array($statusVisitasi, ['Tidak memenuhi syarat sementara', 'Tidak memenuhi syarat']) && ! $catatanVisitasi) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan')
+                                                ->danger()
+                                                ->body('Catatan wajib diisi jika hasil visitasi tidak memenuhi syarat.')
+                                                ->send();
 
-                                        $file = Storage::disk('public')
-                                            ->putFileAs('surat-persetujuan', $filePersetujuan, 'Surat Persetujuan ' . $record->user->name . ' [' . now()->format('dmYHis') . ']' . "." . $filePersetujuan->getClientOriginalExtension());
-
-
-                                        $record->izinPersetujuan()->updateOrCreate(
-                                            ['id_izin' => $record->id],
-                                            [
-                                                'date_updated' => $tanggalPersetujuan ?? now(),
-                                                'file_persetujuan' => $file,
-                                                'status' => 1,
-                                            ]
-                                        );
-
-                                        $record = $record->fresh([
-                                            'izinPersetujuan',
-                                            'user'
-                                        ]);
-
-                                        try {
-                                            if ($record->user && $record->user->email) {
-                                                Mail::to($record->user->email)->send(
-                                                    new IzinPersetujuanNotification($record)
-                                                );
-                                                $emailStatus = ' Email persetujuan telah dikirim.';
-                                            } else {
-                                                $emailStatus = ' Email tidak dikirim (user tidak memiliki email).';
-                                            }
-                                        } catch (\Exception $e) {
-                                            Log::error('Failed to send approval email: ' . $e->getMessage());
-                                            $emailStatus = ' Email gagal dikirim.';
-                                            error_log('Failed to send approval email: ' . $e->getMessage());
+                                            return;
                                         }
 
+                                        $tanggalVisitasi = $record->izinDokumenPks?->tanggal_visitasi;
+
+                                        // Simpan riwayat jika sudah ada visitasi sebelumnya
+                                        $existingVisitasi = $record->izinVisitasi;
+                                        $riwayat = $existingVisitasi?->riwayat_visitasi ?? [];
+
+                                        if ($existingVisitasi && $existingVisitasi->status) {
+                                            $riwayat[] = [
+                                                'status' => $existingVisitasi->status,
+                                                'catatan' => $existingVisitasi->catatan,
+                                                'tanggal' => $existingVisitasi->date_updated?->toDateTimeString() ?? now()->toDateTimeString(),
+                                                'admin' => auth()->user()->name,
+                                                'bukti_perbaikan' => $existingVisitasi->bukti_perbaikan,
+                                                'tanggal_perbaikan' => $existingVisitasi->tanggal_perbaikan_visitasi?->toDateTimeString(),
+                                            ];
+                                        }
+
+                                        $dataToUpdate = [
+                                            'tanggal_visitasi' => $tanggalVisitasi,
+                                            'status' => $statusVisitasi,
+                                            'catatan' => $catatanVisitasi ?? null,
+                                            'riwayat_visitasi' => $riwayat,
+                                            'date_updated' => now(),
+                                        ];
+
+                                        // Reset bukti perbaikan jika status "Tidak memenuhi syarat sementara"
+                                        // agar klinik bisa upload ulang
+                                        if ($statusVisitasi === 'Tidak memenuhi syarat sementara') {
+                                            $dataToUpdate['bukti_perbaikan'] = null;
+                                            $dataToUpdate['tanggal_perbaikan_visitasi'] = null;
+                                        }
+
+                                        $record->izinVisitasi()->updateOrCreate(
+                                            ['id_izin' => $record->id],
+                                            $dataToUpdate
+                                        );
+
+                                        $record->refresh();
+                                        $record->load('izinVisitasi');
+
+                                        $statusText = match ($statusVisitasi) {
+                                            'Memenuhi syarat' => 'memenuhi syarat dan dapat melanjutkan ke tahap persetujuan',
+                                            'Tidak memenuhi syarat sementara' => 'tidak memenuhi syarat sementara. Klinik dapat melakukan perbaikan dan visitasi ulang',
+                                            'Tidak memenuhi syarat' => 'tidak memenuhi syarat. Klinik harus mengajukan izin baru',
+                                            default => $statusVisitasi
+                                        };
+
                                         Notification::make()
-                                            ->title('Persetujuan Berhasil')
+                                            ->title('Hasil Visitasi Berhasil Disimpan')
                                             ->success()
-                                            ->body('Izin telah disetujui dan surat persetujuan telah diupload.' . $emailStatus)
+                                            ->body("Hasil visitasi: {$statusText}.")
                                             ->send();
 
-                                        // Refresh record
                                         $this->redirect(SuratPersetujuan::getUrl());
+                                    }),
 
-                                        // $record->refresh();
-                                    })
+                                FormActions\Action::make('hapus_hasil_visitasi')
+                                    ->label('Hapus Hasil Visitasi')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->visible(fn ($record) => $record->izinVisitasi && $record->izinVisitasi->status)
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Hasil Visitasi')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus hasil visitasi ini? Tindakan ini tidak dapat dibatalkan.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record) {
+                                        if ($record->izinVisitasi) {
+                                            $record->izinVisitasi->delete();
+                                        }
+
+                                        $record->refresh();
+
+                                        Notification::make()
+                                            ->title('Hasil Visitasi Berhasil Dihapus')
+                                            ->success()
+                                            ->body('Hasil visitasi telah dihapus.')
+                                            ->send();
+
+                                        $this->redirect(SuratPersetujuan::getUrl());
+                                    }),
                             ]),
                         ]),
 
@@ -586,7 +936,7 @@ class SuratPersetujuan extends Page implements HasTable
                         ->label('3. Upload PKS')
                         ->icon('heroicon-o-document-arrow-up')
                         ->disabled(function ($record) {
-                            return !$record->izinPersetujuan;
+                            return ! $record->izinVisitasi || $record->izinVisitasi->status !== 'Memenuhi syarat';
                         })
                         ->badge(function ($record) {
                             return $record->izinDokumenPks?->dokumen_pks_bkk ? '✓' : '';
@@ -596,27 +946,18 @@ class SuratPersetujuan extends Page implements HasTable
                         })
                         ->schema([
                             \Filament\Forms\Components\Placeholder::make('pks_disabled_notice')
-                                ->content('⚠️ Tab ini akan aktif setelah persetujuan diupload.')
+                                ->content('⚠️ Tab ini akan aktif setelah hasil visitasi memenuhi syarat.')
                                 ->visible(function ($record) {
-                                    return !$record->izinPersetujuan;
+                                    return ! $record->izinVisitasi || $record->izinVisitasi->status !== 'Memenuhi syarat';
                                 }),
 
                             Grid::make(2)->schema([
-                                TextInput::make('persetujuan_info')
-                                    ->label('Tanggal Persetujuan')
+                                TextInput::make('visitasi_info_pks')
+                                    ->label('Tanggal Visitasi')
                                     ->disabled()
-                                    ->formatStateUsing(fn($record) => $record->izinPersetujuan?->date_updated?->translatedFormat('d F Y') ?? 'Belum disetujui')
+                                    ->formatStateUsing(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi?->translatedFormat('d F Y') ?? 'Belum dijadwalkan')
                                     ->dehydrated(false),
-
-                                TextInput::make('file_persetujuan_info')
-                                    ->label('File Persetujuan')
-                                    ->disabled()
-                                    ->formatStateUsing(function ($record) {
-                                        return $record->izinPersetujuan?->file_persetujuan ?
-                                            basename($record->izinPersetujuan->file_persetujuan) : 'Belum ada file';
-                                    })
-                                    ->dehydrated(false),
-                            ])->visible(fn($record) => $record->izinPersetujuan !== null),
+                            ])->visible(fn ($record) => $record->izinDokumenPks?->tanggal_visitasi !== null),
 
                             FileUpload::make('dokumen_pks_bkk')
                                 ->label('File Perjanjian Kerjasama')
@@ -625,42 +966,66 @@ class SuratPersetujuan extends Page implements HasTable
                                 ->directory('perjanjian-kerjasama')
                                 ->getUploadedFileNameForStorageUsing(function ($file) {
                                     $extension = $file->getClientOriginalExtension();
-                                    return "PKS [" . date("dmyHis") . "]." . $extension;
+
+                                    return 'PKS ['.date('dmyHis').'].'.$extension;
                                 })
                                 ->openable()
                                 ->downloadable()
-                                ->disabled(fn($record) => $record->izinDokumenPks?->dokumen_pks_bkk !== null)
-                                ->helperText(fn($record) => $record->izinDokumenPks?->dokumen_pks_bkk ?
-                                    'PKS telah diupload.' :
+                                ->helperText(fn ($record) => $record->izinDokumenPks?->dokumen_pks_bkk ?
+                                    'PKS telah diupload. Anda dapat mengganti file jika diperlukan.' :
                                     'Upload file PKS dalam format PDF (Maksimal 3MB)'),
 
                             FormActions::make([
                                 FormActions\Action::make('simpan_pks')
-                                    ->label('Simpan PKS')
+                                    ->label('Simpan/Update PKS')
                                     ->icon('heroicon-o-check')
                                     ->color('success')
-                                    ->visible(fn($record) => !$record->izinDokumenPks?->dokumen_pks_bkk)
+                                    ->visible(fn ($record) => true)
                                     ->action(function (Get $get, Set $set, $record) {
                                         $pks = $get('dokumen_pks_bkk');
 
-                                        if (!$pks) {
+                                        if (! $pks) {
                                             Notification::make()
                                                 ->title('Gagal Upload PKS')
                                                 ->danger()
                                                 ->body('File PKS harus diupload.')
                                                 ->send();
+
                                             return;
                                         }
 
                                         $file_uuid = array_key_first($pks);
-                                        $pks = $pks[$file_uuid];
-                                        $pks = Storage::disk('public')
-                                            ->putFileAs('perjanjian-kerjasama', $pks, 'PKS ' . $record->user->name . ' [' . now()->format('dmYHis') . ']' . "." . $pks->getClientOriginalExtension());
+                                        $pksFile = $pks[$file_uuid];
+
+                                        if (is_string($pksFile)) {
+                                            // Sudah berupa path file lama
+                                            $filePath = $pksFile;
+                                        } elseif (is_object($pksFile) && method_exists($pksFile, 'getClientOriginalExtension')) {
+                                            // File baru diupload
+                                            $filePath = \Storage::disk('public')
+                                                ->putFileAs(
+                                                    'perjanjian-kerjasama',
+                                                    $pksFile,
+                                                    'PKS '.$record->user->name.' ['.now()->format('dmYHis').'].'.$pksFile->getClientOriginalExtension()
+                                                );
+                                        } else {
+                                            $filePath = null;
+                                        }
+
+                                        if (! $filePath) {
+                                            Notification::make()
+                                                ->title('Gagal Upload PKS')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat memproses file PKS.')
+                                                ->send();
+
+                                            return;
+                                        }
 
                                         $record->izinDokumenPks()->updateOrCreate(
                                             ['id_izin' => $record->id],
                                             [
-                                                'dokumen_pks_bkk' => $pks,
+                                                'dokumen_pks_bkk' => $filePath,
                                                 'status_dokumen' => 'sign both',
                                             ]
                                         );
@@ -675,23 +1040,343 @@ class SuratPersetujuan extends Page implements HasTable
                                                 $emailStatus = ' Email tidak dikirim (user tidak memiliki email).';
                                             }
                                         } catch (\Exception $e) {
-                                            error_log('Failed to send PKS email: ' . $e->getMessage());
+                                            error_log('Failed to send PKS email: '.$e->getMessage());
                                             $emailStatus = ' Email gagal dikirim.';
                                         }
 
                                         Notification::make()
                                             ->title('PKS Berhasil Diupload')
                                             ->success()
-                                            ->body('File Perjanjian Kerjasama telah berhasil diupload.' . $emailStatus)
+                                            ->body('File Perjanjian Kerjasama telah berhasil diupload.'.$emailStatus)
                                             ->send();
 
                                         // Refresh record
                                         $this->redirect(SuratPersetujuan::getUrl());
 
-                                    })
+                                    }),
+
+                                FormActions\Action::make('hapus_pks')
+                                    ->label('Hapus PKS')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->visible(fn ($record) => $record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk)
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus PKS')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus file PKS ini? Tindakan ini akan menghapus file PKS dan mengatur ulang status dokumen. Tindakan ini tidak dapat dibatalkan.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record) {
+                                        // Hapus file PKS dari storage jika ada
+                                        if ($record->izinDokumenPks && $record->izinDokumenPks->dokumen_pks_bkk) {
+                                            try {
+                                                \Storage::disk('public')->delete($record->izinDokumenPks->dokumen_pks_bkk);
+                                            } catch (\Exception $e) {
+                                                error_log('Failed to delete PKS file: '.$e->getMessage());
+                                            }
+                                        }
+
+                                        // Hapus field dokumen_pks_bkk dan reset status_dokumen
+                                        if ($record->izinDokumenPks) {
+                                            $record->izinDokumenPks->update([
+                                                'dokumen_pks_bkk' => null,
+                                                'status_dokumen' => null,
+                                            ]);
+                                        }
+
+                                        $record->refresh();
+
+                                        Notification::make()
+                                            ->title('PKS Berhasil Dihapus')
+                                            ->success()
+                                            ->body('File PKS telah dihapus dan status dokumen direset.')
+                                            ->send();
+
+                                        $this->redirect(SuratPersetujuan::getUrl());
+                                    }),
+                            ]),
+                        ]),
+
+                    // Tab 4: Upload Persetujuan
+                    Tabs\Tab::make('persetujuan')
+                        ->label('4. Upload Persetujuan')
+                        ->icon('heroicon-o-check-circle')
+                        ->disabled(function ($record) {
+                            return ! $record->izinDokumenPks || ! $record->izinDokumenPks->dokumen_pks_bkk;
+                        })
+                        ->badge(function ($record) {
+                            return $record->izinPersetujuan ? '✓' : '';
+                        })
+                        ->badgeColor(function ($record) {
+                            return $record->izinPersetujuan ? 'success' : 'gray';
+                        })
+                        ->schema([
+                            \Filament\Forms\Components\Placeholder::make('persetujuan_disabled_notice')
+                                ->content('⚠️ Tab ini akan aktif setelah PKS diupload.')
+                                ->visible(function ($record) {
+                                    return ! $record->izinDokumenPks || ! $record->izinDokumenPks->dokumen_pks_bkk;
+                                }),
+
+                            Grid::make(2)->schema([
+                                TextInput::make('pks_info')
+                                    ->label('Status PKS')
+                                    ->disabled()
+                                    ->formatStateUsing(fn ($record) => $record->izinDokumenPks?->dokumen_pks_bkk ? 'PKS Tersedia' : 'Belum ada PKS')
+                                    ->dehydrated(false),
+                            ])->visible(fn ($record) => $record->izinDokumenPks?->dokumen_pks_bkk !== null),
+
+                            DatePicker::make('tanggal_persetujuan')
+                                ->label('Tanggal Persetujuan')
+                                // ->native(false)
+                                ->displayFormat('d F Y')
+                                ->default(now()),
+
+                            FileUpload::make('file_persetujuan')
+                                ->label('Surat Persetujuan')
+                                ->acceptedFileTypes(['application/pdf'])
+                                ->maxSize(3 * 1024) // Maksimal 3MB
+                                ->directory('surat-persetujuan')
+                                ->getUploadedFileNameForStorageUsing(function ($file) {
+                                    $extension = $file->getClientOriginalExtension();
+
+                                    return 'Surat Persetujuan ['.date('dmyHis').'].'.$extension;
+                                })
+                                ->openable()
+                                ->downloadable()
+                                ->helperText(fn ($record) => $record->izinPersetujuan ?
+                                    'Surat persetujuan telah diupload. Anda dapat mengganti file jika diperlukan.' :
+                                    'Upload file surat persetujuan dalam format PDF (Maksimal 3MB)'),
+
+                            TextInput::make('nomor_surat')
+                                ->label('Nomor Surat Persetujuan')
+                                ->formatStateUsing(function ($record) {
+                                    return SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->nomor_surat ?? '';
+                                })
+                                ->required(),
+
+                            DatePicker::make('masa_berlaku')
+                                ->label('Masa Berlaku Izin')
+                                ->formatStateUsing(function ($record) {
+                                    return SuratPersetujuanIcv::where('id_akun', $record->user->id)->first()->masa_berlaku ?? '';
+                                })
+                                // ->native(false)
+                                ->required()
+                                ->displayFormat('d F Y'),
+
+                            FormActions::make([
+                                FormActions\Action::make('simpan_persetujuan')
+                                    ->label('Simpan/Update Persetujuan')
+                                    ->icon('heroicon-o-check')
+                                    ->color('success')
+                                    ->visible(fn ($record) => true)
+                                    ->action(function (Get $get, Set $set, $record) {
+                                        $filePersetujuan = $get('file_persetujuan');
+                                        $tanggalPersetujuan = $get('tanggal_persetujuan');
+                                        $nomorSurat = $get('nomor_surat');
+                                        $masaBerlaku = $get('masa_berlaku');
+
+                                        if (! $filePersetujuan) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->danger()
+                                                ->body('File surat persetujuan harus diupload.')
+                                                ->send();
+
+                                            return;
+                                        }
+
+                                        if (! $nomorSurat) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->danger()
+                                                ->body('Nomor surat persetujuan harus diisi.')
+                                                ->send();
+
+                                            return;
+                                        }
+
+                                        if (! $masaBerlaku) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->danger()
+                                                ->body('Masa berlaku izin harus diisi.')
+                                                ->send();
+
+                                            return;
+                                        }
+
+                                        $userId = $record->user_id;
+
+                                        // UpdateOrCreate SuratPersetujuanIcv
+                                        SuratPersetujuanIcv::updateOrCreate(
+                                            ['id_akun' => $userId],
+                                            [
+                                                'nomor_surat' => $nomorSurat,
+                                                'tanggal_surat' => $tanggalPersetujuan,
+                                                'masa_berlaku' => $masaBerlaku,
+                                            ]
+                                        );
+
+                                        // Handle file upload
+                                        $filePath = null;
+                                        if (is_array($filePersetujuan)) {
+                                            $file_uuid = array_key_first($filePersetujuan);
+                                            $uploadedFile = $filePersetujuan[$file_uuid];
+                                            if (is_string($uploadedFile)) {
+                                                // Sudah berupa path file lama
+                                                $filePath = $uploadedFile;
+                                            } elseif ($uploadedFile && method_exists($uploadedFile, 'getClientOriginalExtension')) {
+                                                // File baru diupload
+                                                $filePath = \Storage::disk('public')
+                                                    ->putFileAs(
+                                                        'surat-persetujuan',
+                                                        $uploadedFile,
+                                                        'Surat Persetujuan '.$record->user->name.' ['.now()->format('dmYHis').'].'.$uploadedFile->getClientOriginalExtension()
+                                                    );
+                                            }
+                                        } elseif (is_string($filePersetujuan)) {
+                                            $filePath = $filePersetujuan;
+                                        }
+
+                                        if (! $filePath) {
+                                            Notification::make()
+                                                ->title('Gagal Menyimpan Persetujuan')
+                                                ->danger()
+                                                ->body('Terjadi kesalahan saat memproses file.')
+                                                ->send();
+
+                                            return;
+                                        }
+
+                                        $record->izinPersetujuan()->updateOrCreate(
+                                            ['id_izin' => $record->id],
+                                            [
+                                                'date_updated' => $tanggalPersetujuan ?? now(),
+                                                'file_persetujuan' => $filePath,
+                                                'status' => 1,
+                                            ]
+                                        );
+
+                                        $record = $record->fresh([
+                                            'izinPersetujuan',
+                                            'user',
+                                        ]);
+
+                                        try {
+                                            if ($record->user && $record->user->email) {
+                                                \Mail::to($record->user->email)->send(
+                                                    new \App\Mail\IzinPersetujuanNotification($record)
+                                                );
+                                                $emailStatus = ' Email persetujuan telah dikirim.';
+                                            } else {
+                                                $emailStatus = ' Email tidak dikirim (user tidak memiliki email).';
+                                            }
+                                        } catch (\Exception $e) {
+                                            \Log::error('Failed to send approval email: '.$e->getMessage());
+                                            $emailStatus = ' Email gagal dikirim.';
+                                            error_log('Failed to send approval email: '.$e->getMessage());
+                                        }
+
+                                        Notification::make()
+                                            ->title('Persetujuan Berhasil')
+                                            ->success()
+                                            ->body('Izin telah disetujui dan surat persetujuan telah diupload.'.$emailStatus)
+                                            ->send();
+
+                                        $this->redirect(\App\Filament\Resources\IzinResource\Pages\SuratPersetujuan::getUrl());
+                                    }),
+
+                                FormActions\Action::make('hapus_persetujuan')
+                                    ->label('Hapus Persetujuan')
+                                    ->icon('heroicon-o-trash')
+                                    ->color('danger')
+                                    ->visible(fn ($record) => $record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan)
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Hapus Persetujuan')
+                                    ->modalDescription('Apakah Anda yakin ingin menghapus persetujuan ini? Tindakan ini akan menghapus data persetujuan dan data terkait di Surat Persetujuan e-ICV. Tindakan ini tidak dapat dibatalkan.')
+                                    ->modalSubmitActionLabel('Ya, Hapus')
+                                    ->action(function ($record, Get $get) {
+                                        $userId = $record->user_id;
+
+                                        // Hapus file persetujuan dari storage jika ada
+                                        if ($record->izinPersetujuan && $record->izinPersetujuan->file_persetujuan) {
+                                            try {
+                                                \Storage::disk('public')->delete($record->izinPersetujuan->file_persetujuan);
+                                            } catch (\Exception $e) {
+                                                error_log('Failed to delete approval file: '.$e->getMessage());
+                                            }
+                                        }
+
+                                        // Hapus atau reset data terkait di SuratPersetujuanIcv
+                                        $suratPersetujuan = SuratPersetujuanIcv::where('id_akun', $userId)->where('nomor_surat', $get('nomor_surat'))->first();
+                                        if ($suratPersetujuan) {
+                                            $suratPersetujuan->delete();
+                                        }
+
+                                        // Hapus record dari tabel IzinPersetujuan
+                                        if ($record->izinPersetujuan) {
+                                            $record->izinPersetujuan->delete();
+                                        }
+
+                                        $record->refresh();
+
+                                        Notification::make()
+                                            ->title('Persetujuan Berhasil Dihapus')
+                                            ->success()
+                                            ->body('Data persetujuan dan file terkait telah dihapus.')
+                                            ->send();
+
+                                        $this->redirect(SuratPersetujuan::getUrl());
+                                    }),
                             ]),
                         ]),
                 ]),
         ];
+    }
+
+    private function getRiwayatVisitasiSchema($izinVisitasi): array
+    {
+        if (! $izinVisitasi) {
+            return [];
+        }
+
+        $riwayat = $izinVisitasi->riwayat_visitasi ?? [];
+        $entries = [];
+
+        // 1. Jika ada visitasi aktif / catatan saat ini
+        if ($izinVisitasi->catatan) {
+            $tgl = $izinVisitasi->date_updated ? $izinVisitasi->date_updated->translatedFormat('d F Y H:i') : now()->translatedFormat('d F Y H:i');
+            $catatan = e($izinVisitasi->catatan);
+            $buktiHtml = '';
+
+            if (! empty($izinVisitasi->bukti_perbaikan)) {
+                $buktiUrl = asset('storage/'.$izinVisitasi->bukti_perbaikan);
+                $buktiName = e(basename($izinVisitasi->bukti_perbaikan));
+                $tglUpload = $izinVisitasi->tanggal_perbaikan_visitasi ? ' (Upload: '.$izinVisitasi->tanggal_perbaikan_visitasi->translatedFormat('d/m/Y H:i').')' : '';
+                $buktiHtml = '<div class="mt-1 text-xs"><span class="text-gray-500">Bukti Perbaikan:</span> <a href="'.$buktiUrl.'" target="_blank" class="text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700">'.$buktiName.'</a>'.$tglUpload.'</div>';
+            }
+
+            $entries[] = Placeholder::make('riwayat_visitasi_current')
+                ->label($tgl)
+                ->content(new HtmlString('<div class="text-sm">'.$catatan.$buktiHtml.'</div>'));
+        }
+
+        // 2. Riwayat evaluasi sebelumnya
+        foreach (array_reverse($riwayat) as $index => $item) {
+            $tgl = ! empty($item['tanggal']) ? \Carbon\Carbon::parse($item['tanggal'])->translatedFormat('d F Y H:i') : '-';
+            $catatan = e($item['catatan'] ?? 'Tidak ada catatan');
+            $buktiHtml = '';
+
+            if (! empty($item['bukti_perbaikan'])) {
+                $buktiUrl = asset('storage/'.$item['bukti_perbaikan']);
+                $buktiName = e(basename($item['bukti_perbaikan']));
+                $tglUpload = ! empty($item['tanggal_perbaikan']) ? ' (Upload: '.\Carbon\Carbon::parse($item['tanggal_perbaikan'])->translatedFormat('d/m/Y H:i').')' : '';
+                $buktiHtml = '<div class="mt-1 text-xs"><span class="text-gray-500">Bukti Perbaikan:</span> <a href="'.$buktiUrl.'" target="_blank" class="text-primary-600 dark:text-primary-400 font-semibold underline hover:text-primary-700">'.$buktiName.'</a>'.$tglUpload.'</div>';
+            }
+
+            $entries[] = Placeholder::make("riwayat_visitasi_{$index}")
+                ->label($tgl)
+                ->content(new HtmlString('<div class="text-sm">'.$catatan.$buktiHtml.'</div>'));
+        }
+
+        return $entries;
     }
 }

@@ -1,22 +1,19 @@
 <?php
-// filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Widgets/AdminStatsWidget.php
 
 namespace App\Filament\Widgets;
 
-use Filament\Widgets\StatsOverviewWidget as BaseWidget;
-use Filament\Widgets\StatsOverviewWidget\Stat;
-use App\Models\User;
-use App\Models\Izin;
 use App\Models\Icv;
 use App\Models\IcvAlokasi;
-use App\Models\IcvSbbk;
-use App\Models\IzinDokumen;
+use App\Models\Izin;
+use App\Models\User;
+use Filament\Widgets\StatsOverviewWidget as BaseWidget;
+use Filament\Widgets\StatsOverviewWidget\Stat;
 use Illuminate\Support\Facades\DB;
 
 class AdminStatsWidget extends BaseWidget
 {
     // Tarif ICV berdasarkan regulasi (dalam rupiah)
-    private const TARIF_ICV = 25000; // Rp 50.000 per ICV
+    private const TARIF_ICV = 25000;
 
     protected function getStats(): array
     {
@@ -45,25 +42,25 @@ class AdminStatsWidget extends BaseWidget
 
         return [
             Stat::make('Total Klinik/RS', $totalKlinik)
-                ->description($klinikVerified . ' telah diverifikasi')
+                ->description($klinikVerified.' telah diverifikasi')
                 ->descriptionIcon('heroicon-m-building-office-2')
                 ->color('primary')
                 ->chart($this->getKlinikChartData()),
 
             Stat::make('Izin Klinik', $totalIzin)
-                ->description($izinMenunggu . ' menunggu verifikasi')
+                ->description($izinMenunggu.' menunggu verifikasi')
                 ->descriptionIcon('heroicon-m-document-text')
                 ->color('warning')
                 ->chart($this->getIzinChartData()),
 
-            Stat::make('ICV Dialokasikan', number_format($icvData['total_dialokasikan']))
-                ->description(number_format($icvData['dengan_sbbk']) . ' dengan SBBK')
+            Stat::make('e-ICV Dialokasikan', number_format($icvData['total_dialokasikan']))
+                ->description(number_format($icvData['sudah_upload_bukti_bayar']).' sudah upload bukti bayar')
                 ->descriptionIcon('heroicon-m-clipboard-document-check')
                 ->color('success')
                 ->chart($icvData['chart']),
 
-            Stat::make('Pendapatan PNBP', 'Rp ' . number_format($pnbpData['total'] / 1000000, 1) . 'M')
-                ->description('Rp ' . number_format($pnbpData['tahun_ini'] / 1000000, 1) . 'M tahun ini')
+            Stat::make('Pendapatan PNBP', $this->formatRupiahSingkat($pnbpData['total']))
+                ->description($this->formatRupiahSingkat($pnbpData['tahun_ini']).' tahun ini')
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('info')
                 ->chart($pnbpData['chart']),
@@ -75,25 +72,23 @@ class AdminStatsWidget extends BaseWidget
         // Total ICV yang dialokasikan dari tabel alokasi
         $totalDialokasikan = IcvAlokasi::sum('icv_disetujui');
 
-        // ICV yang sudah mendapat SBBK
-        $denganSbbk = DB::table('tbl_icv_alokasi')
-            ->join('tbl_icv_sbbk', 'tbl_icv_alokasi.id_icv', '=', 'tbl_icv_sbbk.id_icv')
-            ->whereNotNull('tbl_icv_sbbk.file_sbbk')
-            ->where('tbl_icv_sbbk.file_sbbk', '!=', '')
+        // ICV yang sudah upload bukti bayar
+        $sudahUploadBuktiBayar = DB::table('tbl_icv_alokasi')
+            ->join('tbl_icv_bukti_bayar', 'tbl_icv_alokasi.id_icv', '=', 'tbl_icv_bukti_bayar.id_icv')
+            ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+            ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
             ->sum('tbl_icv_alokasi.icv_disetujui');
 
-        // Chart data untuk 6 bulan terakhir (ICV dengan SBBK)
-        // Karena tidak ada created_at, kita gunakan data statis atau dari tabel lain
+        // Chart data untuk 6 bulan terakhir (ICV dengan file bukti bayar)
         $chart = [];
         for ($i = 5; $i >= 0; $i--) {
             $month = now()->subMonths($i);
 
-            // Menggunakan data dari tabel icv untuk chart karena ada tanggal_pengajuan
             $count = DB::table('tbl_icv')
                 ->join('tbl_icv_alokasi', 'tbl_icv.id', '=', 'tbl_icv_alokasi.id_icv')
-                ->join('tbl_icv_sbbk', 'tbl_icv.id', '=', 'tbl_icv_sbbk.id_icv')
-                ->whereNotNull('tbl_icv_sbbk.file_sbbk')
-                ->where('tbl_icv_sbbk.file_sbbk', '!=', '')
+                ->join('tbl_icv_bukti_bayar', 'tbl_icv.id', '=', 'tbl_icv_bukti_bayar.id_icv')
+                ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+                ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
                 ->whereMonth('tbl_icv.tanggal_pengajuan', $month->month)
                 ->whereYear('tbl_icv.tanggal_pengajuan', $month->year)
                 ->sum('tbl_icv_alokasi.icv_disetujui');
@@ -103,14 +98,14 @@ class AdminStatsWidget extends BaseWidget
 
         return [
             'total_dialokasikan' => $totalDialokasikan,
-            'dengan_sbbk' => $denganSbbk,
+            'sudah_upload_bukti_bayar' => $sudahUploadBuktiBayar,
             'chart' => $chart,
         ];
     }
 
     private function getPnbpData(): array
     {
-        // Data PNBP untuk 6 bulan terakhir berdasarkan ICV alokasi dengan SBBK
+        // Data PNBP untuk 6 bulan terakhir berdasarkan ICV alokasi yang sudah upload bukti bayar
         $chart = [];
         $tahunIni = 0;
 
@@ -119,9 +114,9 @@ class AdminStatsWidget extends BaseWidget
 
             $icvMonth = DB::table('tbl_icv')
                 ->join('tbl_icv_alokasi', 'tbl_icv.id', '=', 'tbl_icv_alokasi.id_icv')
-                ->join('tbl_icv_sbbk', 'tbl_icv.id', '=', 'tbl_icv_sbbk.id_icv')
-                ->whereNotNull('tbl_icv_sbbk.file_sbbk')
-                ->where('tbl_icv_sbbk.file_sbbk', '!=', '')
+                ->join('tbl_icv_bukti_bayar', 'tbl_icv.id', '=', 'tbl_icv_bukti_bayar.id_icv')
+                ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+                ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
                 ->whereMonth('tbl_icv.tanggal_pengajuan', $month->month)
                 ->whereYear('tbl_icv.tanggal_pengajuan', $month->year)
                 ->sum('tbl_icv_alokasi.icv_disetujui');
@@ -134,18 +129,31 @@ class AdminStatsWidget extends BaseWidget
             }
         }
 
-        // Total keseluruhan dari ICV alokasi yang sudah mendapat SBBK
-        $totalIcvSbbk = DB::table('tbl_icv_alokasi')
-            ->join('tbl_icv_sbbk', 'tbl_icv_alokasi.id_icv', '=', 'tbl_icv_sbbk.id_icv')
-            ->whereNotNull('tbl_icv_sbbk.file_sbbk')
-            ->where('tbl_icv_sbbk.file_sbbk', '!=', '')
+        // Hitung ulang tahun ini dengan cara yang sama seperti di AdminPnbpChartWidget
+        $icvTahunIni = DB::table('tbl_icv')
+            ->join('tbl_icv_alokasi', 'tbl_icv.id', '=', 'tbl_icv_alokasi.id_icv')
+            ->join('tbl_icv_bukti_bayar', 'tbl_icv.id', '=', 'tbl_icv_bukti_bayar.id_icv')
+            ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+            ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
+            ->whereYear('tbl_icv.tanggal_pengajuan', now()->year)
             ->sum('tbl_icv_alokasi.icv_disetujui');
 
-        $totalPendapatan = $totalIcvSbbk * self::TARIF_ICV;
+        $pendapatanTahunIni = $icvTahunIni * self::TARIF_ICV;
+
+        // Total keseluruhan dari ICV alokasi yang sudah upload bukti bayar (sejak 2023)
+        $totalIcvUploadBuktiBayar = DB::table('tbl_icv')
+            ->join('tbl_icv_alokasi', 'tbl_icv.id', '=', 'tbl_icv_alokasi.id_icv')
+            ->join('tbl_icv_bukti_bayar', 'tbl_icv.id', '=', 'tbl_icv_bukti_bayar.id_icv')
+            ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+            ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
+            ->whereYear('tbl_icv.tanggal_pengajuan', '>=', 2023)
+            ->sum('tbl_icv_alokasi.icv_disetujui');
+
+        $totalPendapatan = $totalIcvUploadBuktiBayar * self::TARIF_ICV;
 
         return [
             'total' => $totalPendapatan,
-            'tahun_ini' => $tahunIni,
+            'tahun_ini' => $pendapatanTahunIni, // Gunakan perhitungan yang konsisten
             'chart' => $chart,
         ];
     }
@@ -159,12 +167,13 @@ class AdminStatsWidget extends BaseWidget
             $count = User::whereHas('roles', function ($query) {
                 $query->where('name', 'user');
             })
-            ->whereMonth('created_at', $month->month) // Gunakan created_at untuk User
-            ->whereYear('created_at', $month->year)
-            ->count();
+                ->whereMonth('created_at', $month->month) // Gunakan created_at untuk User
+                ->whereYear('created_at', $month->year)
+                ->count();
 
             $chartData[] = $count;
         }
+
         return $chartData;
     }
 
@@ -180,6 +189,23 @@ class AdminStatsWidget extends BaseWidget
 
             $chartData[] = $count;
         }
+
         return $chartData;
+    }
+
+    /**
+     * Format angka rupiah secara singkat (misal: Rp 1,2 M, Rp 500 Jt, Rp 10 Rb)
+     */
+    private function formatRupiahSingkat($angka): string
+    {
+        if ($angka >= 1000000000) {
+            return 'Rp '.number_format($angka / 1000000000, 1, ',', '.').' M';
+        } elseif ($angka >= 1000000) {
+            return 'Rp '.number_format($angka / 1000000, 1, ',', '.').' Jt';
+        } elseif ($angka >= 1000) {
+            return 'Rp '.number_format($angka / 1000, 1, ',', '.').' Rb';
+        }
+
+        return 'Rp '.number_format($angka, 0, ',', '.');
     }
 }

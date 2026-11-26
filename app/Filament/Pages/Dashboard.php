@@ -1,15 +1,16 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Pages/Dashboard.php
 
 namespace App\Filament\Pages;
 
-use Filament\Notifications\Notification;
-use Filament\Pages\Dashboard as BaseDashboard;
-use App\Filament\Widgets\AdminStatsWidget;
-use App\Filament\Widgets\AdminRecentActivitiesWidget;
 use App\Filament\Widgets\AdminPnbpChartWidget;
+use App\Filament\Widgets\AdminRecentActivitiesWidget;
+use App\Filament\Widgets\AdminStatsWidget;
 use App\Filament\Widgets\UserStatsWidget;
 use App\Filament\Widgets\UserStatusWidget;
+use Filament\Notifications\Notification;
+use Filament\Pages\Dashboard as BaseDashboard;
 
 class Dashboard extends BaseDashboard
 {
@@ -21,7 +22,7 @@ class Dashboard extends BaseDashboard
 
             Notification::make()
                 ->title('Akun Tidak Aktif')
-                ->body('Akun Anda nonaktif. Silakan hubungi admin untuk informasi lebih lanjut.')
+                ->body('Akun Anda saat ini nonaktif.')
                 ->danger()
                 ->persistent()
                 ->send();
@@ -31,11 +32,12 @@ class Dashboard extends BaseDashboard
 
         // Set the title of the dashboard page
     }
+
     public function getWidgets(): array
     {
         $user = auth()->user();
 
-        if ($user->hasRole('admin') || $user->hasRole('verifikator1') || $user->hasRole('verifikator2') || $user->hasRole('pos')) {
+        if ($user->hasRole('admin') || $user->hasRole('verifikator1') || $user->hasRole('verifikator2') || $user->hasRole('pos') || $user->hasRole('dokter')) {
             return [
                 AdminStatsWidget::class,
                 AdminPnbpChartWidget::class, // Chart pendapatan PNBP

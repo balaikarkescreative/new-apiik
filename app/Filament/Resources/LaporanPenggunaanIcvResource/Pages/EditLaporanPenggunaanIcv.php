@@ -19,20 +19,20 @@ class EditLaporanPenggunaanIcv extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        // Konversi data dari database ke format form
-        $record = $this->getRecord();
-
+        // Use the data parameter instead of getRecord() since the record might not be initialized yet
+        // The $data already contains the record data from the database
+        
         // Set jenis vaksin yang dipilih
-        $data['jenis_vaksin'] = [$record->id_jenis_vaksin];
+        $data['jenis_vaksin'] = [$data['id_jenis_vaksin']];
 
-        // Set data untuk form nested
+        // Set data untuk form nested - restructure the flat database data into nested format
         $data['data'] = [
-            $record->id_jenis_vaksin => [
-                'jml_terbit_icv' => $record->jml_terbit_icv,
-                'sisa_icv' => $record->sisa_icv,
-                'jml_guna_vaksin' => $record->jml_guna_vaksin,
-                'sisa_vaksin' => $record->sisa_vaksin,
-                'keterangan' => $record->keterangan,
+            $data['id_jenis_vaksin'] => [
+                'jml_terbit_icv' => $data['jml_terbit_icv'] ?? 0,
+                'sisa_icv' => $data['sisa_icv'] ?? 0,
+                'jml_guna_vaksin' => $data['jml_guna_vaksin'] ?? 0,
+                'sisa_vaksin' => $data['sisa_vaksin'] ?? 0,
+                'keterangan' => $data['keterangan'] ?? null,
             ]
         ];
 

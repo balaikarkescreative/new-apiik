@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SBBK ICV Diterbitkan - Distribusi Selesai</title>
+    <title>SBBK e-ICV Diterbitkan - Distribusi Selesai</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .header {
@@ -162,29 +162,29 @@
 <body>
     <div class="header">
         <div class="celebration">✅</div>
-        <h1>SBBK ICV Telah Diterbitkan!</h1>
+        <h1>SBBK e-ICV Telah Diterbitkan!</h1>
         <div class="status-badge">DISTRIBUSI SELESAI</div>
     </div>
 
     <div class="content">
         <p>Yth. {{ $icv->user->name }},</p>
 
-        <p><strong>Selamat!</strong> Proses distribusi ICV Anda telah selesai. SBBK (Surat Bukti Barang Keluar) telah diterbitkan sebagai bukti penyerahan ICV.</p>
+        <p><strong>Selamat!</strong> Proses distribusi e-ICV Anda telah selesai. SBBK (Surat Bukti Barang Keluar) telah diterbitkan sebagai bukti penyerahan e-ICV.</p>
 
         <div class="completion-box">
-            <h2 style="color: #059669; margin-top: 0;">🎉 DISTRIBUSI ICV SELESAI</h2>
+            <h2 style="color: #059669; margin-top: 0;">🎉 DISTRIBUSI e-ICV SELESAI</h2>
             <p style="font-size: 18px; margin: 20px 0; font-weight: 500;">
-                ICV telah berhasil diserahkan kepada<br>
+                e-ICV telah berhasil diserahkan kepada<br>
                 <strong>{{ $icv->user->name }}</strong>
             </p>
 
             <div class="document-box">
-                📄 SBBK ICV Terlampir
+                📄 SBBK e-ICV Terlampir
             </div>
 
             <div style="background-color: white; border-radius: 10px; padding: 20px; margin: 20px 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
-                    <span style="color: #6b7280;">Jumlah ICV:</span>
+                    <span style="color: #6b7280;">Jumlah e-ICV:</span>
                     <span style="font-weight: bold; color: #374151;">{{ number_format($icv->icvAlokasi->icv_disetujui) }} unit</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
@@ -203,7 +203,7 @@
         </div>
 
         <div class="info-box">
-            <h3>Detail Pengajuan ICV</h3>
+            <h3>Detail Pengajuan e-ICV</h3>
             <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>ID Pengajuan:</strong></td>
@@ -218,7 +218,7 @@
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ $icv->tanggal_pengajuan->format('d/m/Y') }}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Jumlah ICV Diterima:</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Jumlah e-ICV Diterima:</strong></td>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ number_format($icv->icvAlokasi->icv_disetujui) }} unit</td>
                 </tr>
                 <tr>
@@ -227,11 +227,7 @@
                 </tr>
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Metode Distribusi:</strong></td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ $icv->icvBuktiBayar->distribusi_icv }}</td>
-                </tr>
-                <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>File SBBK:</strong></td>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong style="color: #059669;">Terlampir dalam email ini</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;">e-ICV melalui aplikasi Sinkarkes</td>
                 </tr>
             </table>
         </div>
@@ -241,8 +237,8 @@
         <div class="success-message">
             <h3 style="color: #16a34a; margin-top: 0;">🎉 Terima Kasih!</h3>
             <p style="margin: 10px 0;">
-                Terima kasih telah menggunakan layanan pengajuan ICV kami.
-                Semoga ICV yang telah Anda terima dapat bermanfaat untuk program vaksinasi di wilayah Anda.
+                Terima kasih telah menggunakan layanan pengajuan e-ICV kami.
+                Semoga e-ICV yang telah Anda terima dapat bermanfaat untuk program vaksinasi di wilayah Anda.
             </p>
             <p style="color: #6b7280; font-style: italic; margin: 10px 0;">
                 "Vaksinasi adalah investasi terbaik untuk kesehatan masyarakat"
@@ -251,7 +247,7 @@
 
         <h3>Kontak Informasi</h3>
         <div class="info-box">
-            <p>Jika ada pertanyaan terkait SBBK atau penggunaan ICV:</p>
+            <p>Jika ada pertanyaan terkait SBBK atau penggunaan e-ICV:</p>
             <p>
                 <strong>📞 Telepon:</strong> {{ config('app.contact_phone', '021-1234567') }}<br>
                 <strong>📧 Email:</strong> {{ config('app.contact_email', 'admin@dinkes.go.id') }}<br>
@@ -268,12 +264,12 @@
         </div>
 
         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 10px; padding: 25px; margin: 30px 0; text-align: center;">
-            <h3 style="color: #047857; margin-top: 0;">✅ Proses Pengajuan ICV Selesai! ✅</h3>
+            <h3 style="color: #047857; margin-top: 0;">✅ Proses Pengajuan e-ICV Selesai! ✅</h3>
             <p style="font-size: 16px; margin: 15px 0;">
-                Jumlah ICV: <strong style="color: #059669;">{{ number_format($icv->icvAlokasi->icv_disetujui) }} unit</strong>
+                Jumlah e-ICV: <strong style="color: #059669;">{{ number_format($icv->icvAlokasi->icv_disetujui) }} unit</strong>
             </p>
             <p style="color: #6b7280; font-style: italic;">
-                "Selamat! ICV siap digunakan untuk program vaksinasi Anda"
+                "Selamat! e-ICV siap digunakan untuk program vaksinasi Anda"
             </p>
         </div>
 

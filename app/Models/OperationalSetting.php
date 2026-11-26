@@ -2,12 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
 class OperationalSetting extends Model
 {
-    protected $fillable = ['is_active', 'start_time', 'end_time', 'operational_days'];
+    protected $fillable = [
+        'is_active',
+        'start_time',
+        'end_time',
+        'operational_days',
+    ];
 
     protected $casts = [
         'operational_days' => 'json',
@@ -46,6 +51,7 @@ class OperationalSetting extends Model
     {
         if (is_string($value)) {
             $decoded = json_decode($value, true);
+
             return is_array($decoded) ? $decoded : [];
         }
 
@@ -59,7 +65,7 @@ class OperationalSetting extends Model
         $currentTime = $now->format('H:i:s');
         $days = $this->operational_days ?: [1, 2, 3, 4, 5];
 
-        if (!is_array($days)) {
+        if (! is_array($days)) {
             $days = [1, 2, 3, 4, 5];
         }
 

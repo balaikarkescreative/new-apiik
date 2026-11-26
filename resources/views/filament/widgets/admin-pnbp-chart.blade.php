@@ -2,7 +2,7 @@
 <x-filament-widgets::widget>
     <x-filament::section>
         <x-slot name="heading">
-            📈 Tren Pendapatan PNBP ICV Per Tahun
+            📈 Tren Pendapatan PNBP e-ICV Per Tahun
         </x-slot>
 
         <div class="space-y-4">
@@ -15,7 +15,7 @@
                     </div>
                 </div>
                 <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-                    <div class="text-green-600 dark:text-green-400 text-sm font-medium">Tarif per ICV</div>
+                    <div class="text-green-600 dark:text-green-400 text-sm font-medium">Tarif per e-ICV</div>
                     <div class="text-green-900 dark:text-green-100 text-2xl font-bold">
                         Rp {{ number_format($this->getViewData()['tarif'], 0, ',', '.') }}
                     </div>
@@ -68,7 +68,7 @@
                     <thead>
                         <tr class="border-b border-gray-200 dark:border-gray-700">
                             <th class="text-left py-3 px-4 font-medium text-gray-700 dark:text-gray-300">Tahun</th>
-                            <th class="text-right py-3 px-4 font-medium text-gray-700 dark:text-gray-300">ICV dengan SBBK</th>
+                            <th class="text-right py-3 px-4 font-medium text-gray-700 dark:text-gray-300">e-ICV dengan SBBK</th>
                             <th class="text-right py-3 px-4 font-medium text-gray-700 dark:text-gray-300">Pendapatan (Juta Rp)</th>
                             <th class="text-right py-3 px-4 font-medium text-gray-700 dark:text-gray-300">Total Pendapatan</th>
                         </tr>
@@ -168,7 +168,7 @@
                                             const item = chartData[index];
                                             return [
                                                 `Pendapatan: Rp ${parseFloat(item.pendapatan_juta).toFixed(2)} Juta`,
-                                                `ICV dengan SBBK: ${parseInt(item.icv_count).toLocaleString()} unit`,
+                                                `e-ICV dengan SBBK: ${parseInt(item.icv_count).toLocaleString()} unit`,
                                                 `Total: Rp ${parseInt(item.pendapatan).toLocaleString()}`
                                             ];
                                         }

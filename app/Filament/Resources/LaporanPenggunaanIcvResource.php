@@ -10,15 +10,11 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Collection;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
-use Filament\Forms\Components\DatePicker;
-use Illuminate\Database\Eloquent\Builder;
-use Carbon\Carbon;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
 class LaporanPenggunaanIcvResource extends Resource
@@ -26,8 +22,11 @@ class LaporanPenggunaanIcvResource extends Resource
     protected static ?string $model = LaporanPenggunaanIcv::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
-    protected static ?string $navigationLabel = 'Laporan Harian Penggunaan ICV';
-    protected static ?string $pluralLabel = 'Laporan Harian Penggunaan ICV';
+
+    protected static ?string $navigationLabel = 'Laporan Harian Penggunaan e-ICV';
+
+    protected static ?string $pluralLabel = 'Laporan Harian Penggunaan e-ICV';
+
     protected static ?string $slug = 'laporan-penggunaan-icv';
 
     public static function canAccess(): bool
@@ -42,7 +41,21 @@ class LaporanPenggunaanIcvResource extends Resource
                 Forms\Components\DatePicker::make('tgl_pelaporan')
                     ->label('Tanggal Pelaporan')
                     ->native(false)
-
+                    // min date today 00:00
+                    ->default(now())
+                    ->minDate(function () {
+                        // Jika service closure back date diaktifkan (is_closed = false = buka), izinkan pilih tanggal lama
+                        $backDateClosure = \App\Models\ServiceClosure::getServiceStatus('laporan_icv_backdate');
+                        
+                        // Jika tidak ada record atau is_closed = false (buka), tidak ada batasan min date
+                        if (!$backDateClosure || !$backDateClosure->is_closed) {
+                            return null; // Tidak ada batasan
+                        }
+                        
+                        // Jika is_closed = true (tutup), hanya bisa pilih hari ini
+                        return now()->startOfDay();
+                    })
+                    ->maxDate(now()->endOfDay())
                     ->required(),
 
                 Forms\Components\Select::make('id_user')
@@ -63,7 +76,7 @@ class LaporanPenggunaanIcvResource extends Resource
                         $user = Auth::user();
 
                         // Jika bukan admin/verifikator2, set default ke user yang login
-                        if (!$user->hasRole('admin') && !$user->hasRole('verifikator2')) {
+                        if (! $user->hasRole('admin') && ! $user->hasRole('verifikator2')) {
                             return $user->id;
                         }
 
@@ -73,7 +86,7 @@ class LaporanPenggunaanIcvResource extends Resource
                         $user = Auth::user();
 
                         // Disable jika bukan admin/verifikator2
-                        return !$user->hasRole('admin') && !$user->hasRole('verifikator2');
+                        return ! $user->hasRole('admin') && ! $user->hasRole('verifikator2');
                     })
                     ->dehydrated(true) // Pastikan field ini tetap dikirim meski disabled
                     ->required(),
@@ -96,12 +109,12 @@ class LaporanPenggunaanIcvResource extends Resource
                             $fields[] = Forms\Components\Fieldset::make($label)
                                 ->schema([
                                     Forms\Components\TextInput::make("data.{$vaksinId}.jml_terbit_icv")
-                                        ->label('Jumlah Penerbitan ICV hari ini')
+                                        ->label('Jumlah Penerbitan e-ICV hari ini')
                                         ->live()
                                         ->numeric()
                                         ->required(),
                                     Forms\Components\TextInput::make("data.{$vaksinId}.sisa_icv")
-                                        ->label('Sisa ICV hari ini')
+                                        ->label('Sisa e-ICV hari ini')
                                         ->numeric()
                                         ->required(),
                                     Forms\Components\TextInput::make("data.{$vaksinId}.jml_guna_vaksin")
@@ -117,12 +130,12 @@ class LaporanPenggunaanIcvResource extends Resource
                                         ->label('Catatan')
                                         ->live()
                                         ->visible(
-                                            fn($get) =>
-                                            $get("data.{$vaksinId}.jml_terbit_icv") !== $get("data.{$vaksinId}.jml_guna_vaksin")
+                                            fn ($get) => $get("data.{$vaksinId}.jml_terbit_icv") !== $get("data.{$vaksinId}.jml_guna_vaksin")
                                         )
                                         ->placeholder('Isi jika ada perbedaan antara jumlah terbit dan jumlah guna'),
                                 ]);
                         }
+
                         return $fields;
                     }),
             ]);
@@ -132,9 +145,10 @@ class LaporanPenggunaanIcvResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function (\Illuminate\Database\Eloquent\Builder $query) {
-                if (!Auth::user()?->hasRole('admin') || Auth::user()?->hasRole('verifikator2')) {
+                if (! Auth::user()?->hasRole('admin') && ! Auth::user()?->hasRole('verifikator2')) {
                     $query->where('id_user', Auth::id())->with(['user', 'jenisVaksin']);
                 }
+
                 return $query->orderBy('tgl_pelaporan', 'desc')->with(['user', 'jenisVaksin']);
             })
             ->headerActions([
@@ -157,9 +171,9 @@ class LaporanPenggunaanIcvResource extends Resource
                             ->label('Filter User')
                             ->searchable()
                             ->options(function () {
-                                $userIds = LaporanPenggunaanIcv::distinct()->pluck('id_user');
-                                $options = \App\Models\User::whereIn('id', $userIds)
-                                    ->pluck('name', 'id'); // key adalah id, value adalah name
+                                $options = \App\Models\User::whereHas('roles', fn ($q) => $q->where('name', 'user'))
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id');
 
                                 // Tambahkan opsi "Semua User" di awal
                                 return ['semua' => 'Semua User'] + $options->toArray();
@@ -191,6 +205,15 @@ class LaporanPenggunaanIcvResource extends Resource
                     ->label('Tanggal Pelaporan')
                     ->date('d M Y')
                     ->sortable()
+                    ->wrapHeader()
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('date_updated')
+                    ->label('Terakhir Diperbarui')
+                    ->dateTime('d M Y H:i:s')
+                    ->wrapHeader()
+                    ->wrap()
+                    ->sortable()
                     ->searchable(),
 
                 Tables\Columns\TextColumn::make('user.name')
@@ -204,27 +227,32 @@ class LaporanPenggunaanIcvResource extends Resource
                     ->searchable(),
 
                 Tables\Columns\TextColumn::make('jml_terbit_icv')
-                    ->label('Terbit ICV')
+                    ->label('Terbit e-ICV')
                     ->numeric()
+                    ->wrapHeader()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('jml_guna_vaksin')
                     ->label('Guna Vaksin')
                     ->numeric()
+                    ->wrapHeader()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('sisa_icv')
-                    ->label('Sisa ICV')
+                    ->label('Sisa e-ICV')
                     ->numeric()
+                    ->wrapHeader()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('sisa_vaksin')
                     ->label('Sisa Vaksin')
                     ->numeric()
+                    ->wrapHeader()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('keterangan')
                     ->label('Catatan')
+                    ->wrap()
                     ->searchable(),
             ])
             ->filters([
@@ -239,11 +267,9 @@ class LaporanPenggunaanIcvResource extends Resource
                         return Auth::user()?->hasRole('admin') || Auth::user()?->hasRole('verifikator2');
                     })
                     ->searchable()
-                    ->options(function () {
-                        $userIds = LaporanPenggunaanIcv::distinct()->pluck('id_user');
-                        return \App\Models\User::whereIn('id', $userIds)
-                            ->pluck('name', 'id');
-                    }),
+                    ->options(fn () => \App\Models\User::whereHas('roles', fn ($q) => $q->where('name', 'user'))
+                        ->orderBy('name')
+                        ->pluck('name', 'id')),
 
                 // Jenis Vaksin Filter
                 SelectFilter::make('id_jenis_vaksin')
@@ -252,6 +278,8 @@ class LaporanPenggunaanIcvResource extends Resource
                     ->options(\App\Models\Vaksin::pluck('jenis_vaksin', 'id')),
             ], layout: FiltersLayout::AboveContent)
             ->defaultSort('tgl_pelaporan', 'desc')
+            ->paginated([15, 30, 50, 100])
+            ->defaultPaginationPageOption(15)
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\ViewAction::make(),
@@ -285,7 +313,7 @@ class LaporanPenggunaanIcvResource extends Resource
         // Filter berdasarkan user
         if ($data['user_id'] !== 'semua') {
             $query->where('id_user', $data['user_id']); // Gunakan user_id dari form
-        } elseif (!Auth::user()?->hasRole('admin') && !Auth::user()?->hasRole('verifikator2')) {
+        } elseif (! Auth::user()?->hasRole('admin') && ! Auth::user()?->hasRole('verifikator2')) {
             // Jika bukan admin/verifikator2, hanya tampilkan data mereka sendiri
             $query->where('id_user', Auth::id());
         }
@@ -306,11 +334,11 @@ class LaporanPenggunaanIcvResource extends Resource
 
     protected static function downloadExcelIcv(Collection $data, array $params)
     {
-        $filename = 'laporan_penggunaan_icv_' . date('Y-m-d_H-i-s') . '.csv';
+        $filename = 'laporan_penggunaan_icv_'.date('Y-m-d_H-i-s').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Content-Transfer-Encoding' => 'binary',
             'Expires' => '0',
@@ -321,7 +349,7 @@ class LaporanPenggunaanIcvResource extends Resource
             $output = fopen('php://output', 'w');
 
             // BOM untuk UTF-8
-            fprintf($output, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
 
             // Header
             fputcsv($output, [
@@ -330,11 +358,11 @@ class LaporanPenggunaanIcvResource extends Resource
                 'Kategori',
                 'Kota/Kabupaten',
                 'Jenis Vaksin',
-                'Jumlah Terbit ICV',
+                'Jumlah Terbit e-ICV',
                 'Jumlah Guna Vaksin',
-                'Sisa ICV',
+                'Sisa e-ICV',
                 'Sisa Vaksin',
-                'Catatan'
+                'Catatan',
             ]);
 
             // Data

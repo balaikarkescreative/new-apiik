@@ -1,12 +1,13 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Resources/AdminResource/Pages/EditAdmin.php
 
 namespace App\Filament\Resources\AdminResource\Pages;
 
 use App\Filament\Resources\AdminResource;
 use Filament\Actions;
-use Filament\Resources\Pages\EditRecord;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
 
 class EditAdmin extends EditRecord
 {
@@ -23,6 +24,12 @@ class EditAdmin extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $data['date_updated'] = now();
+
+        if (! empty($data['simply_user_id'])) {
+            if (empty($data['email'])) {
+                $data['email'] = null;
+            }
+        }
 
         return $data;
     }

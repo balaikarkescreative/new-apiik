@@ -56,16 +56,16 @@
                 </div>
             </div>
 
-            <!-- ICV Terbaru -->
+            <!-- e-ICV Terbaru -->
             <div>
-                <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-3">Pengajuan ICV Terbaru</h4>
+                <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-3">Pengajuan e-ICV Terbaru</h4>
                 <div class="space-y-3">
                     @forelse($this->getViewData()['recentIcv'] as $icv)
                         <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                             <div>
                                 <p class="font-medium text-sm">{{ $icv->user->name }}</p>
                                 <p class="text-xs text-gray-600 dark:text-gray-400">
-                                    Jumlah: {{ $icv->jumlah_icv ?? 0 }} ICV - {{ $icv->status_icv ?? 'Menunggu' }}
+                                    Jumlah: {{ $icv->jumlah_icv ?? 0 }} e-ICV - {{ $icv->status_icv ?? 'Menunggu' }}
                                 </p>
                             </div>
                             <span class="text-xs text-gray-500 dark:text-gray-400">
@@ -73,21 +73,21 @@
                             </span>
                         </div>
                     @empty
-                        <p class="text-gray-500 dark:text-gray-400 text-center py-4 text-sm">Tidak ada pengajuan ICV terbaru</p>
+                        <p class="text-gray-500 dark:text-gray-400 text-center py-4 text-sm">Tidak ada pengajuan e-ICV terbaru</p>
                     @endforelse
                 </div>
             </div>
 
-            <!-- Laporan ICV Terbaru -->
+            <!-- Laporan e-ICV Terbaru -->
             <div>
-                <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-3">Laporan ICV Terbaru</h4>
+                <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-3">Laporan e-ICV Terbaru</h4>
                 <div class="space-y-3">
                     @forelse($this->getViewData()['recentLaporan'] as $laporan)
                         <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                             <div>
                                 <p class="font-medium text-sm">{{ $laporan->user->name }}</p>
                                 <p class="text-xs text-gray-600 dark:text-gray-400">
-                                    ICV Terbit: {{ $laporan->jml_terbit_icv }} | Sisa: {{ $laporan->sisa_icv }}
+                                    e-ICV Terbit: {{ $laporan->jml_terbit_icv }} | Sisa: {{ $laporan->sisa_icv }}
                                 </p>
                             </div>
                             <span class="text-xs text-gray-500 dark:text-gray-400">

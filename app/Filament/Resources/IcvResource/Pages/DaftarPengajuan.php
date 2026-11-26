@@ -4,45 +4,39 @@ namespace App\Filament\Resources\IcvResource\Pages;
 
 use App\Filament\Resources\IcvResource;
 use App\Models\Icv;
+use Carbon\Carbon;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Textarea;
+use Filament\Infolists\Components\Section as InfoSection;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Concerns\InteractsWithInfolists;
+use Filament\Infolists\Contracts\HasInfolists;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Table;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\Filter;
-use Filament\Tables\Filters\TernaryFilter;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Get;
-use Filament\Infolists\Components\TextEntry;
-use Filament\Infolists\Components\Section as InfoSection;
-use Filament\Infolists\Concerns\InteractsWithInfolists;
-use Filament\Infolists\Contracts\HasInfolists;
-use Filament\Notifications\Notification;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Tables\Enums\FiltersLayout;
-
-use Carbon\Carbon;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Malzariey\FilamentDaterangepickerFilter\Filters\DateRangeFilter;
 
-class DaftarPengajuan extends Page implements HasTable, HasInfolists
+class DaftarPengajuan extends Page implements HasInfolists, HasTable
 {
-    use InteractsWithTable, InteractsWithInfolists;
+    use InteractsWithInfolists, InteractsWithTable;
 
     protected static string $resource = IcvResource::class;
 
     protected static string $view = 'filament.resources.icv-resource.pages.daftar-pengajuan';
 
-    protected static ?string $title = 'Daftar Pengajuan ICV';
+    protected static ?string $title = 'Daftar Pengajuan e-ICV';
 
-    protected static ?string $navigationLabel = 'Daftar Pengajuan ICV';
+    protected static ?string $navigationLabel = 'Daftar Pengajuan e-ICV';
 
     protected static ?string $navigationIcon = 'heroicon-o-list-bullet';
 
@@ -53,7 +47,7 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
         parent::mountCanAuthorizeAccess();
 
         // Cek apakah user memiliki peran yang sesuai
-        if (!auth()->user()->hasRole(['user', 'verifikator2'])) {
+        if (! auth()->user()->hasRole(['user', 'verifikator2'])) {
             // abort(403, 'Akses ditolak. Hanya user dan verifikator yang dapat melihat pengajuan ICV.');
             redirect()->to('/');
         }
@@ -110,36 +104,69 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                     ->visible(fn() => auth()->user()->hasRole('verifikator2')),
 
                 TextColumn::make('jumlah_icv')
-                    ->label('Jumlah')
-                    ->numeric()
-                    ->alignCenter(),
+                    ->label('Jumlah e-ICV')
+                    ->getStateUsing(function ($record) {
+                        $diminta = number_format($record->jumlah_icv ?? 0);
+                        $lines = ['<div><span class="text-gray-500 dark:text-gray-400">Diminta:</span> <span class="font-medium">'.$diminta.'</span></div>'];
+
+                        if ($record->icvCekDokumen && $record->icvCekDokumen->stok_vaksin !== null) {
+                            $stok = number_format($record->icvCekDokumen->stok_vaksin);
+                            $lines[] = '<div class="text-xs"><span class="text-gray-500 dark:text-gray-400">Stok:</span> '.$stok.'</div>';
+                        }
+
+                        if ($record->icvAlokasi && $record->icvAlokasi->icv_disetujui > 0) {
+                            $disetujui = number_format($record->icvAlokasi->icv_disetujui);
+                            $lines[] = '<div class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Disetujui: '.$disetujui.'</div>';
+                        }
+
+                        return implode('', $lines);
+                    })
+                    ->html()
+                    ->sortable(),
 
                 TextColumn::make('progress_status')
                     ->label('Status')
                     ->badge()
+                    ->suffix(function ($record) {
+                        if ($record->tanggal_perbaikan) {
+                            // Jika belum ada icvCekDokumen, tampilkan (Perbaikan)
+                            if (! $record->icvCekDokumen) {
+                                return ' (Perbaikan)';
+                            }
+                        }
+
+                        return '';
+                    })
                     ->getStateUsing(function ($record) {
-                        if ($record->icvSbbk && $record->icvSbbk->sinkarkes === 'Sudah') {
-                            return 'Selesai';
-                        }
-                        if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
-                            return 'Dijadwalkan';
-                        }
-                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar) {
-                            return 'Menunggu Verifikasi';
-                        }
-                        if ($record->icvBilling && $record->icvBilling->kode_billing) {
-                            return 'Menunggu Bayar';
-                        }
-                        if ($record->icvAlokasi && $record->icvAlokasi->icv_disetujui > 0) {
-                            return 'Dialokasikan';
-                        }
                         if ($record->icvCekDokumen) {
                             return match ($record->icvCekDokumen->hasil_verif) {
                                 '1' => 'Berkas OK',
                                 '2' => 'Berkas Kurang',
+                                '3' => 'Ditolak',
                                 default => 'Menunggu Verifikasi'
                             };
                         }
+
+                        if ($record->icvAlokasi && $record->icvAlokasi->icv_disetujui > 0) {
+                            return 'Dialokasikan';
+                        }
+
+                        if ($record->icvBilling && $record->icvBilling->kode_billing) {
+                            return 'Menunggu Bayar';
+                        }
+
+                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar) {
+                            return 'Menunggu Verifikasi';
+                        }
+
+                        if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
+                            return 'Dijadwalkan';
+                        }
+
+                        if ($record->icvSbbk && $record->icvSbbk->sinkarkes === 'Sudah') {
+                            return 'Selesai';
+                        }
+
                         return 'Diajukan';
                     })
                     ->color(function ($state) {
@@ -151,6 +178,8 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             'Dialokasikan' => 'info',
                             'Berkas OK' => 'success',
                             'Berkas Kurang' => 'danger',
+                            'Ditolak' => 'danger',
+                            'Perbaikan' => 'danger',
                             default => 'gray',
                         };
                     }),
@@ -158,35 +187,51 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                 TextColumn::make('progress_percentage')
                     ->label('Progress')
                     ->getStateUsing(function ($record) {
+                        // Jika ditolak, tampilkan status ditolak
+                        if ($record->icvCekDokumen && $record->icvCekDokumen->hasil_verif == '3') {
+                            return 'DITOLAK';
+                        }
+
                         $steps = 0;
 
-                        // Count completed steps (max 8)
-                        if ($record->icvCekDokumen && $record->icvCekDokumen->hasil_verif == '1')
+                        // Count completed steps (max 7)
+                        if ($record->icvCekDokumen && $record->icvCekDokumen->hasil_verif == '1') {
                             $steps++;
-                        if ($record->icvAlokasi && $record->icvAlokasi->icv_disetujui > 0)
+                        }
+                        if ($record->icvAlokasi && $record->icvAlokasi->icv_disetujui > 0) {
                             $steps++;
-                        if ($record->icvBilling && $record->icvBilling->kode_billing)
+                        }
+                        if ($record->icvBilling && $record->icvBilling->kode_billing) {
                             $steps++;
-                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar)
+                        }
+                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar) {
                             $steps++;
-                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->distribusi_icv)
+                        }
+                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar) {
                             $steps++;
-                        if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan)
+                        }
+                        if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
                             $steps++;
-                        if ($record->icvSbbk && $record->icvSbbk->file_sbbk)
+                        }
+                        if ($record->icvSbbk && $record->icvSbbk->sinkarkes === 'Sudah') {
                             $steps++;
-                        if ($record->icvSbbk && $record->icvSbbk->sinkarkes === 'Sudah')
-                            $steps++;
+                        }
 
-                        return $steps . '/8';
+                        return $steps . '/7';
                     })
                     ->badge()
                     ->color(function ($state) {
+                        // Jika ditolak, tampilkan warna danger
+                        if ($state === 'DITOLAK') {
+                            return 'danger';
+                        }
+
                         $completed = (int) explode('/', $state)[0];
+
                         return match (true) {
-                            $completed >= 8 => 'success',
-                            $completed >= 6 => 'info',
-                            $completed >= 4 => 'warning',
+                            $completed >= 7 => 'success',
+                            $completed >= 5 => 'info',
+                            $completed >= 3 => 'warning',
                             default => 'gray',
                         };
                     }),
@@ -196,8 +241,10 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                     ->label('Status')
                     ->options([
                         'diajukan' => 'Diajukan',
+                        'perbaikan' => 'Perbaikan', // Tambahkan opsi ini
                         'berkas_kurang' => 'Berkas Kurang',
                         'berkas_ok' => 'Berkas OK',
+                        'ditolak' => 'Ditolak',
                         'dialokasikan' => 'Dialokasikan',
                         'menunggu_bayar' => 'Menunggu Bayar',
                         'menunggu_verifikasi' => 'Menunggu Verifikasi',
@@ -205,13 +252,19 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                         'selesai' => 'Selesai',
                     ])
                     ->query(function ($query, array $data) {
-                        if (!($data['value'] ?? null))
+                        if (! ($data['value'] ?? null)) {
                             return $query;
+                        }
 
                         return match ($data['value']) {
-                            'diajukan' => $query->whereDoesntHave('icvCekDokumen'),
+                            'diajukan' => $query->whereDoesntHave('icvCekDokumen')
+                                ->whereNull('tanggal_perbaikan'),
+                            'perbaikan' => $query
+                                ->whereNotNull('tanggal_perbaikan')
+                                ->whereDoesntHave('icvCekDokumen'), // Filter perbaikan
                             'berkas_kurang' => $query->whereHas('icvCekDokumen', fn($q) => $q->where('hasil_verif', '2')),
                             'berkas_ok' => $query->whereHas('icvCekDokumen', fn($q) => $q->where('hasil_verif', '1')),
+                            'ditolak' => $query->whereHas('icvCekDokumen', fn($q) => $q->where('hasil_verif', '3')),
                             'dialokasikan' => $query->whereHas('icvAlokasi', fn($q) => $q->where('icv_disetujui', '>', 0)),
                             'menunggu_bayar' => $query->whereHas('icvBilling', fn($q) => $q->whereNotNull('kode_billing')),
                             'menunggu_verifikasi' => $query->whereHas('icvBuktiBayar', fn($q) => $q->whereNotNull('file_bukti_bayar')),
@@ -220,7 +273,6 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             default => $query,
                         };
                     }),
-
                 DateRangeFilter::make('tanggal_pengajuan')
                     ->label('Tanggal Pengajuan'),
             ], FiltersLayout::AboveContent)
@@ -232,10 +284,10 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                     ->color('info')
                     ->modalSubmitAction(false)
                     ->infolist([
-                        InfoSection::make('Timeline Progress ICV')
+                        InfoSection::make('Timeline Progress e-ICV')
                             ->schema([
                                 TextEntry::make('step1')
-                                    ->label('1. Pengajuan Dokumen ICV')
+                                    ->label('1. Pengajuan Dokumen e-ICV')
                                     ->getStateUsing(fn($record) => '✅ ' . $record->tanggal_pengajuan->translatedFormat('d F Y')),
 
                                 TextEntry::make('step2')
@@ -245,12 +297,15 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                                             $status = match ($record->icvCekDokumen->hasil_verif) {
                                                 '1' => '✅ Berkas Lengkap',
                                                 '2' => '❌ Berkas Tidak Lengkap',
+                                                '3' => '❌ Ditolak',
                                                 default => '⏳ Menunggu Verifikasi'
                                             };
                                             $dateText = $record->icvCekDokumen->date_updated ?
                                                 ' - ' . $record->icvCekDokumen->date_updated->translatedFormat('d F Y') : '';
+
                                             return $status . $dateText;
                                         }
+
                                         return '⏳ Menunggu Verifikasi';
                                     }),
 
@@ -260,18 +315,34 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                                         if ($record->icvCekDokumen && $record->icvCekDokumen->catatan) {
                                             return $record->icvCekDokumen->catatan;
                                         }
+
                                         return 'Tidak ada catatan';
                                     })
                                     ->visible(fn($record) => $record->icvCekDokumen && $record->icvCekDokumen->hasil_verif && $record->icvCekDokumen->catatan),
 
                                 TextEntry::make('step3')
-                                    ->label('3. Alokasi ICV')
+                                    ->label('3. Alokasi e-ICV')
                                     ->getStateUsing(function ($record) {
                                         if ($record->icvAlokasi && $record->icvAlokasi->icv_disetujui > 0) {
-                                            return '✅ Dialokasikan: ' . $record->icvAlokasi->icv_disetujui . ' unit';
+                                            return '✅ Dialokasikan: ' . number_format($record->icvAlokasi->icv_disetujui) . ' unit';
                                         }
+
                                         return '⏳ Belum Dialokasikan';
                                     }),
+
+                                TextEntry::make('stok_icv_tersedia')
+                                    ->label('Stok e-ICV yang Tersedia')
+                                    ->getStateUsing(fn ($record) => number_format($record->icvCekDokumen?->stok_vaksin ?? 0) . ' unit')
+                                    ->visible(fn ($record) => $record->icvCekDokumen && $record->icvCekDokumen->stok_vaksin !== null),
+
+                                TextEntry::make('jumlah_icv_diminta_detail')
+                                    ->label('Jumlah Diminta')
+                                    ->getStateUsing(fn ($record) => number_format($record->jumlah_icv ?? 0) . ' unit'),
+
+                                TextEntry::make('jumlah_icv_disetujui_detail')
+                                    ->label('Yang Disetujui')
+                                    ->getStateUsing(fn ($record) => number_format($record->icvAlokasi?->icv_disetujui ?? 0) . ' unit')
+                                    ->visible(fn ($record) => $record->icvAlokasi && $record->icvAlokasi->icv_disetujui > 0),
 
                                 TextEntry::make('step4')
                                     ->label('4. Kode Billing')
@@ -279,6 +350,7 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                                         if ($record->icvBilling && $record->icvBilling->kode_billing) {
                                             return '✅ Diterbitkan: ' . $record->icvBilling->kode_billing;
                                         }
+
                                         return '⏳ Belum Diterbitkan';
                                     }),
 
@@ -288,6 +360,7 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                                         if ($record->icvBilling && $record->icvBilling->nominal) {
                                             return 'Rp ' . number_format($record->icvBilling->nominal, 0, ',', '.');
                                         }
+
                                         return '-';
                                     })
                                     ->visible(fn($record) => $record->icvBilling && $record->icvBilling->kode_billing),
@@ -298,6 +371,7 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                                         if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar) {
                                             return '✅ Bukti Bayar Diupload';
                                         }
+
                                         return '⏳ Belum Upload Bukti Bayar';
                                     }),
 
@@ -314,8 +388,10 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                                                 'gif' => 'GIF Image',
                                                 default => 'Unknown File Type'
                                             };
+
                                             return "{$filename} ({$fileType})";
                                         }
+
                                         return 'Tidak ada file';
                                     })
                                     ->badge()
@@ -325,21 +401,19 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                                     ->visible(fn($record) => $record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar),
 
                                 TextEntry::make('metode_distribusi')
-                                    ->label('Metode Distribusi ICV')
-                                    ->getStateUsing(function ($record) {
-                                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->distribusi_icv) {
-                                            return $record->icvBuktiBayar->distribusi_icv;
-                                        }
-                                        return '-';
+                                    ->label('Metode Distribusi e-ICV')
+                                    ->getStateUsing(function () {
+                                        return 'Distribusi e-ICV melalui aplikasi Sinkarkes';
                                     })
                                     ->visible(fn($record) => $record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar),
 
                                 TextEntry::make('step6')
                                     ->label('6. Verifikasi Bukti Bayar')
                                     ->getStateUsing(function ($record) {
-                                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->distribusi_icv) {
+                                        if ($record->icvBuktiBayar && $record->icvBuktiBayar->file_bukti_bayar) {
                                             return '✅ Bukti Bayar Diverifikasi';
                                         }
+
                                         return '⏳ Menunggu Verifikasi';
                                     }),
 
@@ -347,52 +421,21 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                                     ->label('7. Jadwal Distribusi')
                                     ->getStateUsing(function ($record) {
                                         if ($record->icvJadwal && $record->icvJadwal->jadwal_pengambilan) {
-                                            $metode = $record->icvBuktiBayar?->distribusi_icv === 'Dikirim' ? 'Pengiriman' : 'Pengambilan';
-                                            return "✅ Jadwal {$metode}: " . $record->icvJadwal->jadwal_pengambilan->translatedFormat('d F Y');
+                                            return $record->icvJadwal->jadwal_pengambilan->translatedFormat('d F Y');
                                         }
+
                                         return '⏳ Belum Dijadwalkan';
                                     }),
 
                                 TextEntry::make('step8')
-                                    ->label('8. SBBK (Surat Bukti Barang Keluar)')
-                                    ->getStateUsing(function ($record) {
-                                        if ($record->icvSbbk && $record->icvSbbk->file_sbbk) {
-                                            return '✅ SBBK Uploaded';
-                                        }
-                                        return '⏳ Belum Upload SBBK';
-                                    }),
-
-                                TextEntry::make('file_sbbk_download')
-                                    ->label('File SBBK')
-                                    ->getStateUsing(function ($record) {
-                                        if ($record->icvSbbk && $record->icvSbbk->file_sbbk) {
-                                            $filename = basename($record->icvSbbk->file_sbbk);
-                                            $extension = strtolower(pathinfo($record->icvSbbk->file_sbbk, PATHINFO_EXTENSION));
-                                            $fileType = match ($extension) {
-                                                'pdf' => 'PDF Document',
-                                                'jpg', 'jpeg' => 'JPEG Image',
-                                                'png' => 'PNG Image',
-                                                'gif' => 'GIF Image',
-                                                default => 'Unknown File Type'
-                                            };
-                                            return "{$filename} ({$fileType})";
-                                        }
-                                        return 'Tidak ada file';
-                                    })
-                                    ->badge()
-                                    ->url(fn($record) => $record->icvSbbk?->file_sbbk ?
-                                        asset('storage/' . $record->icvSbbk->file_sbbk) : null)
-                                    ->openUrlInNewTab()
-                                    ->visible(fn($record) => $record->icvSbbk && $record->icvSbbk->file_sbbk),
-
-                                TextEntry::make('step9')
-                                    ->label('9. Status Sinkarkes')
+                                    ->label('8. Status Sinkarkes')
                                     ->getStateUsing(function ($record) {
                                         if ($record->icvSbbk && $record->icvSbbk->sinkarkes) {
                                             return $record->icvSbbk->sinkarkes === 'Sudah' ?
                                                 '✅ Sinkarkes: Sudah' :
                                                 '⏳ Sinkarkes: Belum';
                                         }
+
                                         return '⏳ Belum Update Sinkarkes';
                                     }),
                             ])
@@ -406,11 +449,11 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                     ->color('warning')
                     ->size('sm')
                     ->visible(function ($record) {
-                        return !auth()->user()->hasRole('verifikator2') &&
+                        return ! auth()->user()->hasRole('verifikator2') &&
                             $record->icvCekDokumen &&
                             $record->icvCekDokumen->hasil_verif == '2';
                     })
-                    ->action(fn($record) => redirect()->to(IcvResource::getUrl('edit', ['record' => $record->id]))),
+                    ->action(fn($record) => redirect()->to(IcvResource::getUrl('edit', ['record' => $record->id, 'type' => 'perbaikan']))),
 
                 Action::make('upload_bukti_bayar')
                     ->label('Upload')
@@ -418,10 +461,12 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                     ->color('primary')
                     ->size('sm')
                     ->visible(function ($record) {
-                        return !auth()->user()->hasRole('verifikator2') &&
+                        return ! auth()->user()->hasRole('verifikator2') &&
+                            $record->icvCekDokumen &&
+                            $record->icvCekDokumen->hasil_verif == '1' &&
                             $record->icvBilling &&
                             $record->icvBilling->kode_billing &&
-                            (!$record->icvBuktiBayar || !$record->icvBuktiBayar->file_bukti_bayar);
+                            (! $record->icvBuktiBayar || ! $record->icvBuktiBayar->file_bukti_bayar);
                     })
                     ->form([
                         FileUpload::make('file_bukti_bayar')
@@ -430,15 +475,21 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf'])
                             ->maxSize(1024 * 3)
                             ->getUploadedFileNameForStorageUsing(function ($file) {
-                                return 'Bukti Bayar ' . auth()->user()->name . " " . now()->format('dmyHis')  . '.' . $file->getClientOriginalExtension();
+                                return 'Bukti Bayar ' . auth()->user()->name . ' ' . now()->format('dmyHis') . '.' . $file->getClientOriginalExtension();
                             })
                             ->helperText('Format: JPG/PNG/PDF, Maksimal 3MB')
                             ->directory('icv/bukti-bayar'),
 
-                        Select::make('distribusi_icv')
-                            ->label('Metode Distribusi')
-                            ->options(['Diambil' => 'Diambil', 'Dikirim' => 'Dikirim'])
-                            ->required(),
+                        DatePicker::make('tanggal_bayar')
+                            ->label('Tanggal Pembayaran')
+                            ->required()
+                            ->native(false)
+                            ->displayFormat('d F Y')
+                            ->helperText('Pilih tanggal pembayaran e-ICV'),
+
+                        Placeholder::make('distribusi_icv')
+                            ->label('Distribusi e-ICV')
+                            ->content('Distribusi e-ICV melalui aplikasi Sinkarkes'),
 
                         Textarea::make('catatan')
                             ->label('Catatan (Opsional)')
@@ -450,9 +501,21 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                         ], [
                             'file_bukti_bayar' => $data['file_bukti_bayar'],
                             'catatan' => $data['catatan'] ?? '',
-                            'distribusi_icv' => $data['distribusi_icv'],
                             'status' => 1,
                             'date_updated' => now(),
+                        ]);
+
+                        $record->icvJadwal()->updateOrCreate([
+                            'id_icv' => $record->id,
+                        ], [
+                            'jadwal_pengambilan' => $data['tanggal_bayar'] ? Carbon::parse($data['tanggal_bayar']) : null,
+                            'status' => 1,
+                        ]);
+
+                        $record->icvSbbk()->updateOrCreate([
+                            'id_icv' => $record->id,
+                        ], [
+                            'sinkarkes' => 'Sudah',
                         ]);
 
                         Notification::make()
@@ -473,8 +536,8 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                         InfoSection::make('Detail Jadwal Distribusi')
                             ->schema([
                                 TextEntry::make('metode_distribusi_jadwal')
-                                    ->label('Metode Distribusi')
-                                    ->getStateUsing(fn($record) => $record->icvBuktiBayar?->distribusi_icv ?? 'Diambil')
+                                    ->label('Distribusi e-ICV')
+                                    ->default('Distribusi e-ICV melalui aplikasi Sinkarkes')
                                     ->badge(),
 
                                 TextEntry::make('jadwal_distribusi_detail')
@@ -483,47 +546,30 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                                     ->badge(),
 
                                 TextEntry::make('jumlah_icv_jadwal')
-                                    ->label('Jumlah ICV')
+                                    ->label('Jumlah e-ICV Disetujui')
                                     ->getStateUsing(fn($record) => $record->icvAlokasi?->icv_disetujui ?? 0),
                             ])
                             ->columns(2),
 
-                        InfoSection::make('Narahubung Kantor Pos')
-                            ->schema([
-                                TextEntry::make('narahubung_nama')
-                                    ->label('Nama Narahubung')
-                                    ->getStateUsing(fn() => 'Julie Visanti Hendrayani')
-                                    ->icon('heroicon-o-user')
-                                    ->iconColor('primary')
-                                    ->weight('bold'),
-
-                                TextEntry::make('narahubung_email')
-                                    ->label('Email')
-                                    ->getStateUsing(fn() => '991437690@posindonesia.co.id')
-                                    ->icon('heroicon-o-envelope')
-                                    ->iconColor('info')
-                                    ->copyable()
-                                    ->copyMessage('Email berhasil disalin!')
-                                    ->url(fn() => 'mailto:991437690@posindonesia.co.id')
-                                    ->openUrlInNewTab(),
-
-                                TextEntry::make('narahubung_telepon')
-                                    ->label('Nomor Telepon')
-                                    ->getStateUsing(fn() => '+62 812 1494 441')
-                                    ->icon('heroicon-o-phone')
-                                    ->iconColor('success')
-                                    ->copyable()
-                                    ->copyMessage('Nomor telepon berhasil disalin!')
-                                    ->url(fn() => 'tel:+6281214944441'),
-                            ])
-                            ->columns(2)
-                            ->visible(function ($record) {
-                                return $record->icvBuktiBayar?->distribusi_icv === 'Dikirim';
-                            })
-                            ->collapsible()
-                            ->persistCollapsed(false),
                     ])
                     ->modalWidth('3xl'),
+
+                Action::make('riwayat_perbaikan')
+                    ->label('Riwayat Perbaikan')
+                    ->icon('heroicon-o-clock')
+                    ->color('secondary')
+                    ->visible(function ($record) {
+                        // Tampilkan jika ada riwayat perbaikan
+                        return ! empty($record->riwayat_perbaikan);
+                    })
+                    ->infolist([
+                        InfoSection::make('')
+                            ->schema(function ($record) {
+                                return $this->getRiwayatPerbaikanSchema($record->riwayat_perbaikan ?? []);
+                            })
+                            ->columns(1),
+                    ])
+                    ->modalSubmitAction(false),
 
                 Action::make('lihat_dokumen')
                     ->label('Dokumen')
@@ -538,8 +584,10 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             ->getStateUsing(function ($record) {
                                 if ($record->file1) {
                                     $filename = basename($record->file1);
+
                                     return "{$filename} (PDF)";
                                 }
+
                                 return 'Tidak ada file';
                             })
                             ->badge()
@@ -552,8 +600,10 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             ->getStateUsing(function ($record) {
                                 if ($record->file2) {
                                     $filename = basename($record->file2);
+
                                     return "{$filename} (PDF)";
                                 }
+
                                 return 'Tidak ada file';
                             })
                             ->badge()
@@ -562,12 +612,14 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             ->openUrlInNewTab(),
 
                         TextEntry::make('file3_display')
-                            ->label('3. Rekap Pemakaian ICV')
+                            ->label('3. Rekap Pemakaian e-ICV')
                             ->getStateUsing(function ($record) {
                                 if ($record->file3) {
                                     $filename = basename($record->file3);
+
                                     return "{$filename} (PDF)";
                                 }
+
                                 return 'Tidak ada file';
                             })
                             ->badge()
@@ -580,8 +632,10 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             ->getStateUsing(function ($record) {
                                 if ($record->file4) {
                                     $filename = basename($record->file4);
+
                                     return "{$filename} (PDF)";
                                 }
+
                                 return 'Tidak ada file';
                             })
                             ->badge()
@@ -590,12 +644,14 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             ->openUrlInNewTab(),
 
                         TextEntry::make('file5_display')
-                            ->label('5. Berita Acara Kerusakan ICV')
+                            ->label('5. Berita Acara Kerusakan e-ICV')
                             ->getStateUsing(function ($record) {
                                 if ($record->file5) {
                                     $filename = basename($record->file5);
+
                                     return "{$filename} (PDF)";
                                 }
+
                                 return 'Tidak ada file';
                             })
                             ->badge()
@@ -604,12 +660,14 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             ->openUrlInNewTab(),
 
                         TextEntry::make('file6_display')
-                            ->label('6. Daftar Nama Penerima ICV')
+                            ->label('6. Daftar Nama Penerima e-ICV')
                             ->getStateUsing(function ($record) {
                                 if ($record->file6) {
                                     $filename = basename($record->file6);
+
                                     return "{$filename} (PDF)";
                                 }
+
                                 return 'Tidak ada file';
                             })
                             ->badge()
@@ -622,15 +680,16 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                             ->getStateUsing(function ($record) {
                                 if ($record->file7) {
                                     $filename = basename($record->file7);
+
                                     return "{$filename} (PDF)";
                                 }
+
                                 return 'Tidak ada file';
                             })
                             ->badge()
                             ->color(fn($record) => $record->file7 ? 'success' : 'gray')
                             ->url(fn($record) => $record->file7 ? asset('storage/' . $record->file7) : null)
                             ->openUrlInNewTab(),
-
 
                     ])
                     ->modalWidth('4xl')
@@ -645,11 +704,24 @@ class DaftarPengajuan extends Page implements HasTable, HasInfolists
                     ->label('Pengajuan Baru')
                     ->icon('heroicon-o-plus')
                     ->color('primary')
-                    ->visible(fn() => auth()->user()->hasRole('user'))
+                    ->visible(fn() => auth()->user()->hasRole('user') && !auth()->user()->is_blocked)
                     ->action(fn() => redirect()->to(IcvResource::getUrl('create'))),
             ])
             ->defaultSort('tanggal_pengajuan', 'desc')
             ->striped()
             ->paginated([25, 50, 100]);
+    }
+
+    private function getRiwayatPerbaikanSchema(array $riwayat): array
+    {
+        error_log('Riwayat Perbaikan: ' . json_encode($riwayat));
+        $schema = [];
+        foreach ($riwayat as $index => $item) {
+            $schema[] = TextEntry::make("riwayat_{$index}")
+                ->label($item['tanggal'])
+                ->default($item['catatan'] ?? 'Tidak ada catatan');
+        }
+
+        return $schema;
     }
 }

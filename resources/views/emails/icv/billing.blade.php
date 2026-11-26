@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Kode Billing ICV Diterbitkan</title>
+    <title>Kode Billing e-ICV Diterbitkan</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .header {
@@ -163,14 +163,14 @@
 <body>
     <div class="header">
         <div class="celebration">💳</div>
-        <h1>Kode Billing ICV Diterbitkan!</h1>
+        <h1>Kode Billing e-ICV Diterbitkan!</h1>
         <div class="status-badge">SILAKAN LAKUKAN PEMBAYARAN</div>
     </div>
 
     <div class="content">
         <p>Yth. {{ $icv->user->name }},</p>
 
-        <p><strong>Kabar baik!</strong> Kode billing untuk pengajuan ICV Anda telah berhasil diterbitkan. Silakan lakukan pembayaran sesuai petunjuk di bawah ini.</p>
+        <p><strong>Kabar baik!</strong> Kode billing untuk pengajuan e-ICV Anda telah berhasil diterbitkan. Silakan lakukan pembayaran sesuai petunjuk di bawah ini.</p>
 
         <div class="billing-box">
             <h2 style="color: #2563eb; margin-top: 0;">💳 KODE BILLING DITERBITKAN</h2>
@@ -185,7 +185,7 @@
 
             <div style="background-color: white; border-radius: 10px; padding: 20px; margin: 20px 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
-                    <span style="color: #6b7280;">Jumlah ICV:</span>
+                    <span style="color: #6b7280;">Jumlah e-ICV:</span>
                     <span style="font-weight: bold; color: #374151;">{{ number_format($icv->icvAlokasi->icv_disetujui) }} unit</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
@@ -200,7 +200,7 @@
         </div>
 
         <div class="info-box">
-            <h3>Detail Pengajuan ICV</h3>
+            <h3>Detail Pengajuan e-ICV</h3>
             <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>ID Pengajuan:</strong></td>
@@ -272,7 +272,7 @@
                 Nominal: <strong style="color: #2563eb;">Rp {{ number_format($nominal, 0, ',', '.') }}</strong>
             </p>
             <p style="color: #6b7280; font-style: italic;">
-                "Pembayaran tepat waktu mempercepat proses distribusi ICV"
+                "Pembayaran tepat waktu mempercepat proses distribusi e-ICV"
             </p>
         </div>
 

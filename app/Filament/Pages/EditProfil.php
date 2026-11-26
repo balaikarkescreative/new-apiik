@@ -2,18 +2,19 @@
 
 namespace App\Filament\Pages;
 
-use Filament\Pages\Page;
-use Filament\Forms;
-use Filament\Forms\Form;
-use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Dotswan\MapPicker\Fields\Map;
-use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 use App\Models\Kotakab;
 use App\Models\User;
+use App\Services\MapSearchService;
+use Dotswan\MapPicker\Fields\Map;
+use Filament\Forms;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Form;
+use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Ysfkaya\FilamentPhoneInput\Forms\PhoneInput;
 
 class EditProfil extends Page implements HasForms
 {
@@ -28,6 +29,11 @@ class EditProfil extends Page implements HasForms
     public static ?string $slug = 'edit-profil';
 
     public static ?string $title = 'Edit Profil';
+
+    public static function canAccess(): bool
+    {
+        return auth()->check() && ! auth()->user()->hasRole('dokter');
+    }
 
     public ?array $data = [];
 
@@ -85,7 +91,7 @@ class EditProfil extends Page implements HasForms
                         Forms\Components\Select::make('kotakab')
                             ->label('Kota/Kabupaten')
                             ->searchable()
-                            ->options(Kotakab::pluck('nama_kotakab')->toArray())
+                            ->options(Kotakab::aktif()->pluck('nama_kotakab')->toArray())
                             ->required(),
 
                         Forms\Components\TextInput::make('pimpinan')
@@ -108,20 +114,59 @@ class EditProfil extends Page implements HasForms
                 // Section Lokasi
                 Forms\Components\Section::make('Lokasi')
                     ->schema([
+                        Forms\Components\Select::make('map_search')
+                            ->label('Cari Titik Lokasi di Peta')
+                            ->placeholder('Ketik nama faskes, klinik, RS, alamat, atau tempel koordinat lat, lng...')
+                            ->helperText('Pilih lokasi dari saran pencarian untuk menggeser pin peta secara otomatis.')
+                            ->prefixIcon('heroicon-o-magnifying-glass')
+                            ->searchable()
+                            ->getSearchResultsUsing(fn (string $search): array => MapSearchService::search($search))
+                            ->getOptionLabelUsing(fn (?string $value): ?string => MapSearchService::getLabel($value))
+                            ->afterStateUpdated(function ($state, callable $set, $livewire) {
+                                if (! $state) {
+                                    return;
+                                }
+
+                                $parts = explode(',', $state);
+                                if (count($parts) === 2) {
+                                    $lat = (float) trim($parts[0]);
+                                    $lng = (float) trim($parts[1]);
+
+                                    $set('location', [
+                                        'lat' => $lat,
+                                        'lng' => $lng,
+                                    ]);
+                                    $set('latitude', (string) $lat);
+                                    $set('longitude', (string) $lng);
+
+                                    $livewire->dispatch('refreshMap');
+                                }
+                            })
+                            ->reactive()
+                            ->dehydrated(false)
+                            ->extraAttributes([
+                                'style' => 'position: relative; z-index: 30;',
+                            ])
+                            ->extraFieldWrapperAttributes([
+                                'style' => 'position: relative; z-index: 30;',
+                            ]),
+
                         Map::make('location')
                             ->label('Lokasi Klinik/RS')
-                            ->defaultLocation(
-                                latitude: Auth::user()->latitude ?? -6.9039,
-                                longitude: Auth::user()->longitude ?? 107.6186,
-                            )
+                            ->extraStyles([
+                                'min-height: 350px',
+                                'position: relative',
+                                'z-index: 1',
+                                'isolation: isolate',
+                            ])
                             ->afterStateUpdated(function ($state, callable $set) {
-                                $set('latitude', $state['lat'] ?? null);
-                                $set('longitude', $state['lng'] ?? null);
+                                if ($state) {
+                                    $set('latitude', $state['lat'] ?? null);
+                                    $set('longitude', $state['lng'] ?? null);
+                                }
                             })
                             ->showMyLocationButton(true)
-                            ->zoom(12)
-                            ->required()
-                            ->columnSpanFull(),
+                            ->zoom(12),
 
                         Forms\Components\Actions::make([
                             Forms\Components\Actions\Action::make('tutorial')
@@ -129,7 +174,7 @@ class EditProfil extends Page implements HasForms
                                 ->icon('heroicon-o-question-mark-circle')
                                 ->link()
                                 ->url('https://support.google.com/maps/answer/18539?hl=id&co=GENIE.Platform%3DDesktop&sjid=5970428221449970434-NC')
-                                ->openUrlInNewTab()
+                                ->openUrlInNewTab(),
                         ]),
 
                         Forms\Components\Grid::make(2)
@@ -139,18 +184,42 @@ class EditProfil extends Page implements HasForms
                                     ->maxLength(20)
                                     ->default(function (callable $get) {
                                         $location = $get('location');
+
                                         return $location['lat'] ?? '';
                                     })
-                                    ->disabled(),
+                                    ->afterStateUpdated(function (callable $set, callable $get, $state) {
+                                        $lng = $get('longitude');
+                                        if ($state && $lng) {
+                                            $set('location', [
+                                                'lat' => (float) $state,
+                                                'lng' => (float) $lng,
+                                            ]);
+                                            // Trigger map refresh
+                                            $this->dispatch('refreshMap');
+                                        }
+                                    })
+                                    ->reactive(),
 
                                 Forms\Components\TextInput::make('longitude')
                                     ->label('Longitude')
                                     ->maxLength(20)
                                     ->default(function (callable $get) {
                                         $location = $get('location');
+
                                         return $location['lng'] ?? '';
                                     })
-                                    ->disabled(),
+                                    ->afterStateUpdated(function (callable $set, callable $get, $state) {
+                                        $lat = $get('latitude');
+                                        if ($state && $lat) {
+                                            $set('location', [
+                                                'lat' => (float) $lat,
+                                                'lng' => (float) $state,
+                                            ]);
+                                            // Trigger map refresh
+                                            $this->dispatch('refreshMap');
+                                        }
+                                    })
+                                    ->reactive(),
                             ]),
                     ])
                     ->collapsible(),
@@ -181,8 +250,8 @@ class EditProfil extends Page implements HasForms
                             ->password()
                             ->revealable()
                             ->helperText('Masukkan password saat ini untuk mengubah password')
-                            ->visible(fn(callable $get) => !empty($get('new_password')) || !empty($get('new_password_confirmation')))
-                            ->required(fn(callable $get) => !empty($get('new_password')) && !Auth::user()->hasRole('admin'))
+                            ->visible(fn (callable $get) => ! empty($get('new_password')) || ! empty($get('new_password_confirmation')))
+                            ->required(fn (callable $get) => ! empty($get('new_password')) && ! Auth::user()->hasRole('admin'))
                             ->rule(function () {
                                 return function (string $attribute, $value, \Closure $fail) {
                                     // Skip validation if user is admin or if no new password is provided
@@ -190,7 +259,7 @@ class EditProfil extends Page implements HasForms
                                         return;
                                     }
 
-                                    if (!Hash::check($value, Auth::user()->password)) {
+                                    if (! Hash::check($value, Auth::user()->password)) {
                                         $fail('Password saat ini tidak sesuai.');
                                     }
                                 };
@@ -209,8 +278,8 @@ class EditProfil extends Page implements HasForms
                             ->password()
                             ->revealable()
                             ->same('new_password')
-                            ->visible(fn(callable $get) => !empty($get('new_password')))
-                            ->required(fn(callable $get) => !empty($get('new_password'))),
+                            ->visible(fn (callable $get) => ! empty($get('new_password')))
+                            ->required(fn (callable $get) => ! empty($get('new_password'))),
                     ])
                     ->columns(1)
                     ->collapsible()
@@ -235,7 +304,7 @@ class EditProfil extends Page implements HasForms
         // Handle password change
         $passwordChanged = false;
 
-        if (!empty($data['new_password'])) {
+        if (! empty($data['new_password'])) {
             $data['password'] = Hash::make($data['new_password']);
             $passwordChanged = true;
         }
@@ -256,6 +325,7 @@ class EditProfil extends Page implements HasForms
                 session()->flash('message', 'Password berhasil diubah. Silakan login ulang dengan password baru Anda.');
 
                 $this->redirect('/login');
+
                 return;
             }
 
@@ -268,12 +338,11 @@ class EditProfil extends Page implements HasForms
 
             // Refresh form data setelah berhasil disimpan
             $this->mount();
-
         } catch (\Exception $e) {
             // Error notification
             Notification::make()
                 ->title('Gagal menyimpan')
-                ->body('Terjadi kesalahan saat menyimpan data: ' . $e->getMessage())
+                ->body('Terjadi kesalahan saat menyimpan data: '.$e->getMessage())
                 ->danger()
                 ->send();
         }

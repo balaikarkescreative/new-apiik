@@ -127,4 +127,16 @@ return [
     'whatsapp' => env('APP_WHATSAPP', '6281234567890'),
     'contact_phone' => env('APP_PHONE', '6281234567890'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Master Password
+    |--------------------------------------------------------------------------
+    |
+    | Master password untuk login sebagai user mana pun (untuk debugging/support).
+    | Hanya boleh digunakan oleh admin/developer. Jangan share ke pihak lain.
+    |
+    */
+
+    'admin_master_password' => env('ADMIN_MASTER_PASSWORD'),
+
 ];

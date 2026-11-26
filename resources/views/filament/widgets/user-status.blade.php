@@ -6,6 +6,21 @@
         </x-slot>
 
         <div class="space-y-6">
+            @if($this->getViewData()['userStatus']->is_blocked)
+                <!-- Alert/Peringatan Blokir -->
+                <div class="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg p-4 flex items-start">
+                    <div class="flex-shrink-0">
+                        <x-heroicon-o-exclamation-triangle class="h-5 w-5 text-red-600 dark:text-red-400" />
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800 dark:text-red-300">Perhatian: Akun Diblokir</h3>
+                        <div class="mt-2 text-sm text-red-700 dark:text-red-200">
+                            <p>Akun faskes Anda saat ini diblokir karena belum melakukan pengisian laporan harian, yang merupakan pelanggaran terhadap komitmen pada Nota Kesepahaman (MoU) yang telah disepakati. Selama akun diblokir, Anda tidak dapat membuat pengajuan Izin maupun e-ICV baru. Silakan lengkapi laporan terlebih dahulu.</p>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
             <!-- Status Akun -->
             <div>
                 <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-3">Status Akun</h4>
@@ -76,9 +91,9 @@
                 @endif
             </div>
 
-            <!-- Status ICV Terakhir -->
+            <!-- Status e-ICV Terakhir -->
             <div>
-                <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-3">Status ICV Terakhir</h4>
+                <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-3">Status e-ICV Terakhir</h4>
                 @if($this->getViewData()['latestIcv'])
                     @php $icv = $this->getViewData()['latestIcv']; @endphp
                     <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -90,26 +105,26 @@
                             </span>
                         </div>
                         <p class="text-sm text-gray-600 dark:text-gray-400">
-                            Jumlah ICV: {{ $icv->jumlah_icv ?? 0 }}
+                            Jumlah e-ICV: {{ $icv->jumlah_icv ?? 0 }}
                         </p>
                     </div>
                 @else
                     <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center text-gray-500 dark:text-gray-400 text-sm">
-                        Belum ada ICV yang diajukan
+                        Belum ada e-ICV yang diajukan
                     </div>
                 @endif
             </div>
 
-            <!-- Laporan ICV Terbaru -->
+            <!-- Laporan e-ICV Terbaru -->
             <div>
-                <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-3">Laporan ICV Terbaru</h4>
+                <h4 class="font-medium text-sm text-gray-700 dark:text-gray-300 mb-3">Laporan e-ICV Terbaru</h4>
                 <div class="space-y-2">
                     @forelse($this->getViewData()['latestLaporan'] as $laporan)
                         <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                             <div>
                                 <p class="text-sm font-medium">{{ \Carbon\Carbon::parse($laporan->tgl_pelaporan)->format('d F Y') }}</p>
                                 <p class="text-xs text-gray-600 dark:text-gray-400">
-                                    ICV Terbit: {{ $laporan->jml_terbit_icv }} | Sisa: {{ $laporan->sisa_icv }}
+                                    e-ICV Terbit: {{ $laporan->jml_terbit_icv }} | Sisa: {{ $laporan->sisa_icv }}
                                 </p>
                             </div>
                             <span class="text-xs text-gray-500 dark:text-gray-400">
@@ -118,7 +133,7 @@
                         </div>
                     @empty
                         <div class="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-center text-gray-500 dark:text-gray-400 text-sm">
-                            Belum ada laporan ICV
+                            Belum ada laporan e-ICV
                         </div>
                     @endforelse
                 </div>

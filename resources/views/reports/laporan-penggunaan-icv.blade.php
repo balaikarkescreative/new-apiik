@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Laporan Penggunaan ICV</title>
+    <title>Laporan Penggunaan e-ICV</title>
     <style>
         table { width: 100%; border-collapse: collapse; font-size: 12px; }
         th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
@@ -12,7 +12,7 @@
 </head>
 <body>
     <div class="header">
-        <h2>Laporan Penggunaan ICV</h2>
+        <h2>Laporan Penggunaan e-ICV</h2>
         <p>Periode: {{ $tanggal_mulai }} s/d {{ $tanggal_selesai }}</p>
     </div>
 
@@ -28,9 +28,9 @@
                 <th>Tanggal</th>
                 <th>User</th>
                 <th>Jenis Vaksin</th>
-                <th>Terbit ICV</th>
+                <th>Terbit e-ICV</th>
                 <th>Guna Vaksin</th>
-                <th>Sisa ICV</th>
+                <th>Sisa e-ICV</th>
                 <th>Sisa Vaksin</th>
                 <th>Catatan</th>
             </tr>

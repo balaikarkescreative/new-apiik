@@ -14,4 +14,9 @@ class Kotakab extends Model
     ];
 
     public $timestamps = false;
+    
+    public function scopeAktif($query)
+    {
+        return $query->where('status', 'aktif');
+    }
 }

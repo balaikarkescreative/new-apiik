@@ -3,22 +3,26 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
-use App\Models\Izin;
-use Filament\Models\Contracts\FilamentUser;
 
-
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasRoles, Notifiable;
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return true;
+    }
 
     /**
      * The attributes that are mass assignable.
+     *
      *
      * @var list<string>
      */
@@ -40,8 +44,12 @@ class User extends Authenticatable
         'masa_berlaku_surat_izin_operasional',
         'pertanyaan1',
         'pertanyaan2',
+        'verifikasi_akun',
         'status_akun',
+        'is_blocked',
+        'bypass_gps',
         'date_updated',
+        'simply_user_id',
     ];
 
     /**
@@ -64,6 +72,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'bypass_gps' => 'boolean',
         ];
     }
 
@@ -78,5 +87,45 @@ class User extends Authenticatable
     public function izins()
     {
         return $this->hasMany(Izin::class, 'user_id');
+    }
+
+    public function laporanGeotagging()
+    {
+        return $this->hasOne(LaporanGeotagging::class);
+    }
+
+    public function linkSosialisasi()
+    {
+        return $this->hasOne(LinkSosialisasi::class);
+    }
+
+    public function paktaIntegritas()
+    {
+        return $this->hasOne(PaktaIntegritas::class);
+    }
+
+    public function suratPersetujuanIcv()
+    {
+        return $this->hasOne(SuratPersetujuanIcv::class, 'id_akun', 'id');
+    }
+
+    public function simplyUser()
+    {
+        return $this->belongsTo(SimplyUser::class, 'simply_user_id', 'id_user');
+    }
+
+    public function riwayatBlokir()
+    {
+        return $this->hasMany(RiwayatBlokirFaskes::class, 'user_id')->latest();
+    }
+
+    public function riwayatBlokirDibuat()
+    {
+        return $this->hasMany(RiwayatBlokirFaskes::class, 'admin_id');
+    }
+
+    public function izinPic()
+    {
+        return $this->hasMany(Izin::class, 'pic_dokter_id');
     }
 }

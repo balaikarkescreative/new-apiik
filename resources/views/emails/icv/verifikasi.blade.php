@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Hasil Verifikasi Dokumen ICV</title>
+    <title>Hasil Verifikasi Dokumen e-ICV</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .header {
@@ -75,10 +75,10 @@
     <div class="header">
         @if($hasilVerifikasi == '1')
             <div class="celebration">✅</div>
-            <h1>Selamat! Dokumen ICV Anda Lengkap</h1>
+            <h1>Selamat! Dokumen e-ICV Anda Lengkap</h1>
         @else
             <div class="celebration">⚠️</div>
-            <h1>Dokumen ICV Perlu Diperbaiki</h1>
+            <h1>Dokumen e-ICV Perlu Diperbaiki</h1>
         @endif
         <div class="status-badge">
             {{ $hasilVerifikasi == '1' ? 'BERKAS LENGKAP' : 'BERKAS TIDAK LENGKAP' }}
@@ -88,24 +88,24 @@
     <div class="content">
         <p>Yth. {{ $icv->user->name }},</p>
 
-        <p>Kami informasikan bahwa verifikasi dokumen untuk pengajuan ICV Anda telah selesai dilakukan.</p>
+        <p>Kami informasikan bahwa verifikasi dokumen untuk pengajuan e-ICV Anda telah selesai dilakukan.</p>
 
         <div class="result-box">
             @if($hasilVerifikasi == '1')
                 <h2 style="color: #10b981; margin-top: 0;">🎉 Dokumen Dinyatakan Lengkap</h2>
                 <p style="font-size: 16px; margin: 15px 0;">
-                    Selamat! Dokumen pengajuan ICV Anda telah memenuhi persyaratan dan dinyatakan <strong>LENGKAP</strong>.
+                    Selamat! Dokumen pengajuan e-ICV Anda telah memenuhi persyaratan dan dinyatakan <strong>LENGKAP</strong>.
                 </p>
             @else
                 <h2 style="color: #ef4444; margin-top: 0;">📋 Dokumen Perlu Dilengkapi</h2>
                 <p style="font-size: 16px; margin: 15px 0;">
-                    Mohon maaf, dokumen pengajuan ICV Anda masih <strong>BELUM LENGKAP</strong> dan perlu diperbaiki.
+                    Mohon maaf, dokumen pengajuan e-ICV Anda masih <strong>BELUM LENGKAP</strong> dan perlu diperbaiki.
                 </p>
             @endif
         </div>
 
         <div class="info-box">
-            <h3>Detail Pengajuan ICV</h3>
+            <h3>Detail Pengajuan e-ICV</h3>
             <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>ID Pengajuan:</strong></td>
@@ -120,7 +120,7 @@
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ $icv->tanggal_pengajuan->format('d/m/Y') }}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Jumlah ICV Diminta:</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Jumlah e-ICV Diminta:</strong></td>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ number_format($icv->jumlah_icv) }} unit</td>
                 </tr>
                 <tr>
@@ -147,11 +147,11 @@
         @if($hasilVerifikasi == '1')
             <div class="next-steps">
                 <h3 style="color: #059669; margin-top: 0;">📋 Langkah Selanjutnya</h3>
-                <p><strong>Proses pengajuan ICV Anda akan dilanjutkan dengan tahap berikutnya:</strong></p>
+                <p><strong>Proses pengajuan e-ICV Anda akan dilanjutkan dengan tahap berikutnya:</strong></p>
                 <ol style="margin-left: 20px;">
-                    <li><strong>Alokasi ICV</strong>
+                    <li><strong>Alokasi e-ICV</strong>
                         <ul style="margin-left: 20px; margin-top: 5px;">
-                            <li>Tim kami akan menentukan jumlah ICV yang dapat dialokasikan</li>
+                            <li>Tim kami akan menentukan jumlah e-ICV yang dapat dialokasikan</li>
                             <li>Alokasi berdasarkan stok tersedia dan kebutuhan</li>
                         </ul>
                     </li>
@@ -162,7 +162,7 @@
                         </ul>
                     </li>
                     <li><strong>Pembayaran dan Verifikasi</strong></li>
-                    <li><strong>Penjadwalan Distribusi ICV</strong></li>
+                    <li><strong>Penjadwalan Distribusi e-ICV</strong></li>
                 </ol>
                 <p style="color: #059669; font-weight: bold; margin-top: 15px;">
                     ✨ Anda akan mendapat notifikasi email untuk setiap tahap selanjutnya.

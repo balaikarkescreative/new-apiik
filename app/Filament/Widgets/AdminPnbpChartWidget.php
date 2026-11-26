@@ -1,21 +1,20 @@
 <?php
+
 // filepath: /home/syhrl/Documents/new-apiik2/app/Filament/Widgets/AdminPnbpChartWidget.php
 
 namespace App\Filament\Widgets;
 
-use Filament\Widgets\ChartWidget;
 use App\Models\Icv;
-use App\Models\IcvAlokasi;
-use App\Models\IcvSbbk;
+use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
 
 class AdminPnbpChartWidget extends ChartWidget
 {
-    protected static ?string $heading = 'Tren Pendapatan PNBP ICV Per Tahun';
+    protected static ?string $heading = 'Tren Pendapatan PNBP e-ICV Per Tahun';
 
     protected static ?int $sort = 2;
 
-    protected int | string | array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 'full';
 
     // Tarif ICV berdasarkan regulasi (dalam rupiah)
     private const TARIF_ICV = 25000; // Rp 25.000 per ICV
@@ -33,25 +32,35 @@ class AdminPnbpChartWidget extends ChartWidget
         foreach ($years as $year) {
             $labels[] = (string) $year;
 
-            // ICV yang sudah mendapat file SBBK per tahun
-            $icvDenganSbbk = DB::table('tbl_icv')
-                ->join('tbl_icv_alokasi', 'tbl_icv.id', '=', 'tbl_icv_alokasi.id_icv')
-                ->join('tbl_icv_sbbk', 'tbl_icv.id', '=', 'tbl_icv_sbbk.id_icv')
-                ->whereNotNull('tbl_icv_sbbk.file_sbbk')
-                ->where('tbl_icv_sbbk.file_sbbk', '!=', '')
+            // ICV yang sudah upload bukti bayar per tahun
+            $icvSudahUpload = DB::table('tbl_icv')
+                ->join(
+                    'tbl_icv_alokasi',
+                    'tbl_icv.id',
+                    '=',
+                    'tbl_icv_alokasi.id_icv',
+                )
+                ->join(
+                    'tbl_icv_bukti_bayar',
+                    'tbl_icv.id',
+                    '=',
+                    'tbl_icv_bukti_bayar.id_icv',
+                )
+                ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+                ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
                 ->whereYear('tbl_icv.tanggal_pengajuan', $year)
                 ->sum('tbl_icv_alokasi.icv_disetujui');
 
-            // Hitung pendapatan PNBP (ICV dengan SBBK x tarif)
-            $pendapatan = $icvDenganSbbk * self::TARIF_ICV;
+            // Hitung pendapatan PNBP (ICV sudah upload bukti bayar x tarif)
+            $pendapatan = $icvSudahUpload * self::TARIF_ICV;
 
-            $pendapatanData[] = $pendapatan / 1000000; // Konversi ke jutaan rupiah
+            $pendapatanData[] = $pendapatan; // Nilai penuh dalam rupiah
         }
 
         return [
             'datasets' => [
                 [
-                    'label' => 'Pendapatan PNBP (Jutaan Rupiah)',
+                    'label' => 'Pendapatan PNBP (Rupiah)',
                     'data' => $pendapatanData,
                     'backgroundColor' => 'rgba(59, 130, 246, 0.1)',
                     'borderColor' => 'rgb(59, 130, 246)',
@@ -102,7 +111,7 @@ class AdminPnbpChartWidget extends ChartWidget
                     'beginAtZero' => true,
                     'title' => [
                         'display' => true,
-                        'text' => 'Pendapatan (Jutaan Rupiah)',
+                        'text' => 'Pendapatan (Rupiah)',
                         'font' => [
                             'size' => 12,
                             'weight' => 'bold',
@@ -139,23 +148,43 @@ class AdminPnbpChartWidget extends ChartWidget
 
     public function getDescription(): ?string
     {
-        // Total pendapatan dari ICV yang sudah mendapat SBBK (sejak 2023)
-        $totalIcvSbbk = DB::table('tbl_icv')
-            ->join('tbl_icv_alokasi', 'tbl_icv.id', '=', 'tbl_icv_alokasi.id_icv')
-            ->join('tbl_icv_sbbk', 'tbl_icv.id', '=', 'tbl_icv_sbbk.id_icv')
-            ->whereNotNull('tbl_icv_sbbk.file_sbbk')
-            ->where('tbl_icv_sbbk.file_sbbk', '!=', '')
+        // Total pendapatan dari ICV yang sudah upload bukti bayar (sejak 2023)
+        $totalIcvUploadBuktiBayar = DB::table('tbl_icv')
+            ->join(
+                'tbl_icv_alokasi',
+                'tbl_icv.id',
+                '=',
+                'tbl_icv_alokasi.id_icv',
+            )
+            ->join(
+                'tbl_icv_bukti_bayar',
+                'tbl_icv.id',
+                '=',
+                'tbl_icv_bukti_bayar.id_icv',
+            )
+            ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+            ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
             ->whereYear('tbl_icv.tanggal_pengajuan', '>=', 2023)
             ->sum('tbl_icv_alokasi.icv_disetujui');
 
-        $totalPendapatan = $totalIcvSbbk * self::TARIF_ICV;
+        $totalPendapatan = $totalIcvUploadBuktiBayar * self::TARIF_ICV;
 
         // Pendapatan tahun ini
         $icvTahunIni = DB::table('tbl_icv')
-            ->join('tbl_icv_alokasi', 'tbl_icv.id', '=', 'tbl_icv_alokasi.id_icv')
-            ->join('tbl_icv_sbbk', 'tbl_icv.id', '=', 'tbl_icv_sbbk.id_icv')
-            ->whereNotNull('tbl_icv_sbbk.file_sbbk')
-            ->where('tbl_icv_sbbk.file_sbbk', '!=', '')
+            ->join(
+                'tbl_icv_alokasi',
+                'tbl_icv.id',
+                '=',
+                'tbl_icv_alokasi.id_icv',
+            )
+            ->join(
+                'tbl_icv_bukti_bayar',
+                'tbl_icv.id',
+                '=',
+                'tbl_icv_bukti_bayar.id_icv',
+            )
+            ->whereNotNull('tbl_icv_bukti_bayar.file_bukti_bayar')
+            ->where('tbl_icv_bukti_bayar.file_bukti_bayar', '!=', '')
             ->whereYear('tbl_icv.tanggal_pengajuan', now()->year)
             ->sum('tbl_icv_alokasi.icv_disetujui');
 
@@ -173,18 +202,6 @@ class AdminPnbpChartWidget extends ChartWidget
      */
     private function formatCurrencyID($amount): string
     {
-        if ($amount >= 1000000000) {
-            // Milyar
-            return 'Rp ' . number_format($amount / 1000000000, 1, ',', '.') . ' M';
-        } elseif ($amount >= 1000000) {
-            // Juta
-            return 'Rp ' . number_format($amount / 1000000, 1, ',', '.') . ' Jt';
-        } elseif ($amount >= 1000) {
-            // Ribu
-            return 'Rp ' . number_format($amount / 1000, 0, ',', '.') . ' Rb';
-        } else {
-            // Satuan
-            return 'Rp ' . number_format($amount, 0, ',', '.');
-        }
+        return 'Rp '.number_format($amount, 0, ',', '.');
     }
 }

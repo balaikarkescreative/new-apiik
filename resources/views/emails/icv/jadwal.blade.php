@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Jadwal Distribusi ICV Ditetapkan</title>
+    <title>Jadwal Distribusi e-ICV Ditetapkan</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .header {
@@ -163,21 +163,17 @@
 <body>
     <div class="header">
         <div class="celebration">📅</div>
-        <h1>Jadwal Distribusi ICV Ditetapkan!</h1>
+        <h1>Jadwal Distribusi e-ICV Ditetapkan!</h1>
         <div class="status-badge">SIAP UNTUK DISTRIBUSI</div>
     </div>
 
     <div class="content">
         <p>Yth. {{ $icv->user->name }},</p>
 
-        <p><strong>Kabar gembira!</strong> Jadwal distribusi ICV Anda telah ditetapkan. Silakan perhatikan informasi jadwal dan instruksi di bawah ini.</p>
+        <p><strong>Kabar gembira!</strong> Jadwal distribusi e-ICV Anda telah ditetapkan. Silakan perhatikan informasi jadwal dan instruksi di bawah ini.</p>
 
         <div class="schedule-box">
             <h2 style="color: #7c3aed; margin-top: 0;">📅 JADWAL DISTRIBUSI DITETAPKAN</h2>
-            <p style="font-size: 18px; margin: 20px 0; font-weight: 500;">
-                Jadwal {{ $icv->icvBuktiBayar->distribusi_icv }} ICV untuk<br>
-                <strong>{{ $icv->user->name }}</strong>
-            </p>
 
             <div class="schedule-date">
                 {{ \Carbon\Carbon::parse($jadwalPengambilan)->translatedFormat('l, d F Y') }}
@@ -185,12 +181,12 @@
 
             <div style="background-color: white; border-radius: 10px; padding: 20px; margin: 20px 0;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
-                    <span style="color: #6b7280;">Jumlah ICV:</span>
+                    <span style="color: #6b7280;">Jumlah e-ICV:</span>
                     <span style="font-weight: bold; color: #374151;">{{ number_format($icv->icvAlokasi->icv_disetujui) }} unit</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
                     <span style="color: #6b7280;">Metode Distribusi:</span>
-                    <span style="font-weight: bold; color: #7c3aed; font-size: 20px;">{{ $icv->icvBuktiBayar->distribusi_icv }}</span>
+                    <span style="font-weight: bold; color: #7c3aed; font-size: 20px;">e-ICV melalui aplikasi Sinkarkes</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
                     <span style="color: #6b7280;">Tanggal Jadwal:</span>
@@ -204,7 +200,7 @@
         </div>
 
         <div class="info-box">
-            <h3>Detail Pengajuan ICV</h3>
+            <h3>Detail Pengajuan e-ICV</h3>
             <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>ID Pengajuan:</strong></td>
@@ -223,11 +219,11 @@
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ $icv->icvBilling->kode_billing }}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Jumlah ICV:</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Jumlah e-ICV:</strong></td>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ number_format($icv->icvAlokasi->icv_disetujui) }} unit</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Jadwal {{ $icv->icvBuktiBayar->distribusi_icv }}:</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Jadwal Distribusi:</strong></td>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong style="color: #7c3aed;">{{ \Carbon\Carbon::parse($jadwalPengambilan)->translatedFormat('l, d F Y') }}</strong></td>
                 </tr>
             </table>
@@ -259,10 +255,10 @@
                 {{ \Carbon\Carbon::parse($jadwalPengambilan)->translatedFormat('l, d F Y') }}
             </div>
             <p style="font-size: 16px; margin: 15px 0;">
-                Metode: <strong style="color: #7c3aed;">{{ $icv->icvBuktiBayar->distribusi_icv }}</strong>
+                Metode: <strong style="color: #7c3aed;">e-ICV melalui aplikasi Sinkarkes</strong>
             </p>
             <p style="color: #6b7280; font-style: italic;">
-                "{{ $icv->icvBuktiBayar->distribusi_icv === 'Diambil' ? 'Jangan lupa datang tepat waktu!' : 'Pastikan ada yang menerima di alamat tujuan!' }}"
+                "Pastikan Anda dapat mengakses aplikasi Sinkarkes untuk menerima e-ICV."
             </p>
         </div>
 
@@ -276,7 +272,7 @@
     <div class="footer">
         <p>&copy; {{ date('Y') }} {{ config('app.name') }}. Semua hak dilindungi.</p>
         <p>Email ini dikirim secara otomatis, mohon tidak membalas email ini.</p>
-        <p style="margin-top: 10px; color: #7c3aed; font-weight: bold;">📅 Jadwal Ditetapkan! {{ $icv->icvBuktiBayar->distribusi_icv === 'Diambil' ? 'Siap Diambil!' : 'Siap Dikirim!' }} 📅</p>
+        <p style="margin-top: 10px; color: #7c3aed; font-weight: bold;">📅 Jadwal Ditetapkan! Siap Didistribusikan! 📅</p>
     </div>
 </body>
 </html>

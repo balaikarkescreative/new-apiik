@@ -22,7 +22,7 @@ class VaksinResource extends Resource
     protected static ?string $label = 'Jenis Vaksin';
     protected static ?string $slug = 'jenis-vaksin';
 
-    protected static ?int $navigationSort = 100;
+    protected static ?int $navigationSort = 9;
 
 
     public static function canAccess(): bool

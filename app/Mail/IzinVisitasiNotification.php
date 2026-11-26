@@ -2,13 +2,12 @@
 
 namespace App\Mail;
 
+use App\Models\Izin;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Izin;
 
 class IzinVisitasiNotification extends Mailable
 {
@@ -19,13 +18,13 @@ class IzinVisitasiNotification extends Mailable
     public function __construct(Izin $izin)
     {
         // Ensure the relationship is loaded
-        $this->izin = $izin->load('izinDokumenPks', 'user');
+        $this->izin = $izin->load('izinDokumenPks', 'user', 'picDokter');
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Penjadwalan Visitasi - ID: ' . $this->izin->id,
+            subject: 'Penjadwalan Visitasi - ID: '.$this->izin->id,
         );
     }
 

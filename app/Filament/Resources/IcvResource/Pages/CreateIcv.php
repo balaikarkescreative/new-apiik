@@ -4,28 +4,30 @@ namespace App\Filament\Resources\IcvResource\Pages;
 
 use App\ChecksOperationalHours;
 use App\Filament\Resources\IcvResource;
+use App\Filament\Resources\SuratPersetujuanIcvResource;
+use App\Filament\Resources\VaksinatorResource;
 use App\Models\Icv;
-use Filament\Actions;
-use Filament\Resources\Pages\CreateRecord;
 use App\Models\Izin;
-use Filament\Notifications\Notification;
 use App\Models\LaporanPenggunaanIcv;
-use App\Filament\Resources\LaporanPenggunaanIcvResource;
+use App\Models\SuratPersetujuanIcv;
+use App\Models\Vaksinator;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\CreateRecord;
 
 class CreateIcv extends CreateRecord
 {
     use ChecksOperationalHours;
+
     protected static string $resource = IcvResource::class;
 
     protected static bool $canCreateAnother = false;
 
     protected function getRedirectUrl(): string
     {
-
-
         if (auth()->user()->hasRole('admin')) {
             return $this->getResource()::getUrl();
         }
+
         return $this->getResource()::getUrl('daftar-pengajuan');
     }
 
@@ -33,18 +35,141 @@ class CreateIcv extends CreateRecord
     {
         parent::mount();
 
-        if (!auth()->user()->hasRole('admin')) {
+        // Jika user diblokir, tidak boleh mengajukan ICV
+        if (auth()->user()->is_blocked) {
+            Notification::make()
+                ->title('Akun Diblokir')
+                ->body('Akun faskes Anda saat ini diblokir karena belum melakukan pengisian laporan harian, yang merupakan pelanggaran terhadap komitmen pada Nota Kesepahaman (MoU) yang telah disepakati. Selama akun diblokir, Anda tidak dapat membuat pengajuan Izin maupun e-ICV baru. Silakan lengkapi laporan terlebih dahulu.')
+                ->danger()
+                ->persistent()
+                ->send();
+            redirect()->to(IcvResource::getUrl('daftar-pengajuan'));
+
+            return;
+        }
+
+        // Jika user (bukan admin) belum punya laporan geotagging, redirect ke create laporan geotagging
+        if (auth()->user()->hasRole('user') && ! auth()->user()->laporanGeotagging) {
+            Notification::make()
+                ->title('Laporan Geotagging Belum Ada')
+                ->body('Anda harus membuat laporan geotagging terlebih dahulu sebelum mengajukan e-ICV.')
+                ->danger()
+                ->persistent()
+                ->send();
+            redirect()->route('filament.admin.resources.laporan-geotagging.create');
+
+            return;
+        }
+
+        // Jika user (bukan admin) belum punya link sosialisasi, redirect ke create link sosialisasi
+        if (auth()->user()->hasRole('user') && ! auth()->user()->linkSosialisasi) {
+            Notification::make()
+                ->title('Link Sosialisasi Belum Ada')
+                ->body('Anda harus membuat link sosialisasi terlebih dahulu sebelum mengajukan e-ICV.')
+                ->danger()
+                ->persistent()
+                ->send();
+            redirect()->route('filament.admin.resources.link-sosialisasi.create');
+
+            return;
+        }
+
+        // Jika user (bukan admin) belum punya pakta integritas, redirect ke create pakta integritas
+        if (auth()->user()->hasRole('user') && ! auth()->user()->paktaIntegritas) {
+            Notification::make()
+                ->title('Pakta Integritas Belum Ada')
+                ->body('Anda harus mengupload pakta integritas terlebih dahulu sebelum mengajukan e-ICV.')
+                ->danger()
+                ->persistent()
+                ->send();
+            redirect()->route('filament.admin.resources.pakta-integritas.create');
+
+            return;
+        }
+
+        if (! auth()->user()->hasRole('admin')) {
             $this->checkOperationalHoursWithRedirect('icv', IcvResource::getUrl('daftar-pengajuan'));
         }
 
+        // Cek jika user belum memiliki vaksinator (untuk non-admin)
+        if (auth()->user()->hasRole('user')) {
+            $this->checkVaksinatorRequirement(auth()->id());
+        }
+
+        // Cek jika user belum memiliki surat persetujuan ICV (untuk non-admin)
+        // if (!auth()->user()->hasRole('admin')) {
+        //     $this->checkSuratPersetujuanIcvRequirement(auth()->id());
+        // }
+
+        if (auth()->user()->hasRole('user')) {
+            // Cek pengajuan terbaru untuk melihat apakah sudah ada bukti bayar (abaikan yang ditolak)
+            $pengajuanTerbaru = \App\Models\Icv::where('user_id', auth()->id())
+                ->where('tanggal_pengajuan', '>=', '2025-04-01')
+                // Abaikan pengajuan yang ditolak (hasil_verif = 3)
+                ->where(function ($q) {
+                    $q->whereDoesntHave('icvCekDokumen')
+                        ->orWhereHas('icvCekDokumen', function ($qq) {
+                            $qq->where('hasil_verif', '!=', '3');
+                        });
+                })
+                ->orderBy('tanggal_pengajuan', 'desc')
+                ->first();
+
+            if ($pengajuanTerbaru) {
+                // Cek apakah pengajuan terbaru sudah memiliki bukti bayar
+                $sudahAdaBuktiBayar = $pengajuanTerbaru->icvBuktiBayar &&
+                    ! empty($pengajuanTerbaru->icvBuktiBayar->file_bukti_bayar);
+
+                // Jika pengajuan terbaru belum ada bukti bayar, cek apakah ada pengajuan lain yang tertahan
+                if (! $sudahAdaBuktiBayar) {
+                    $icvTertahan = \App\Models\Icv::where('user_id', auth()->id())
+                        // Hanya cek ICV yang diajukan minimal di bulan April 2025
+                        ->where('tanggal_pengajuan', '>=', '2025-04-01')
+                        // Abaikan pengajuan yang ditolak (hasil_verif = 3)
+                        ->where(function ($q) {
+                            $q->whereDoesntHave('icvCekDokumen')
+                                ->orWhereHas('icvCekDokumen', function ($qq) {
+                                    $qq->where('hasil_verif', '!=', '3');
+                                });
+                        })
+                        // Hanya cek yang belum memiliki bukti bayar
+                        ->where(function ($q) {
+                            $q->whereDoesntHave('icvBuktiBayar')
+                                ->orWhereHas('icvBuktiBayar', function ($qq) {
+                                    $qq->whereNull('file_bukti_bayar')->orWhere('file_bukti_bayar', '');
+                                });
+                        })
+                        ->exists();
+
+                    if ($icvTertahan) {
+                        Notification::make()
+                            ->title('Pengajuan e-ICV Ditolak')
+                            ->body('Anda masih memiliki pengajuan e-ICV yang belum selesai. Silakan selesaikan pengajuan sebelumnya terlebih dahulu.')
+                            ->danger()
+                            ->persistent()
+                            ->send();
+
+                        redirect()->to(IcvResource::getUrl('daftar-pengajuan'));
+
+                        return;
+                    }
+                }
+                // Jika pengajuan terbaru sudah ada bukti bayar, boleh mengajukan ICV baru
+            }
+        }
+
+        $hariIni = now()->format('Y-m-d');
+        $kemarin = now()->subDay()->format('Y-m-d');
         // Fix: Change user_id to id_user for LaporanPenggunaanIcv table
-        if (!LaporanPenggunaanIcv::where('id_user', auth()->id())->where('tgl_pelaporan', now()->format('Y-m-d'))->exists() &&
+        if (
+            ! LaporanPenggunaanIcv::where('id_user', auth()->id())->whereIn('tgl_pelaporan', [$hariIni])->exists() &&
             auth()->user()->hasRole('user') &&
-            Icv::where('user_id', auth()->id())->exists()) {
+            Icv::where('user_id', auth()->id())->exists()
+        ) {
 
             Notification::make()
-                ->title('Laporan Penggunaan ICV')
-                ->body('Anda belum membuat laporan penggunaan ICV untuk hari ini.')
+                ->title('Laporan Penggunaan e-ICV')
+                ->body('Anda belum membuat laporan penggunaan e-ICV terbaru')
                 ->warning()
                 ->persistent()
                 ->send();
@@ -52,23 +177,9 @@ class CreateIcv extends CreateRecord
             redirect()->route('filament.admin.resources.laporan-penggunaan-icv.create');
         }
 
-
-
-
-        // Commented out working hours restriction
-        // if ((now()->hour < 8 || now()->hour >= 15) && !auth()->user()->hasRole('admin')) {
-        //     Notification::make()
-        //         ->title('Pengajuan ICV')
-        //         ->body('Pengajuan ICV hanya dapat dilakukan pada jam kerja (08:00 - 15:00).')
-        //         ->warning()
-        //         ->persistent()
-        //         ->send();
-        //     redirect()->route('filament.admin.resources.icv.daftar-pengajuan');
-        // }
-
         $izin = null;
 
-        if (!auth()->user()->hasRole('admin')) {
+        if (! auth()->user()->hasRole('admin')) {
             $izin = Izin::with('user', 'izinPersetujuan')
                 ->where('user_id', auth()->id())
                 ->first();
@@ -83,18 +194,341 @@ class CreateIcv extends CreateRecord
         }
 
         // Validasi izin untuk non-admin
-        if (!auth()->user()->hasRole('admin')) {
-            if (!$izin || !$izin->izinPersetujuan) {
-                Notification::make()
-                    ->title('Izin Tidak Ditemukan')
-                    ->body('Anda harus mengajukan izin terlebih dahulu sebelum membuat ICV.')
-                    ->danger()
-                    ->persistent()
-                    ->send();
+        // if (!auth()->user()->hasRole('admin')) {
+        //     if (!$izin || !$izin->izinPersetujuan) {
+        //         Notification::make()
+        //             ->title('Izin Tidak Ditemukan')
+        //             ->body('Anda harus mengajukan izin terlebih dahulu sebelum membuat ICV.')
+        //             ->danger()
+        //             ->persistent()
+        //             ->send();
 
-                // Redirect ke halaman pengajuan izin
-                redirect()->route('filament.admin.resources.izin.create');
-            }
+        //         // Redirect ke halaman pengajuan izin
+        //         redirect()->route('filament.admin.resources.izin.create');
+        //     }
+        // }
+    }
+
+    /**
+     * Check if user has vaksinator data
+     */
+    private function checkVaksinatorRequirement(int $userId): void
+    {
+        $vaksinator = Vaksinator::where('id_akun', $userId)->aktif()->first();
+
+        if (! $vaksinator) {
+            Notification::make()
+                ->title('Data Vaksinator Belum Lengkap')
+                ->body('Anda harus melengkapi data vaksinator terlebih dahulu sebelum dapat mengajukan e-ICV. Silakan lengkapi data vaksinator di menu vaksinator.')
+                ->danger()
+                ->persistent()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('lengkapi_vaksinator')
+                        ->label('Lengkapi Data Vaksinator')
+                        ->url(VaksinatorResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
+
+            // Redirect ke halaman vaksinator
+            redirect()->to(VaksinatorResource::getUrl());
+
+            return;
+        }
+
+        // Cek juga apakah vaksinator masih aktif
+        $this->validateVaksinatorStatus($vaksinator);
+    }
+
+    /**
+     * Validate vaksinator status (izin praktek dan sertifikat)
+     */
+    private function validateVaksinatorStatus(Vaksinator $vaksinator): void
+    {
+        $warnings = [];
+        $errors = [];
+
+        // Cek status izin praktek
+        if (! $vaksinator->masa_aktif_izin_praktek) {
+            $errors[] = '• Masa aktif izin praktek belum diisi';
+        } elseif ($vaksinator->masa_aktif_izin_praktek < now()) {
+            $errors[] = '• Izin praktek sudah kadaluarsa (' . $vaksinator->masa_aktif_izin_praktek->format('d/m/Y') . ')';
+        } elseif ($vaksinator->masa_aktif_izin_praktek <= now()->addDays(30)) {
+            $warnings[] = '• Izin praktek akan habis dalam 30 hari (' . $vaksinator->masa_aktif_izin_praktek->format('d/m/Y') . ')';
+        }
+
+        // Cek dokumen izin praktek
+        if (! $vaksinator->dokumen_izin_praktek) {
+            $errors[] = '• Dokumen izin praktek belum diupload';
+        }
+
+        // Cek status sertifikat vaksinator
+        if (! $vaksinator->masa_aktif_sertifikat) {
+            $errors[] = '• Masa aktif sertifikat vaksinator belum diisi';
+        } elseif ($vaksinator->masa_aktif_sertifikat < now()) {
+            $errors[] = '• Sertifikat vaksinator sudah kadaluarsa (' . $vaksinator->masa_aktif_sertifikat->format('d/m/Y') . ')';
+        } elseif ($vaksinator->masa_aktif_sertifikat <= now()->addDays(30)) {
+            $warnings[] = '• Sertifikat vaksinator akan habis dalam 30 hari (' . $vaksinator->masa_aktif_sertifikat->format('d/m/Y') . ')';
+        }
+
+        // Cek dokumen sertifikat vaksinator
+        if (! $vaksinator->dokumen_sertifikat_vaksinator) {
+            $errors[] = '• Dokumen sertifikat vaksinator belum diupload';
+        }
+
+        // Jika ada error, blokir pembuatan ICV
+        if (! empty($errors)) {
+            $errorMessage = "Data vaksinator Anda tidak valid untuk mengajukan e-ICV:\n\n" . implode("\n", $errors) . "\n\nSilakan perbarui data vaksinator terlebih dahulu.";
+
+            Notification::make()
+                ->title('Data Vaksinator Tidak Valid')
+                ->body($errorMessage)
+                ->danger()
+                ->persistent()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('perbarui_vaksinator')
+                        ->label('Perbarui Data Vaksinator')
+                        ->url(VaksinatorResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
+
+            redirect()->to(VaksinatorResource::getUrl());
+
+            return;
+        }
+
+        // Jika ada warning, tampilkan peringatan tapi tetap izinkan
+        if (! empty($warnings)) {
+            $warningMessage = "Peringatan mengenai data vaksinator Anda:\n\n" . implode("\n", $warnings) . "\n\nDisarankan untuk memperbarui data vaksinator segera.";
+
+            Notification::make()
+                ->title('Peringatan Data Vaksinator')
+                ->body($warningMessage)
+                ->warning()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('perbarui_vaksinator')
+                        ->label('Perbarui Data Vaksinator')
+                        ->url(VaksinatorResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
+        }
+    }
+
+    /**
+     * Check if user has surat persetujuan ICV data
+     */
+    private function checkSuratPersetujuanIcvRequirement(int $userId): void
+    {
+        $suratPersetujuan = SuratPersetujuanIcv::where('id_akun', $userId)->masihBerlaku()->first();
+
+        if (! $suratPersetujuan) {
+            Notification::make()
+                ->title('Surat Persetujuan e-ICV Belum Ada')
+                ->body('Anda harus memiliki Surat Persetujuan e-ICV terlebih dahulu sebelum dapat mengajukan e-ICV. Silakan lengkapi surat persetujuan e-ICV melalui menu yang tersedia.')
+                ->danger()
+                ->persistent()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('lihat_surat_persetujuan')
+                        ->label('Lihat Surat Persetujuan e-ICV')
+                        ->url(SuratPersetujuanIcvResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
+
+            // Redirect ke halaman surat persetujuan ICV
+            redirect()->to(SuratPersetujuanIcvResource::getUrl());
+
+            return;
+        }
+
+        // Cek juga apakah surat persetujuan masih berlaku
+        $this->validateSuratPersetujuanIcvStatus($suratPersetujuan);
+    }
+
+    /**
+     * Validate surat persetujuan ICV status (masa berlaku)
+     */
+    private function validateSuratPersetujuanIcvStatus(SuratPersetujuanIcv $suratPersetujuan): void
+    {
+        $warnings = [];
+        $errors = [];
+
+        // Cek status masa berlaku surat persetujuan
+        if (! $suratPersetujuan->masa_berlaku) {
+            $errors[] = '• Masa berlaku surat persetujuan e-ICV belum diisi';
+        } elseif ($suratPersetujuan->masa_berlaku < now()) {
+            $errors[] = '• Surat persetujuan e-ICV sudah kadaluarsa (' . $suratPersetujuan->masa_berlaku->format('d/m/Y') . ')';
+        } elseif ($suratPersetujuan->masa_berlaku <= now()->addDays(30)) {
+            $warnings[] = '• Surat persetujuan e-ICV akan habis dalam 30 hari (' . $suratPersetujuan->masa_berlaku->format('d/m/Y') . ')';
+        }
+
+        // Validasi nomor surat
+        if (! $suratPersetujuan->nomor_surat) {
+            $errors[] = '• Nomor surat persetujuan e-ICV belum diisi';
+        }
+
+        // Validasi tanggal surat
+        if (! $suratPersetujuan->tanggal_surat) {
+            $errors[] = '• Tanggal surat persetujuan e-ICV belum diisi';
+        }
+
+        // Jika ada error, blokir pembuatan ICV
+        if (! empty($errors)) {
+            $errorMessage = "Surat persetujuan e-ICV Anda tidak valid untuk mengajukan e-ICV:\n\n" . implode("\n", $errors) . "\n\nSilakan lengkapi atau perbarui surat persetujuan e-ICV terlebih dahulu.";
+
+            Notification::make()
+                ->title('Surat Persetujuan e-ICV Tidak Valid')
+                ->body($errorMessage)
+                ->danger()
+                ->persistent()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('lihat_surat_persetujuan')
+                        ->label('Lihat Surat Persetujuan e-ICV')
+                        ->url(SuratPersetujuanIcvResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
+
+            redirect()->to(SuratPersetujuanIcvResource::getUrl());
+
+            return;
+        }
+
+        // Jika ada warning, tampilkan peringatan tapi tetap izinkan
+        if (! empty($warnings)) {
+            $warningMessage = "Peringatan mengenai surat persetujuan e-ICV Anda:\n\n" . implode("\n", $warnings) . "\n\nDisarankan untuk memperbarui surat persetujuan e-ICV segera.";
+
+            Notification::make()
+                ->title('Peringatan Surat Persetujuan e-ICV')
+                ->body($warningMessage)
+                ->warning()
+                ->actions([
+                    \Filament\Notifications\Actions\Action::make('lihat_surat_persetujuan')
+                        ->label('Lihat Surat Persetujuan e-ICV')
+                        ->url(SuratPersetujuanIcvResource::getUrl())
+                        ->button(),
+                ])
+                ->send();
+        }
+    }
+
+    protected function beforeCreate(): void
+    {
+        $data = $this->data;
+        $userId = $data['user_id'] ?? auth()->id();
+
+        // Validasi vaksinator untuk user yang dipilih (termasuk untuk admin)
+        $this->validateUserVaksinator($userId);
+
+        // Validasi surat persetujuan ICV untuk user yang dipilih (termasuk untuk admin)
+        $this->validateUserSuratPersetujuanIcv($userId);
+    }
+
+    /**
+     * Validate that selected user has valid vaksinator data
+     */
+    private function validateUserVaksinator(int $userId): void
+    {
+        $vaksinator = Vaksinator::where('id_akun', $userId)->aktif()->first();
+
+        if (! $vaksinator) {
+            $user = \App\Models\User::find($userId);
+            $userName = $user ? $user->name : 'User';
+
+            Notification::make()
+                ->title('Data Vaksinator Tidak Lengkap')
+                ->body("{$userName} belum memiliki data vaksinator. Data vaksinator harus dilengkapi terlebih dahulu sebelum dapat mengajukan e-ICV.")
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->halt();
+        }
+
+        // Validasi status vaksinator
+        $errors = [];
+
+        if (! $vaksinator->masa_aktif_izin_praktek || $vaksinator->masa_aktif_izin_praktek < now()) {
+            $errors[] = 'Izin praktek tidak valid atau sudah kadaluarsa';
+        }
+
+        if (! $vaksinator->dokumen_izin_praktek) {
+            $errors[] = 'Dokumen izin praktek belum diupload';
+        }
+
+        if (! $vaksinator->masa_aktif_sertifikat || $vaksinator->masa_aktif_sertifikat < now()) {
+            $errors[] = 'Sertifikat vaksinator tidak valid atau sudah kadaluarsa';
+        }
+
+        if (! $vaksinator->dokumen_sertifikat_vaksinator) {
+            $errors[] = 'Dokumen sertifikat vaksinator belum diupload';
+        }
+
+        if (! empty($errors)) {
+            $user = \App\Models\User::find($userId);
+            $userName = $user ? $user->name : 'User';
+
+            Notification::make()
+                ->title('Data Vaksinator Tidak Valid')
+                ->body("{$userName} memiliki masalah dengan data vaksinator:\n• " . implode("\n• ", $errors) . "\n\nSilakan perbarui data vaksinator terlebih dahulu.")
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->halt();
+        }
+    }
+
+    /**
+     * Validate that selected user has valid surat persetujuan ICV
+     */
+    private function validateUserSuratPersetujuanIcv(int $userId): void
+    {
+        $suratPersetujuan = SuratPersetujuanIcv::where('id_akun', $userId)->masihBerlaku()->first();
+
+        if (! $suratPersetujuan) {
+            $user = \App\Models\User::find($userId);
+            $userName = $user ? $user->name : 'User';
+
+            Notification::make()
+                ->title('Surat Persetujuan e-ICV Tidak Ada')
+                ->body("{$userName} belum memiliki Surat Persetujuan e-ICV. Surat persetujuan e-ICV harus ada terlebih dahulu sebelum dapat mengajukan e-ICV.")
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->halt();
+        }
+
+        // Validasi status surat persetujuan
+        $errors = [];
+
+        if (! $suratPersetujuan->masa_berlaku || $suratPersetujuan->masa_berlaku < now()) {
+            $errors[] = 'Surat persetujuan e-ICV tidak valid atau sudah kadaluarsa';
+        }
+
+        if (! $suratPersetujuan->nomor_surat) {
+            $errors[] = 'Nomor surat persetujuan e-ICV belum diisi';
+        }
+
+        if (! $suratPersetujuan->tanggal_surat) {
+            $errors[] = 'Tanggal surat persetujuan e-ICV belum diisi';
+        }
+
+        if (! empty($errors)) {
+            $user = \App\Models\User::find($userId);
+            $userName = $user ? $user->name : 'User';
+
+            Notification::make()
+                ->title('Surat Persetujuan e-ICV Tidak Valid')
+                ->body("{$userName} memiliki masalah dengan surat persetujuan e-ICV:\n• " . implode("\n• ", $errors) . "\n\nSilakan lengkapi atau perbarui surat persetujuan e-ICV terlebih dahulu.")
+                ->danger()
+                ->persistent()
+                ->send();
+
+            $this->halt();
         }
     }
 }

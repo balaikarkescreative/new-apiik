@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ICV Berhasil Dialokasikan</title>
+    <title>e-ICV Berhasil Dialokasikan</title>
     <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .header {
@@ -116,19 +116,19 @@
 <body>
     <div class="header">
         <div class="celebration">🎉</div>
-        <h1>ICV Berhasil Dialokasikan!</h1>
+        <h1>e-ICV Berhasil Dialokasikan!</h1>
         <div class="status-badge">ALOKASI BERHASIL</div>
     </div>
 
     <div class="content">
         <p>Yth. {{ $icv->user->name }},</p>
 
-        <p><strong>Kabar gembira!</strong> Kami dengan senang hati menginformasikan bahwa pengajuan ICV Anda telah berhasil dialokasikan dan siap untuk tahap berikutnya.</p>
+        <p><strong>Kabar gembira!</strong> Kami dengan senang hati menginformasikan bahwa pengajuan e-ICV Anda telah berhasil dialokasikan dan siap untuk tahap berikutnya.</p>
 
         <div class="allocation-box">
             <h2 style="color: #10b981; margin-top: 0;">✅ ALOKASI BERHASIL</h2>
             <p style="font-size: 18px; margin: 20px 0; font-weight: 500;">
-                ICV telah dialokasikan untuk<br>
+                e-ICV telah dialokasikan untuk<br>
                 <strong>{{ $icv->user->name }}</strong>
             </p>
             <div style="background-color: white; border-radius: 10px; padding: 20px; margin: 20px 0;">
@@ -148,7 +148,7 @@
         </div>
 
         <div class="info-box">
-            <h3>Detail Pengajuan ICV</h3>
+            <h3>Detail Pengajuan e-ICV</h3>
             <table style="width: 100%; border-collapse: collapse;">
                 <tr>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>ID Pengajuan:</strong></td>
@@ -171,7 +171,7 @@
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ $icv->icvAlokasi->date_updated->format('d/m/Y H:i') }}</td>
                 </tr>
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Stok Tersedia:</strong></td>
+                    <td style="padding: 8px; border-bottom: 1px solid #ddd;"><strong>Stok e-ICV yang Tersedia:</strong></td>
                     <td style="padding: 8px; border-bottom: 1px solid #ddd;">{{ number_format($icv->icvCekDokumen->stok_vaksin) }} unit</td>
                 </tr>
             </table>
@@ -196,7 +196,7 @@
         <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 10px; padding: 25px; margin: 30px 0; text-align: center;">
             <h3 style="color: #059669; margin-top: 0;">🎊 Selamat! 🎊</h3>
             <p style="font-size: 16px; margin: 15px 0;">
-                ICV Anda telah berhasil dialokasikan. Silakan tunggu informasi billing dan lakukan pembayaran tepat waktu.
+                e-ICV Anda telah berhasil dialokasikan. Silakan tunggu informasi billing dan lakukan pembayaran tepat waktu.
             </p>
             <p style="color: #6b7280; font-style: italic;">
                 "Vaksinasi adalah investasi terbaik untuk kesehatan masyarakat"

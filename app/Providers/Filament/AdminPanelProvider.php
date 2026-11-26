@@ -2,38 +2,34 @@
 
 namespace App\Providers\Filament;
 
-use App\Filament\Pages\Auth\Login;
-use App\Filament\Pages\Auth\Register;
+use App\Filament\Pages\Auth\CombinedAuth;
 use App\Filament\Pages\EditProfil;
-use Filament\Enums\ThemeMode;
-use Filament\Navigation\MenuItem;
-
-use App\Models\Izin;
-
 use App\Filament\Resources\IcvResource;
 use App\Filament\Resources\IzinResource;
-use App\Filament\Resources\UserResource;
+use App\Http\Middleware\CheckPaktaIntegritas;
+use App\Models\Izin;
+use Devonab\FilamentEasyFooter\EasyFooterPlugin;
+use Filament\Enums\ThemeMode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\MenuItem;
 use Filament\Navigation\NavigationItem;
 use Filament\Pages;
-use Filament\Pages\Auth\EditProfile;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
-use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Joaopaulolndev\FilamentGeneralSettings\FilamentGeneralSettingsPlugin;
 use Illuminate\Support\Facades\Auth;
-use Devonab\FilamentEasyFooter\EasyFooterPlugin;
-
+use Illuminate\Support\Facades\Storage;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -43,138 +39,193 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->defaultThemeMode(ThemeMode::System)
             ->breadcrumbs(false)
-            ->favicon(asset("storage/assets/site_favicon.ico"))
-            ->brandName("APIIK")
+            ->favicon(Storage::url('assets/site_favicon.ico'))
+            ->brandName('APIIK')
             ->brandLogo(
-                asset("storage/assets/site_logo.png"),
+                Storage::url('assets/site_logo.png')
             )
-            ->id("admin")
-            ->path("")
+            ->id('admin')
+            ->path('')
             ->pages([
                 Pages\Dashboard::class,
             ])
-            ->login(Login::class)
-            ->registration(Register::class)
+            ->login(CombinedAuth::class)
+            ->loginRouteSlug('home')
+            // ->registration(CombinedAuth::class)
             ->colors([
-                "primary" => Color::Amber,
+                'primary' => Color::Amber,
             ])
             // ->profile(EditProfile::class, isSimple: false)
             ->userMenuItems(
                 [
                     MenuItem::make()
-                        ->url(fn() => EditProfil::getUrl())
+                        ->url(fn () => EditProfil::getUrl())
                         ->icon('heroicon-o-user-circle')
-                        ->label('Edit Profil'),
+                        ->label('Edit Profil')
+                        ->visible(fn () => Auth::check() && ! Auth::user()->hasRole('dokter')),
                 ]
             )
             ->navigationItems([
                 NavigationItem::make('Dasbor')
                     ->icon('heroicon-o-home')
                     ->url('/')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.pages.dashboard'))
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.pages.dashboard'))
                     ->sort(0),
                 // Izin
                 NavigationItem::make(function () {
                     $userId = Auth::user()?->id;
-                    $existingIzinBaru = Izin::where('user_id', $userId)
-                        ->where('kategori_izin', 'Izin Baru')
+                    $existingNewPermit = Izin::where('user_id', $userId)
+                        ->where(function ($query) {
+                            $query->where('kategori_izin', 'Izin Baru')
+                                ->orWhere('kategori_izin', 'Perpanjang Izin');
+                        })
+                        ->whereHas('izinDokumenPks', function ($query) {
+                            $query->whereNotNull('dokumen_pks_bkk');
+                        })
                         ->exists();
-                    if ($existingIzinBaru) {
+                    if ($existingNewPermit) {
                         return 'Buat Pengajuan Izin Perpanjang';
                     }
+
                     return 'Buat Pengajuan Izin Baru';
                 })
                     ->icon('heroicon-o-plus')
-                    ->visible(fn() => Auth::user()->hasRole('user') || Auth::user()->hasRole('admin'))
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.izin.create'))
+                    ->visible(fn () => Auth::user()->hasRole('user') || Auth::user()->hasRole('admin'))
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.izin.create'))
                     ->group('Izin')
                     ->url(function (Izin $record) {
                         $userId = Auth::user()?->id;
-                        $existingIzinBaru = Izin::where('user_id', $userId)
-                            ->where('kategori_izin', 'Izin Baru')
+                        $existingNewPermit = Izin::where('user_id', $userId)
+                            ->where(function ($query) {
+                                $query->where('kategori_izin', 'Izin Baru')
+                                    ->orWhere('kategori_izin', 'Perpanjang Izin');
+                            })
+                            ->whereHas('izinDokumenPks', function ($query) {
+                                $query->whereNotNull('dokumen_pks_bkk');
+                            })
                             ->exists();
-                        if ($existingIzinBaru) {
+                        if ($existingNewPermit) {
                             return IzinResource::getUrl('create', ['type' => 'perpanjang']);
                         }
+
                         return IzinResource::getUrl('create', ['type' => 'baru']);
                     }),
                 NavigationItem::make('Daftar Pengajuan Izin')
                     ->icon('heroicon-o-list-bullet')
                     ->group('Izin')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.izin.daftar-pengajuan'))
-                    ->visible(fn() => Auth::user()->hasRole('user'))
-                    ->url(fn() => IzinResource::getUrl('daftar-pengajuan')),
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.izin.daftar-pengajuan'))
+                    ->visible(fn () => Auth::user()->hasRole('user'))
+                    ->url(fn () => IzinResource::getUrl('daftar-pengajuan')),
                 NavigationItem::make('Pengajuan Izin')
                     ->icon('heroicon-o-document-check')
                     ->group('Izin')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.izin.verifikasi'))
-                    ->url(fn() => IzinResource::getUrl('verifikasi'))
-                    ->visible(fn() => Auth::user()->hasRole('admin')),
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.izin.verifikasi'))
+                    ->url(fn () => IzinResource::getUrl('verifikasi'))
+                    ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('dokter')),
                 NavigationItem::make('Surat Persetujuan')
                     ->icon('heroicon-o-document-text')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.izin.surat-persetujuan'))
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.izin.surat-persetujuan'))
                     ->group('Izin')
-                    ->url(fn() => IzinResource::getUrl('surat-persetujuan'))
-                    ->visible(fn() => Auth::user()->hasRole('verifikator1')),
+                    ->url(fn () => IzinResource::getUrl('surat-persetujuan'))
+                    ->visible(fn () => Auth::user()->hasRole('verifikator1')),
                 NavigationItem::make('Kelola Pengajuan Izin')
                     ->icon('heroicon-o-cog')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.izin.index'))
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.izin.index'))
                     ->group('Izin')
-                    ->url(fn() => IzinResource::getUrl('index'))
-                    ->visible(fn() => Auth::user()->hasRole('admin')),
+                    ->url(fn () => IzinResource::getUrl('index'))
+                    ->visible(fn () => Auth::user()->hasRole('admin')),
                 // ICV
-                NavigationItem::make('Buat Pengajuan ICV')
+                NavigationItem::make('Buat Pengajuan e-ICV')
                     ->icon('heroicon-o-plus')
-                    ->group('ICV')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.icv.create'))
-                    ->url(fn() => IcvResource::getUrl('create'))
-                    ->visible(fn() => Auth::user()->hasRole('user') || Auth::user()->hasRole('admin')),
-                NavigationItem::make('Daftar Pengajuan ICV')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.icv.daftar-pengajuan'))
+                    ->group('e-ICV')
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.icv.create'))
+                    ->url(fn () => IcvResource::getUrl('create'))
+                    ->visible(fn () => Auth::user()->hasRole('user') || Auth::user()->hasRole('admin')),
+                NavigationItem::make('Daftar Pengajuan e-ICV')
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.icv.daftar-pengajuan'))
                     ->icon('heroicon-o-list-bullet')
-                    ->group('ICV')
-                    ->url(fn() => IcvResource::getUrl('daftar-pengajuan'))
-                    ->visible(fn() => Auth::user()->hasRole(['verifikator2', 'user'])),
-                NavigationItem::make('Pengajuan ICV')
+                    ->group('e-ICV')
+                    ->url(fn () => IcvResource::getUrl('daftar-pengajuan'))
+                    ->visible(fn () => Auth::user()->hasRole(['verifikator2', 'user'])),
+                NavigationItem::make('Pengajuan e-ICV')
                     ->icon('heroicon-o-document-check')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.icv.verifikasi'))
-                    ->group('ICV')
-                    ->url(fn() => IcvResource::getUrl('verifikasi'))
-                    ->visible(fn() => Auth::user()->hasRole('admin')),
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.icv.verifikasi'))
+                    ->group('e-ICV')
+                    ->url(fn () => IcvResource::getUrl('verifikasi'))
+                    ->visible(fn () => Auth::user()->hasRole('admin')),
                 NavigationItem::make('Penerbitan Kode Billing')
                     ->icon('heroicon-o-credit-card')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.icv.penerbitan-billing'))
-                    ->group('ICV')
-                    ->url(fn() => IcvResource::getUrl('penerbitan-billing'))
-                    ->visible(fn() => Auth::user()->hasRole('verifikator1')),
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.icv.penerbitan-billing'))
+                    ->group('e-ICV')
+                    ->url(fn () => IcvResource::getUrl('penerbitan-billing'))
+                    ->visible(fn () => Auth::user()->hasRole('verifikator1')),
 
-                NavigationItem::make('Jadwal Distribusi ICV')
+                NavigationItem::make('Jadwal Distribusi e-ICV')
                     ->icon('heroicon-o-calendar')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.icv.jadwal-distribusi'))
-                    ->group('ICV')
-                    ->url(fn() => IcvResource::getUrl('jadwal-distribusi'))
-                    ->visible(fn() => Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('pos')),
-                NavigationItem::make('Surar Bukti Barang Keluar')
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.icv.jadwal-distribusi'))
+                    ->group('e-ICV')
+                    ->url(fn () => IcvResource::getUrl('jadwal-distribusi'))
+                    ->visible(fn () => Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('pos')),
+                NavigationItem::make('Update Sinkarkes')
                     ->icon('heroicon-o-document-text')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.icv.upload-sbbk'))
-                    ->group('ICV')
-                    ->url(fn() => IcvResource::getUrl('upload-sbbk'))
-                    ->visible(fn() => Auth::user()->hasRole('verifikator1')),
-                NavigationItem::make('Kelola Pengajuan ICV')
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.icv.upload-sbbk'))
+                    ->group('e-ICV')
+                    ->url(fn () => IcvResource::getUrl('upload-sbbk'))
+                    ->visible(fn () => Auth::user()->hasRole('verifikator1')),
+                NavigationItem::make('Kelola Pengajuan e-ICV')
                     ->icon('heroicon-o-cog')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.icv.index'))
-                    ->group('ICV')
-                    ->url(fn() => IcvResource::getUrl('index'))
-                    ->visible(fn() => Auth::user()->hasRole('admin')),
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.icv.index'))
+                    ->group('e-ICV')
+                    ->url(fn () => IcvResource::getUrl('index'))
+                    ->visible(fn () => Auth::user()->hasRole('admin')),
 
-                NavigationItem::make('Verifikasi Dokumen ICV')
+                NavigationItem::make('Verifikasi Dokumen e-ICV')
                     ->icon('heroicon-o-document-check')
-                    ->isActiveWhen(fn() => request()->routeIs('filament.admin.resources.icv.verifikasi-dokumen'))
-                    ->group('ICV')
-                    ->url(fn() => IcvResource::getUrl('verifikasi-dokumen'))
-                    ->visible(fn() => Auth::user()->hasRole('verifikator2')),
-                // User
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.icv.verifikasi-dokumen'))
+                    ->group('e-ICV')
+                    ->url(fn () => IcvResource::getUrl('verifikasi-dokumen'))
+                    ->visible(fn () => Auth::user()->hasRole('verifikator2')),
+                NavigationItem::make('Unduh Draft PKS')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->sort(100)
+                    ->visible(function () {
+                        if (Auth::user()->hasRole('dokter')) {
+                            return false;
+                        }
 
+                        if (! Auth::user()->hasRole('user')) {
+                            return true;
+                        }
+
+                        // Cek apakah ada surat persetujuan yang masih berlaku
+                        $hasSuratBerlaku = \App\Models\SuratPersetujuanIcv::where('id_akun', Auth::user()->id)
+                            ->where('masa_berlaku', '>=', now())
+                            ->exists();
+
+                        // Jika ada surat yang masih berlaku, tampilkan button
+                        if ($hasSuratBerlaku) {
+                            return true;
+                        }
+
+                        // Jika surat sudah habis, cek apakah ada izin baru dengan visitasi disetujui
+                        $latestIzin = Izin::where('user_id', Auth::user()->id)
+                            ->latest('tanggal_pengajuan')
+                            ->first();
+
+                        return $latestIzin
+                            && $latestIzin->izinVisitasi
+                            && $latestIzin->izinVisitasi->status === 'Memenuhi syarat';
+                    })
+                    ->url(fn () => Storage::url('draft-pks/Draft Perjanjian Kerjasama (PKS) Vaksin_OK_OK.doc'), true),
+                // ->visible(fn () => Auth::user()->hasRole('user')),
+
+                NavigationItem::make('File Surat Persetujuan e-ICV')
+                    ->icon('heroicon-o-document-check')
+                    ->sort(101)
+                    ->isActiveWhen(fn () => request()->routeIs('filament.admin.resources.izin.izin-persetujuan'))
+                    ->url(fn () => IzinResource::getUrl('izin-persetujuan'))
+                    ->visible(fn () => Auth::user()->hasRole('admin') || Auth::user()->hasRole('verifikator1') || Auth::user()->hasRole('user')),
+                // User
 
                 // NavigationItem::make('Edit Profil')
                 //     ->url(fn() => UserResource::getUrl('edit-profil'))
@@ -182,17 +233,17 @@ class AdminPanelProvider extends PanelProvider
 
             ])
             ->discoverResources(
-                in: app_path("Filament/Resources"),
-                for: "App\\Filament\\Resources"
+                in: app_path('Filament/Resources'),
+                for: 'App\\Filament\\Resources'
             )
             ->discoverPages(
-                in: app_path("Filament/Pages"),
-                for: "App\\Filament\\Pages"
+                in: app_path('Filament/Pages'),
+                for: 'App\\Filament\\Pages'
             )
             ->pages([Pages\Dashboard::class])
             ->discoverWidgets(
-                in: app_path("Filament/Widgets"),
-                for: "App\\Filament\\Widgets"
+                in: app_path('Filament/Widgets'),
+                for: 'App\\Filament\\Widgets'
             )
             ->widgets([
                 Widgets\AccountWidget::class,
@@ -208,23 +259,32 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                CheckPaktaIntegritas::class,
             ])
             ->authMiddleware([Authenticate::class])
             ->colors([
-                "primary" => Color::Emerald,
-                "secondary" => Color::Gray,
-                "success" => Color::Green,
-                "danger" => Color::Red,
-                "warning" => Color::Amber,
-                "info" => Color::Blue,
+                'primary' => Color::Emerald,
+                'secondary' => Color::Gray,
+                'success' => Color::Green,
+                'danger' => Color::Red,
+                'warning' => Color::Amber,
+                'info' => Color::Blue,
             ])
-            ->theme(asset('css/filament/admin/theme.css'))
+            ->viteTheme('resources/css/filament/admin/theme.css')
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn () => view('filament.scripts.disable-number-spinners')
+            )
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn () => view('filament.components.export-progress-modal')
+            )
             ->plugins(
                 [
 
                     EasyFooterPlugin::make()
                         ->hiddenFromPagesEnabled()
-                        ->hiddenFromPages(['login', 'register'])
+                        ->hiddenFromPages(['home']),
                 ]
             );
     }
