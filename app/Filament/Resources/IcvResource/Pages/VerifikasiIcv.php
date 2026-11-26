@@ -434,6 +434,7 @@ class VerifikasiIcv extends Page implements HasTable
                             'hasil_verif' => $record->icvCekDokumen?->hasil_verif,
                             'catatan_verif' => $record->icvCekDokumen?->catatan,
                             'stok_vaksin' => $record->icvCekDokumen?->stok_vaksin,
+                            'stok_icv' => $record->icvCekDokumen?->stok_icv,
                             'tanggal_perbaikan' => $record->tanggal_perbaikan ?? null,
 
                             // Step 2: Alokasi
@@ -735,9 +736,11 @@ class VerifikasiIcv extends Page implements HasTable
                                 ->afterStateUpdated(function (Get $get, Set $set) {
                                     if ($get('hasil_verif') === '2') {
                                         $set('stok_vaksin', 0);
+                                        $set('stok_icv', 0);
                                     }
                                     if ($get('hasil_verif') === '3') {
                                         $set('stok_vaksin', 0);
+                                        $set('stok_icv', 0);
                                     }
                                     if ($get('hasil_verif') === '1') {
                                         $set('catatan_verif', null); // <-- Tambahkan baris ini
@@ -760,9 +763,16 @@ class VerifikasiIcv extends Page implements HasTable
                                     }
                                 }),
 
-                            Grid::make(2)->schema([
+                            Grid::make(3)->schema([
                                 TextInput::make('stok_vaksin')
                                     ->label('Stok Vaksin Tersedia')
+                                    ->numeric()
+                                    ->minValue(0)
+                                    ->visible(fn (Get $get): bool => $get('hasil_verif') === '1')
+                                    ->required(fn (Get $get): bool => $get('hasil_verif') === '1'),
+
+                                TextInput::make('stok_icv')
+                                    ->label('Jumlah e-ICV yang Tersedia')
                                     ->numeric()
                                     ->minValue(0)
                                     ->visible(fn (Get $get): bool => $get('hasil_verif') === '1')
@@ -817,6 +827,7 @@ class VerifikasiIcv extends Page implements HasTable
                                             'hasil_verif' => $hasil,
                                             'catatan' => $catatan ?? '',
                                             'stok_vaksin' => $get('stok_vaksin') ?? 0,
+                                            'stok_icv' => $get('stok_icv') ?? 0,
                                             'jumlah_icv' => $record->jumlah_icv,
                                             'status' => 1,
                                             'date_updated' => now(),

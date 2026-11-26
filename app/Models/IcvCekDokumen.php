@@ -14,6 +14,7 @@ class IcvCekDokumen extends Model
         "id_icv",
         "hasil_verif",
         "stok_vaksin",
+        "stok_icv",
         "jumlah_icv",
         "catatan",
         "status",
@@ -22,6 +23,7 @@ class IcvCekDokumen extends Model
 
     protected $casts = [
         "stok_vaksin" => "integer",
+        "stok_icv" => "integer",
         "jumlah_icv" => "integer",
         "status" => "integer",
         "date_updated" => "datetime",
