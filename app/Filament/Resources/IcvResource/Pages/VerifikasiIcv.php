@@ -928,7 +928,7 @@ class VerifikasiIcv extends Page implements HasTable
                         ->schema([
                             Grid::make(3)->schema([
                                 TextInput::make('alokasi_stok_vaksin')
-                                    ->label('Stok e-ICV yang Tersedia')
+                                    ->label('Stok Vaksin yang Tersedia')
                                     ->numeric()
                                     ->minValue(0)
                                     ->required()
