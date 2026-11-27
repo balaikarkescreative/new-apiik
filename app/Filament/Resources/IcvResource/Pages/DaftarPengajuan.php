@@ -331,7 +331,7 @@ class DaftarPengajuan extends Page implements HasInfolists, HasTable
                                     }),
 
                                 TextEntry::make('stok_icv_tersedia')
-                                    ->label('Stok e-ICV yang Tersedia')
+                                    ->label('Stok Vaksin yang Tersedia')
                                     ->getStateUsing(fn ($record) => number_format($record->icvCekDokumen?->stok_vaksin ?? 0) . ' unit')
                                     ->visible(fn ($record) => $record->icvCekDokumen && $record->icvCekDokumen->stok_vaksin !== null),
 
